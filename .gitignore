@@ -1,0 +1,5 @@
+# 根目录不是 npm 工程：依赖统一在 backend/ 下安装，
+# 防止误在仓库根执行 npm install 后再次提交 npm 产物。
+/node_modules/
+/package.json
+/package-lock.json
