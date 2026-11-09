@@ -4,6 +4,7 @@ import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { sanitizeRichHtml } from '../../common/utils/sanitize.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { BlockedWordService } from '../blocked-word/blocked-word.service';
 import { CreateCommentDto } from '../dto/create-comment.dto';
 import { CommentView, ReplyView } from '../post/post.service';
@@ -21,11 +22,12 @@ interface CreatedCommentRow {
 // 评论服务：一级评论、回复（仅两层）与删除
 @Injectable()
 export class CommentService {
-  // 构造函数：注入 Prisma、屏蔽词与幂等服务
+  // 构造函数：注入 Prisma、屏蔽词、幂等与存储签名服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly blockedWords: BlockedWordService,
     private readonly idempotency: IdempotencyService,
+    private readonly storage: StorageService,
   ) {}
 
   // 发表一级评论：帖子必须存在，内容净化 + 屏蔽词校验
@@ -54,7 +56,7 @@ export class CommentService {
           id: created.id,
           userId: created.userId,
           nickname: created.user.nickname,
-          content: created.content,
+          content: await this.storage.signRichHtml(created.content),
           createdAt: created.createdAt,
           replies: [],
         };
@@ -118,7 +120,7 @@ export class CommentService {
           userId: created.userId,
           nickname: created.user.nickname,
           replyToNickname,
-          content: created.content,
+          content: await this.storage.signRichHtml(created.content),
           createdAt: created.createdAt,
         };
       },

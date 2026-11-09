@@ -5,8 +5,10 @@ import * as bcrypt from 'bcrypt';
 import { Request } from 'express';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
+import { isStorageKey } from '../common/utils/media.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { RateLimitService } from '../redis/rate-limit.service';
+import { StorageService } from '../storage/storage.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -35,7 +37,8 @@ export interface UserProfile {
   id: number; // 用户 id
   email: string; // 邮箱（只读）
   nickname: string; // 昵称
-  avatarUrl: string | null; // 头像 URL
+  avatarKey: string | null; // 头像对象存储 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 头像展示地址（key 为签名 URL，历史 http 原样）
   gender: Gender; // 性别
   role: UserRole; // 角色
   createdAt: Date; // 注册时间
@@ -63,13 +66,14 @@ function credentialsError(): BizException {
 // 认证服务：注册/登录/登出/当前用户/改密
 @Injectable()
 export class AuthService {
-  // 构造函数：注入数据库、会话、TOTP、限流与配置服务
+  // 构造函数：注入数据库、会话、TOTP、限流、配置与存储签名服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionService,
     private readonly totp: TotpService,
     private readonly rateLimit: RateLimitService,
     private readonly config: ConfigService,
+    private readonly storage: StorageService,
   ) {}
 
   // 注册：不自动登录
@@ -175,7 +179,11 @@ export class AuthService {
     if (!profile) {
       throw new BizException(ErrorCode.UNAUTHORIZED, '未登录', 401);
     }
-    return profile;
+    return {
+      ...profile,
+      avatarKey: isStorageKey(profile.avatarUrl) ? profile.avatarUrl : null,
+      avatarUrl: await this.storage.resolveUrl(profile.avatarUrl),
+    };
   }
 
   // 修改密码：成功后吊销该用户全部会话

@@ -12,6 +12,11 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
+import {
+  applyImageUrls,
+  collectImageKeys,
+  isStorageKey,
+} from '../common/utils/media.util';
 import type { AppConfig } from '../config/configuration';
 import { detectImageType, type ImageType } from './image-validator.util';
 
@@ -19,8 +24,8 @@ import { detectImageType, type ImageType } from './image-validator.util';
 export const S3_CLIENT = 'S3_CLIENT';
 // 单张图片体积上限：2MB
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-// 签名 GET URL 默认有效期：15 分钟
-export const DEFAULT_IMAGE_URL_TTL_SEC = 900;
+// 签名 GET URL 默认有效期：1 小时（可由 MINIO_PRESIGN_TTL_SECONDS 覆盖）
+export const DEFAULT_IMAGE_URL_TTL_SEC = 3600;
 
 // 图片类型到标准 MIME 的映射
 const MIME_BY_TYPE: Record<ImageType, string> = {
@@ -45,7 +50,7 @@ export interface UploadImageInput {
 // 上传结果：对象存储 key 与可直接访问的签名 URL
 export interface UploadData {
   key: string; // 对象存储 key
-  url: string; // 15 分钟签名 GET URL
+  url: string; // 签名 GET URL（默认 1 小时）
 }
 
 // 对象存储服务：封装 S3 协议（MinIO 兼容）上传与签名访问
@@ -134,10 +139,10 @@ export class StorageService implements OnModuleInit {
     return { key, url };
   }
 
-  // 生成签名 GET URL：默认 15 分钟，可按展示场景覆盖
+  // 生成签名 GET URL：默认使用配置有效期，可按展示场景覆盖
   async presignGet(
     key: string,
-    expiresInSec: number = DEFAULT_IMAGE_URL_TTL_SEC,
+    expiresInSec: number = this.presignTtlSec(),
   ): Promise<string> {
     // 使用 S3 签名器为私有对象生成临时访问链接
     return getSignedUrl(
@@ -145,6 +150,37 @@ export class StorageService implements OnModuleInit {
       new GetObjectCommand({ Bucket: this.minio().bucket, Key: key }),
       { expiresIn: expiresInSec },
     );
+  }
+
+  // 解析图片地址：空值/非法值返回 null，历史 http(s) 原样返回，存储 key 生成签名地址
+  async resolveUrl(value: string | null | undefined): Promise<string | null> {
+    if (value === null || value === undefined || value === '') return null;
+    // 历史数据兼容：已是对外地址则不再签名
+    if (/^https?:\/\//i.test(value)) return value;
+    // 无法识别的值不返回，避免把异常内容透传给前端
+    if (!isStorageKey(value)) return null;
+    return this.presignGet(value);
+  }
+
+  // 富文本图片签名：收集 img 的 key，批量签名后重写 src，保留 data-key
+  async signRichHtml(html: string): Promise<string> {
+    // 空内容直接返回
+    if (!html) return html;
+    // 收集需要签名的 key（已去重）
+    const keys = collectImageKeys(html);
+    if (keys.length === 0) return html;
+    // 并发生成签名，构造 key -> URL 映射
+    const urls = new Map(
+      await Promise.all(
+        keys.map(async (key) => [key, await this.presignGet(key)] as const),
+      ),
+    );
+    return applyImageUrls(html, urls);
+  }
+
+  // 读取签名有效期配置
+  private presignTtlSec(): number {
+    return this.minio().presignTtlSec ?? DEFAULT_IMAGE_URL_TTL_SEC;
   }
 
   // 读取 MinIO 配置段

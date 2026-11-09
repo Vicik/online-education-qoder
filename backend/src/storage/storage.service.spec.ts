@@ -25,7 +25,9 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
 // 生成登录用的 ConfigService 替身
-function fakeConfig(): ConfigService {
+function fakeConfig(
+  overrides: Partial<{ presignTtlSec: number }> = {},
+): ConfigService {
   return {
     get: jest.fn(() => ({
       endpoint: 'http://minio.local',
@@ -33,6 +35,8 @@ function fakeConfig(): ConfigService {
       secretKey: 'minioadmin',
       bucket: 'zhixu',
       publicUrl: 'http://minio.local/zhixu',
+      presignTtlSec: 3600,
+      ...overrides,
     })),
   } as unknown as ConfigService;
 }
@@ -96,7 +100,7 @@ describe('StorageService', () => {
     expect(getSignedUrlMock).toHaveBeenCalledWith(
       s3,
       expect.any(GetObjectCommand),
-      { expiresIn: 900 },
+      { expiresIn: 3600 },
     );
   });
 
@@ -126,7 +130,7 @@ describe('StorageService', () => {
     expect(s3.send).not.toHaveBeenCalled();
   });
 
-  it('presignGet 默认 15 分钟，可覆盖过期时间', async () => {
+  it('presignGet 默认使用配置有效期，可覆盖过期时间', async () => {
     getSignedUrlMock.mockResolvedValue('https://minio.local/signed');
 
     await expect(service.presignGet('zhixu/a.png')).resolves.toBe(
@@ -135,7 +139,7 @@ describe('StorageService', () => {
     expect(getSignedUrlMock).toHaveBeenLastCalledWith(
       s3,
       expect.any(GetObjectCommand),
-      { expiresIn: 900 },
+      { expiresIn: 3600 },
     );
 
     await service.presignGet('zhixu/a.png', 60);
@@ -144,5 +148,80 @@ describe('StorageService', () => {
       expect.any(GetObjectCommand),
       { expiresIn: 60 },
     );
+  });
+
+  it('presignGet 有效期取自配置', async () => {
+    getSignedUrlMock.mockResolvedValue('https://minio.local/signed');
+    const custom = new StorageService(
+      s3 as never,
+      fakeConfig({ presignTtlSec: 1800 }),
+    );
+
+    await custom.presignGet('zhixu/a.png');
+
+    expect(getSignedUrlMock).toHaveBeenLastCalledWith(
+      s3,
+      expect.any(GetObjectCommand),
+      { expiresIn: 1800 },
+    );
+  });
+
+  it('resolveUrl 对空值与非法值返回 null', async () => {
+    await expect(service.resolveUrl(null)).resolves.toBeNull();
+    await expect(service.resolveUrl(undefined)).resolves.toBeNull();
+    await expect(service.resolveUrl('')).resolves.toBeNull();
+    await expect(service.resolveUrl('javascript:alert(1)')).resolves.toBeNull();
+    expect(getSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('resolveUrl 原样返回历史 http(s) 地址，不签名', async () => {
+    await expect(service.resolveUrl('https://cdn.test/a.png')).resolves.toBe(
+      'https://cdn.test/a.png',
+    );
+    expect(getSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('resolveUrl 对存储 key 生成签名地址', async () => {
+    getSignedUrlMock.mockResolvedValue('https://minio.local/signed');
+
+    await expect(service.resolveUrl('zhixu/2026/11/a.png')).resolves.toBe(
+      'https://minio.local/signed',
+    );
+    const command = getSignedUrlMock.mock.calls[0][1] as GetObjectCommand;
+    expect(command.input).toMatchObject({
+      Bucket: 'zhixu',
+      Key: 'zhixu/2026/11/a.png',
+    });
+  });
+
+  it('signRichHtml 重写 data-key 图片为签名地址并保留 data-key', async () => {
+    getSignedUrlMock.mockImplementation(
+      (_s3: unknown, command: GetObjectCommand) =>
+        Promise.resolve(`https://signed/${command.input.Key}`),
+    );
+
+    const out = await service.signRichHtml(
+      '<p>正文</p>' +
+        '<img data-key="zhixu/a.png" src="zhixu/a.png" alt="图" />' +
+        '<img data-key="zhixu/a.png" src="zhixu/a.png" />' +
+        '<img src="https://cdn.test/legacy.png" />',
+    );
+
+    expect(out).toContain('src="https://signed/zhixu/a.png"');
+    expect(out).toContain('data-key="zhixu/a.png"');
+    expect(out).toContain('src="https://cdn.test/legacy.png"');
+    // 同一 key 只签名一次
+    expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('signRichHtml 无存储 key 时不签名并原样返回', async () => {
+    const html = '<p>没有图片</p><img src="https://cdn.test/a.png" />';
+
+    await expect(service.signRichHtml(html)).resolves.toBe(html);
+    expect(getSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('signRichHtml 空串返回空串', async () => {
+    await expect(service.signRichHtml('')).resolves.toBe('');
   });
 });

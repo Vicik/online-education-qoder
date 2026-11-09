@@ -17,6 +17,7 @@ describe('AppConfigModule', () => {
     process.env.SESSION_SECRET = 's3cret';
     delete process.env.BCRYPT_COST;
     delete process.env.MINIO_BUCKET;
+    delete process.env.MINIO_PRESIGN_TTL_SECONDS;
   });
 
   afterEach(() => {

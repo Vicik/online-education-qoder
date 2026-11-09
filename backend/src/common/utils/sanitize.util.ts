@@ -44,7 +44,7 @@ const OPTIONS: sanitizeHtml.IOptions = {
   // 各标签允许的属性
   allowedAttributes: {
     a: ['href', 'target', 'rel'], // 链接标签允许的属性
-    img: ['src', 'alt'], // 图片标签允许的属性
+    img: ['src', 'alt', 'data-key'], // 图片标签允许的属性（data-key 用于读取时签名）
   },
   // 允许的 URL 协议
   allowedSchemes: ['http', 'https'],

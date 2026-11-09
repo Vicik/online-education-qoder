@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client } from '@aws-sdk/client-s3';
 import type { AppConfig } from '../config/configuration';
@@ -20,7 +20,8 @@ function createS3Client(config: ConfigService): S3Client {
   });
 }
 
-// 文件存储模块：图片上传与签名访问
+// 文件存储模块：图片上传与签名访问（全局导出，课程/用户/社区读取时直接注入签名能力）
+@Global()
 @Module({
   controllers: [FilesController], // 上传接口
   providers: [

@@ -4,8 +4,10 @@ import { PageQuery } from '../../common/dto/page-query.dto';
 import { PageResult } from '../../common/dto/page-result';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
+import { isStorageKey } from '../../common/utils/media.util';
 import { sanitizeRichHtml } from '../../common/utils/sanitize.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { BlockedWordService } from '../blocked-word/blocked-word.service';
 import { CreatePostDto } from '../dto/create-post.dto';
 
@@ -14,8 +16,9 @@ export interface PostBrief {
   id: number; // 帖子 id
   userId: number; // 作者 id
   nickname: string; // 作者昵称
-  avatarUrl: string | null; // 作者头像
-  content: string; // 净化后的内容
+  avatarKey: string | null; // 作者头像对象存储 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 作者头像展示地址（key 为签名 URL）
+  content: string; // 净化后的内容（图片已换签名地址）
   likeCount: number; // 点赞数
   likedByMe?: boolean; // 当前登录用户是否已点赞（仅登录用户返回）
   commentCount: number; // 评论总数（一级 + 回复）
@@ -94,18 +97,20 @@ const POST_INCLUDE = {
   _count: { select: { comments: true } },
 } as const;
 
-// 组装帖子简要信息：likedByMe 仅在已知登录用户时写入
-function toPostBrief(
+// 组装帖子简要信息：头像与正文图片读取时签名；likedByMe 仅在已知登录用户时写入
+async function toPostBrief(
   row: PostBaseRow,
+  storage: StorageService,
   commentCount: number,
   likedByMe?: boolean,
-): PostBrief {
+): Promise<PostBrief> {
   return {
     id: row.id,
     userId: row.userId,
     nickname: row.user.nickname,
-    avatarUrl: row.user.avatarUrl,
-    content: row.content,
+    avatarKey: isStorageKey(row.user.avatarUrl) ? row.user.avatarUrl : null,
+    avatarUrl: await storage.resolveUrl(row.user.avatarUrl),
+    content: await storage.signRichHtml(row.content),
     likeCount: row.likeCount,
     ...(likedByMe === undefined ? {} : { likedByMe }),
     commentCount,
@@ -116,11 +121,12 @@ function toPostBrief(
 // 帖子服务：信息流、详情、发帖、删帖、点赞与我的帖子
 @Injectable()
 export class PostService {
-  // 构造函数：注入 Prisma、屏蔽词与幂等服务
+  // 构造函数：注入 Prisma、屏蔽词、幂等与存储签名服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly blockedWords: BlockedWordService,
     private readonly idempotency: IdempotencyService,
+    private readonly storage: StorageService,
   ) {}
 
   // 信息流：创建时间倒序分页，登录用户附 likedByMe
@@ -195,26 +201,38 @@ export class PostService {
             select: { postId: true },
           })) !== null;
 
-    return {
-      ...toPostBrief(post as PostFeedRow, post._count.comments, likedByMe),
-      comments: comments.map((comment) => ({
+    // 评论与回复的正文图片读取时签名
+    const commentViews = await Promise.all(
+      comments.map(async (comment) => ({
         id: comment.id,
         userId: comment.userId,
         nickname: comment.user.nickname,
-        content: comment.content,
+        content: await this.storage.signRichHtml(comment.content),
         createdAt: comment.createdAt,
-        replies: comment.replies.map((reply) => ({
-          id: reply.id,
-          userId: reply.userId,
-          nickname: reply.user.nickname,
-          replyToNickname:
-            reply.replyToUserId === null
-              ? null
-              : (nicknameById.get(reply.replyToUserId) ?? null),
-          content: reply.content,
-          createdAt: reply.createdAt,
-        })),
+        replies: await Promise.all(
+          comment.replies.map(async (reply) => ({
+            id: reply.id,
+            userId: reply.userId,
+            nickname: reply.user.nickname,
+            replyToNickname:
+              reply.replyToUserId === null
+                ? null
+                : (nicknameById.get(reply.replyToUserId) ?? null),
+            content: await this.storage.signRichHtml(reply.content),
+            createdAt: reply.createdAt,
+          })),
+        ),
       })),
+    );
+
+    return {
+      ...(await toPostBrief(
+        post as PostFeedRow,
+        this.storage,
+        post._count.comments,
+        likedByMe,
+      )),
+      comments: commentViews,
     };
   }
 
@@ -238,7 +256,7 @@ export class PostService {
           data: { userId, content },
           include: { user: { select: { nickname: true, avatarUrl: true } } },
         });
-        return toPostBrief(created as PostBaseRow, 0, false);
+        return toPostBrief(created as PostBaseRow, this.storage, 0, false);
       },
     );
   }
@@ -341,11 +359,14 @@ export class PostService {
           );
 
     return {
-      items: rows.map((row) =>
-        toPostBrief(
-          row as PostFeedRow,
-          row._count.comments,
-          likedIds === undefined ? undefined : likedIds.has(row.id),
+      items: await Promise.all(
+        rows.map((row) =>
+          toPostBrief(
+            row as PostFeedRow,
+            this.storage,
+            row._count.comments,
+            likedIds === undefined ? undefined : likedIds.has(row.id),
+          ),
         ),
       ),
       total,

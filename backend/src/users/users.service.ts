@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { Gender } from '@prisma/client';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
+import { isStorageKey } from '../common/utils/media.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 // 个人资料响应：与 openapi ProfileData 一致（邮箱只读）
@@ -10,9 +12,13 @@ export interface ProfileData {
   id: number; // 用户 id
   email: string; // 邮箱（只读）
   nickname: string; // 昵称
-  avatarUrl: string | null; // 头像 URL
+  avatarKey: string | null; // 头像对象存储 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 头像展示地址（key 为签名 URL，历史 http 原样）
   gender: Gender; // 性别
 }
+
+// 用户资料查询行：不含派生字段 avatarKey
+type ProfileRow = Omit<ProfileData, 'avatarKey'>;
 
 // 学习概览响应：与 openapi OverviewData 一致
 export interface OverviewData {
@@ -26,8 +32,11 @@ export interface OverviewData {
 // 用户中心服务：资料读写与学习概览统计
 @Injectable()
 export class UsersService {
-  // 构造函数：注入 Prisma 服务
-  constructor(private readonly prisma: PrismaService) {}
+  // 构造函数：注入 Prisma 与存储签名服务
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   // 读取个人资料
   async getProfile(userId: number): Promise<ProfileData> {
@@ -46,7 +55,7 @@ export class UsersService {
     if (!profile) {
       throw new BizException(ErrorCode.UNAUTHORIZED, '未登录', 401);
     }
-    return profile;
+    return this.toProfile(profile);
   }
 
   // 修改个人资料（仅昵称/头像/性别）
@@ -64,17 +73,19 @@ export class UsersService {
     if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
 
     // 更新并返回最新资料
-    return this.prisma.user.update({
-      where: { id: userId },
-      data,
-      select: {
-        id: true,
-        email: true,
-        nickname: true,
-        avatarUrl: true,
-        gender: true,
-      },
-    });
+    return this.toProfile(
+      await this.prisma.user.update({
+        where: { id: userId },
+        data,
+        select: {
+          id: true,
+          email: true,
+          nickname: true,
+          avatarUrl: true,
+          gender: true,
+        },
+      }),
+    );
   }
 
   // 学习概览统计
@@ -115,6 +126,18 @@ export class UsersService {
       favoriteCount,
       couponCount,
       postCount,
+    };
+  }
+
+  // 将查询行映射为资料响应：avatarKey 保留原始 key，avatarUrl 读取时签名
+  private async toProfile(row: ProfileRow): Promise<ProfileData> {
+    return {
+      id: row.id,
+      email: row.email,
+      nickname: row.nickname,
+      avatarKey: isStorageKey(row.avatarUrl) ? row.avatarUrl : null,
+      avatarUrl: await this.storage.resolveUrl(row.avatarUrl),
+      gender: row.gender,
     };
   }
 

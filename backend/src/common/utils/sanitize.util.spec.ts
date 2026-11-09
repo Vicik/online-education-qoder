@@ -79,6 +79,15 @@ describe('sanitizeRichHtml', () => {
     ).toContain('alt="图"');
   });
 
+  it('图片保留 data-key，其余 data-* 属性剥离', () => {
+    const out = sanitizeRichHtml(
+      '<img src="zhixu/2026/11/a.png" data-key="zhixu/2026/11/a.png" data-x="1" alt="图" />',
+    );
+    expect(out).toContain('data-key="zhixu/2026/11/a.png"');
+    expect(out).toContain('src="zhixu/2026/11/a.png"');
+    expect(out).not.toContain('data-x');
+  });
+
   it('表格超过 20 行时截断到 20', () => {
     const html = '<table>' + '<tr><td>x</td></tr>'.repeat(25) + '</table>';
     const out = sanitizeRichHtml(html);

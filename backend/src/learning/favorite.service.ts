@@ -9,12 +9,16 @@ import { PageQuery } from '../common/dto/page-query.dto';
 import { PageResult } from '../common/dto/page-result';
 import { BizException } from '../common/exceptions/biz.exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 // 收藏服务：课程收藏的增删与分页查询（全部幂等）
 @Injectable()
 export class FavoriteService {
-  // 构造函数：注入 Prisma 服务
-  constructor(private readonly prisma: PrismaService) {}
+  // 构造函数：注入 Prisma 与存储签名服务
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   // 收藏课程：复合主键 upsert，重复收藏不报错
   async add(userId: number, courseId: number): Promise<void> {
@@ -62,7 +66,9 @@ export class FavoriteService {
     ]);
 
     return {
-      items: rows.map((row) => toCourseBrief(row.course)),
+      items: await Promise.all(
+        rows.map((row) => toCourseBrief(row.course, this.storage)),
+      ),
       total,
       page: pageNo,
       pageSize,

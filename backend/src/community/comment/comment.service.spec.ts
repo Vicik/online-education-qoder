@@ -1,6 +1,7 @@
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { BlockedWordService } from '../blocked-word/blocked-word.service';
 import { CommentService } from './comment.service';
 
@@ -34,12 +35,19 @@ function setup() {
       ) => fn(),
     ),
   };
+  // 存储替身：富文本图片重写 src
+  const storage = {
+    signRichHtml: jest.fn(async (html: string) =>
+      html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
+    ),
+  };
   const service = new CommentService(
     prisma as unknown as PrismaService,
     blockedWords as unknown as BlockedWordService,
     idempotency as unknown as IdempotencyService,
+    storage as unknown as StorageService,
   );
-  return { prisma, blockedWords, idempotency, service };
+  return { prisma, blockedWords, idempotency, storage, service };
 }
 
 describe('CommentService.create', () => {
@@ -92,6 +100,26 @@ describe('CommentService.create', () => {
     await expect(
       service.create(1, 1, { content: '广告' }, 'key-c-3'),
     ).rejects.toMatchObject({ bizCode: 7001, details: ['广告'] });
+  });
+
+  it('评论图片读取时重写为签名地址', async () => {
+    const { prisma, service } = setup();
+    prisma.post.findUnique.mockResolvedValue({ id: 1 });
+    prisma.comment.create.mockResolvedValue({
+      id: 12,
+      userId: 1,
+      content:
+        '<p>评论</p><img src="zhixu/comments/c1.png" data-key="zhixu/comments/c1.png" />',
+      createdAt: CREATED_AT,
+      user: { nickname: '甲' },
+    });
+
+    const view = await service.create(1, 1, { content: '评论' }, 'key-c-4');
+
+    expect(view.content).toContain(
+      'src="https://signed/zhixu/comments/c1.png"',
+    );
+    expect(view.content).toContain('data-key="zhixu/comments/c1.png"');
   });
 });
 
@@ -159,6 +187,35 @@ describe('CommentService.reply', () => {
       },
       include: { user: { select: { nickname: true } } },
     });
+  });
+
+  it('回复图片读取时重写为签名地址', async () => {
+    const { prisma, service } = setup();
+    prisma.comment.findUnique.mockResolvedValueOnce({
+      id: 5,
+      parentId: null,
+      postId: 1,
+    });
+    prisma.comment.create.mockResolvedValue({
+      id: 13,
+      userId: 3,
+      content:
+        '<img src="zhixu/comments/r1.png" data-key="zhixu/comments/r1.png" />',
+      createdAt: CREATED_AT,
+      replyToUserId: null,
+      user: { nickname: '乙' },
+    });
+
+    const reply = await service.reply(
+      3,
+      5,
+      { content: '回复', replyToUserId: null },
+      'key-r-4',
+    );
+
+    expect(reply.content).toContain(
+      'src="https://signed/zhixu/comments/r1.png"',
+    );
   });
 });
 

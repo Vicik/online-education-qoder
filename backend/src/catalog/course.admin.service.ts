@@ -11,6 +11,7 @@ import { PageResult } from '../common/dto/page-result';
 import { BizException } from '../common/exceptions/biz.exception';
 import { sanitizeRichHtml } from '../common/utils/sanitize.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import {
   COURSE_BRIEF_SELECT,
   CourseBrief,
@@ -86,11 +87,12 @@ function sanitizeDetailRich(
 // 课程管理端服务：创建、编辑（状态矩阵 + 乐观锁）、发布/下架、列表与详情
 @Injectable()
 export class CourseAdminService {
-  // 构造函数：注入 Prisma、审计服务与用户端课程服务（复用详情组装逻辑）
+  // 构造函数：注入 Prisma、审计服务、用户端课程服务与存储签名服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly courses: CourseService,
+    private readonly storage: StorageService,
   ) {}
 
   // 管理端课程列表：全部状态可选筛选，附章节数与报名人数
@@ -139,12 +141,14 @@ export class CourseAdminService {
       );
     }
 
-    // 映射为管理端列表项
-    const items = rows.map(({ _count, ...course }) => ({
-      ...toCourseBrief(course),
-      chapterCount: _count.chapters,
-      enrollmentCount: enrollmentByCourse.get(course.id) ?? 0,
-    }));
+    // 映射为管理端列表项（封面读取时签名）
+    const items = await Promise.all(
+      rows.map(async ({ _count, ...course }) => ({
+        ...(await toCourseBrief(course, this.storage)),
+        chapterCount: _count.chapters,
+        enrollmentCount: enrollmentByCourse.get(course.id) ?? 0,
+      })),
+    );
 
     return { items, total, page: pageNo, pageSize };
   }

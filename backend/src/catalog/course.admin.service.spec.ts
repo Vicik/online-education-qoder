@@ -1,3 +1,4 @@
+import { StorageService } from '../storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CourseAdminService } from './course.admin.service';
@@ -22,12 +23,22 @@ function setup() {
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const courses = { getDetail: jest.fn() };
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+  };
   const service = new CourseAdminService(
     prisma as unknown as PrismaService,
     audit as unknown as AuditService,
     courses as unknown as CourseService,
+    storage as unknown as StorageService,
   );
-  return { prisma, audit, courses, service };
+  return { prisma, audit, courses, storage, service };
 }
 
 // 草稿课程行
@@ -375,7 +386,11 @@ describe('CourseAdminService.listAll / getDetail', () => {
   it('listAll 含全部状态与报名人数/章节数，并支持状态筛选', async () => {
     const { prisma, service } = setup();
     prisma.course.findMany.mockResolvedValue([
-      { ...DRAFT, _count: { chapters: 2 } },
+      {
+        ...DRAFT,
+        coverUrl: 'zhixu/2026/11/cover.png',
+        _count: { chapters: 2 },
+      },
     ]);
     prisma.course.count.mockResolvedValue(1);
     prisma.order.findMany.mockResolvedValue([
@@ -389,7 +404,15 @@ describe('CourseAdminService.listAll / getDetail', () => {
       total: 1,
       page: 1,
       pageSize: 20,
-      items: [{ id: 1, chapterCount: 2, enrollmentCount: 2 }],
+      items: [
+        {
+          id: 1,
+          coverKey: 'zhixu/2026/11/cover.png',
+          coverUrl: 'https://signed/zhixu/2026/11/cover.png',
+          chapterCount: 2,
+          enrollmentCount: 2,
+        },
+      ],
     });
     expect(prisma.course.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

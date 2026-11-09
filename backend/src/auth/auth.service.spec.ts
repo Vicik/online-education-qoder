@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { BizException } from '../common/exceptions/biz.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { RateLimitService } from '../redis/rate-limit.service';
+import { StorageService } from '../storage/storage.service';
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
 import { TotpService } from './totp.service';
@@ -50,6 +51,16 @@ async function setup() {
       key === 'bcryptCost' ? BCRYPT_COST : undefined,
     ),
   };
+  // 存储替身：key 签名、http 原样
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+  };
   // 被测服务
   const service = new AuthService(
     prisma as unknown as PrismaService,
@@ -57,8 +68,17 @@ async function setup() {
     totp as unknown as TotpService,
     rateLimit as unknown as RateLimitService,
     config as unknown as ConfigService,
+    storage as unknown as StorageService,
   );
-  return { prisma, sessions, totp, rateLimit, service, passwordHash };
+  return {
+    prisma,
+    sessions,
+    totp,
+    rateLimit,
+    storage,
+    service,
+    passwordHash,
+  };
 }
 
 // 构造假请求（IP + 会话）
@@ -315,27 +335,49 @@ describe('AuthService', () => {
   });
 
   describe('me', () => {
-    it('返回不含 passwordHash 的资料', async () => {
+    it('返回不含 passwordHash 的资料，头像读取时签名', async () => {
       const { prisma, service } = await setup();
-      // 数据库返回的资料（select 结果）
+      // 数据库返回的资料（avatarUrl 存对象存储 key）
       const profile = {
         id: 1,
         email: 'user@example.com',
         nickname: '小知',
-        avatarUrl: null,
+        avatarUrl: 'zhixu/avatars/u1.png',
         gender: 'secret',
         role: 'user',
         createdAt: new Date('2026-01-01T00:00:00Z'),
       };
       prisma.user.findUnique.mockResolvedValue(profile);
 
-      await expect(service.me(1)).resolves.toEqual(profile);
+      await expect(service.me(1)).resolves.toEqual({
+        ...profile,
+        avatarKey: 'zhixu/avatars/u1.png',
+        avatarUrl: 'https://signed/zhixu/avatars/u1.png',
+      });
       // 查询使用 select，避免带出密码哈希
       const args = prisma.user.findUnique.mock.calls[0][0] as {
         select: Record<string, boolean>;
       };
       expect(args.select).toMatchObject({ id: true, email: true, role: true });
       expect(args.select.passwordHash).toBeUndefined();
+    });
+
+    it('历史 http 头像原样返回且 avatarKey 为 null', async () => {
+      const { prisma, service } = await setup();
+      prisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'user@example.com',
+        nickname: '小知',
+        avatarUrl: 'https://cdn.example.com/a.png',
+        gender: 'secret',
+        role: 'user',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(service.me(1)).resolves.toMatchObject({
+        avatarKey: null,
+        avatarUrl: 'https://cdn.example.com/a.png',
+      });
     });
 
     it('用户不存在时抛 2001', async () => {

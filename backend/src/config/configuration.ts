@@ -16,6 +16,7 @@ export interface AppConfig {
     secretKey: string; // MinIO 密钥
     bucket: string; // MinIO 存储桶名称
     publicUrl: string; // MinIO 公开访问 URL
+    presignTtlSec: number; // 图片签名 URL 有效期（秒）
   };
 }
 
@@ -45,6 +46,7 @@ export function loadConfig(): AppConfig {
       secretKey: process.env.MINIO_SECRET_KEY ?? '', // MinIO 密钥
       bucket: process.env.MINIO_BUCKET ?? 'zhixu', // MinIO 存储桶，默认 zhixu
       publicUrl: process.env.MINIO_PUBLIC_URL ?? '', // MinIO 公开 URL
+      presignTtlSec: Number(process.env.MINIO_PRESIGN_TTL_SECONDS ?? 3600), // 签名有效期，默认 1 小时
     },
   };
 }

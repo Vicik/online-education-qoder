@@ -15,6 +15,7 @@ const ENV_KEYS = [
   'MINIO_SECRET_KEY',
   'MINIO_BUCKET',
   'MINIO_PUBLIC_URL',
+  'MINIO_PRESIGN_TTL_SECONDS',
 ];
 
 describe('loadConfig', () => {
@@ -53,6 +54,7 @@ describe('loadConfig', () => {
     process.env.CORS_ORIGINS = 'http://a.test,http://b.test';
     process.env.SEED_DEMO_DATA = 'true';
     process.env.MINIO_BUCKET = 'custom-bucket';
+    process.env.MINIO_PRESIGN_TTL_SECONDS = '7200';
 
     const cfg = loadConfig();
 
@@ -66,6 +68,7 @@ describe('loadConfig', () => {
     expect(cfg.corsOrigins).toEqual(['http://a.test', 'http://b.test']);
     expect(cfg.seedDemoData).toBe(true);
     expect(cfg.minio.bucket).toBe('custom-bucket');
+    expect(cfg.minio.presignTtlSec).toBe(7200);
   });
 
   it('未设可选项时取默认值', () => {
@@ -80,6 +83,7 @@ describe('loadConfig', () => {
       secretKey: '',
       bucket: 'zhixu',
       publicUrl: '',
+      presignTtlSec: 3600,
     });
   });
 

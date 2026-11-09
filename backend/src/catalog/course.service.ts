@@ -10,7 +10,9 @@ import { ErrorCode } from '../common/constants/error-codes';
 import { PageQuery } from '../common/dto/page-query.dto';
 import { PageResult } from '../common/dto/page-result';
 import { BizException } from '../common/exceptions/biz.exception';
+import { isStorageKey } from '../common/utils/media.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 // 首页推荐课程数量
 const RECOMMENDATION_LIMIT = 8;
@@ -20,12 +22,16 @@ export interface CourseBrief {
   id: number; // 课程 id
   name: string; // 课程名称
   type: CourseType; // 课程类型
-  coverUrl: string | null; // 封面地址
+  coverKey: string | null; // 封面对象存储 key（历史 http 数据为 null）
+  coverUrl: string | null; // 封面展示地址（key 为签名 URL，历史 http 原样）
   instructor: string | null; // 讲师
   originalCents: number; // 原价（分）
   saleCents: number; // 售价（分）
   status: CourseStatus; // 课程状态
 }
+
+// 课程查询行：不含派生字段 coverKey
+export type CourseBriefRow = Omit<CourseBrief, 'coverKey'>;
 
 // 章节目录项：不含正文
 export interface ChapterBrief {
@@ -114,13 +120,17 @@ const CHAPTER_BRIEF_SELECT = {
   sortOrder: true,
 } as const;
 
-// 将查询结果映射为课程简要信息
-export function toCourseBrief(course: CourseBrief): CourseBrief {
+// 将查询结果映射为课程简要信息：coverKey 保留原始 key，coverUrl 读取时签名
+export async function toCourseBrief(
+  course: CourseBriefRow,
+  storage: StorageService,
+): Promise<CourseBrief> {
   return {
     id: course.id,
     name: course.name,
     type: course.type,
-    coverUrl: course.coverUrl,
+    coverKey: isStorageKey(course.coverUrl) ? course.coverUrl : null,
+    coverUrl: await storage.resolveUrl(course.coverUrl),
     instructor: course.instructor,
     originalCents: course.originalCents,
     saleCents: course.saleCents,
@@ -131,8 +141,11 @@ export function toCourseBrief(course: CourseBrief): CourseBrief {
 // 课程服务：用户端课程浏览与学习权限判定
 @Injectable()
 export class CourseService {
-  // 构造函数：注入 Prisma 服务
-  constructor(private readonly prisma: PrismaService) {}
+  // 构造函数：注入 Prisma 与对象存储签名服务
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   // 已发布课程分页列表
   async listPublished(page: PageQuery): Promise<PageResult<CourseBrief>> {
@@ -156,7 +169,9 @@ export class CourseService {
     ]);
 
     return {
-      items: rows.map(toCourseBrief),
+      items: await Promise.all(
+        rows.map((row) => toCourseBrief(row, this.storage)),
+      ),
       total,
       page: pageNo,
       pageSize,
@@ -171,7 +186,7 @@ export class CourseService {
       take: RECOMMENDATION_LIMIT,
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map(toCourseBrief);
+    return Promise.all(rows.map((row) => toCourseBrief(row, this.storage)));
   }
 
   // 课程详情：默认仅已发布课程；管理端传 includeUnpublished=true 可查看草稿/下架
@@ -243,9 +258,13 @@ export class CourseService {
     ]);
 
     return {
-      ...toCourseBrief(course),
+      ...(await toCourseBrief(course, this.storage)),
       intro: course.intro,
-      detailRich: course.detailRich,
+      // 富文本图片读取时重写为签名地址
+      detailRich:
+        course.detailRich === null
+          ? null
+          : await this.storage.signRichHtml(course.detailRich),
       chapters,
       // 活动信息补充课程名称（前端直接展示）
       groupon: groupon
@@ -322,11 +341,19 @@ export class CourseService {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
     }
 
+    // 正文按类型解析：富文本签名图片，视频/音频 key 换签名地址，历史 http 原样
+    const content =
+      chapter.content === null
+        ? null
+        : chapter.contentType === 'rich'
+          ? await this.storage.signRichHtml(chapter.content)
+          : await this.storage.resolveUrl(chapter.content);
+
     return {
       id: chapter.id,
       title: chapter.title,
       contentType: chapter.contentType,
-      content: chapter.content,
+      content,
       sortOrder: chapter.sortOrder,
     };
   }

@@ -1,6 +1,7 @@
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { BlockedWordService } from '../blocked-word/blocked-word.service';
 import { PostService } from './post.service';
 
@@ -44,22 +45,37 @@ function setup() {
       ) => fn(),
     ),
   };
+  // 存储替身：头像 key 签名、http 原样，富文本图片重写 src
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+    signRichHtml: jest.fn(async (html: string) =>
+      html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
+    ),
+  };
   const service = new PostService(
     prisma as unknown as PrismaService,
     blockedWords as unknown as BlockedWordService,
     idempotency as unknown as IdempotencyService,
+    storage as unknown as StorageService,
   );
-  return { prisma, blockedWords, idempotency, service };
+  return { prisma, blockedWords, idempotency, storage, service };
 }
 
-// 信息流行：含作者与评论计数
+// 信息流行：含作者与评论计数（头像存 key，内容含待签名图片）
 const FEED_ROW = {
   id: 1,
   userId: 1,
-  content: 'c',
+  content:
+    '<p>c</p><img data-key="zhixu/posts/p1.png" src="zhixu/posts/p1.png" />',
   likeCount: 2,
   createdAt: CREATED_AT,
-  user: { nickname: 'n', avatarUrl: null },
+  user: { nickname: 'n', avatarUrl: 'zhixu/avatars/u1.png' },
   _count: { comments: 0 },
 };
 
@@ -120,10 +136,16 @@ describe('PostService.list', () => {
     expect(page.items[0]).toMatchObject({
       id: 1,
       nickname: 'n',
+      avatarKey: 'zhixu/avatars/u1.png',
+      avatarUrl: 'https://signed/zhixu/avatars/u1.png',
       likeCount: 2,
       commentCount: 0,
       likedByMe: true,
     });
+    expect(page.items[0].content).toContain(
+      'src="https://signed/zhixu/posts/p1.png"',
+    );
+    expect(page.items[0].content).toContain('data-key="zhixu/posts/p1.png"');
     expect(page).toMatchObject({ total: 1, page: 1, pageSize: 20 });
     expect(prisma.postLike.findMany).toHaveBeenCalledWith({
       where: { userId: 2, postId: { in: [1] } },
@@ -155,14 +177,16 @@ describe('PostService.getDetail', () => {
       {
         id: 10,
         userId: 1,
-        content: '一级评论',
+        content:
+          '<p>一级评论</p><img src="zhixu/comments/c1.png" data-key="zhixu/comments/c1.png" />',
         createdAt: CREATED_AT,
         user: { nickname: '甲' },
         replies: [
           {
             id: 11,
             userId: 3,
-            content: '回复你',
+            content:
+              '<p>回复你</p><img src="zhixu/comments/r1.png" data-key="zhixu/comments/r1.png" />',
             createdAt: CREATED_AT,
             replyToUserId: 1,
             user: { nickname: '乙' },
@@ -177,10 +201,33 @@ describe('PostService.getDetail', () => {
     expect(detail).toMatchObject({ id: 1, likedByMe: true, commentCount: 2 });
     expect(detail.comments).toHaveLength(1);
     expect(detail.comments[0]).toMatchObject({ id: 10, nickname: '甲' });
+    expect(detail.comments[0].content).toContain(
+      'src="https://signed/zhixu/comments/c1.png"',
+    );
     expect(detail.comments[0].replies[0]).toMatchObject({
       id: 11,
       nickname: '乙',
       replyToNickname: '甲',
+    });
+    expect(detail.comments[0].replies[0].content).toContain(
+      'src="https://signed/zhixu/comments/r1.png"',
+    );
+  });
+
+  it('作者头像为历史 http 时原样返回且 avatarKey 为 null', async () => {
+    const { prisma, service } = setup();
+    prisma.post.findUnique.mockResolvedValue({
+      ...FEED_ROW,
+      user: { nickname: 'n', avatarUrl: 'https://cdn.test/a.png' },
+      _count: { comments: 0 },
+    });
+    prisma.comment.findMany.mockResolvedValue([]);
+
+    const detail = await service.getDetail(1);
+
+    expect(detail).toMatchObject({
+      avatarKey: null,
+      avatarUrl: 'https://cdn.test/a.png',
     });
   });
 

@@ -39,6 +39,7 @@ const config: AppConfig = {
     secretKey: '',
     bucket: 'zhixu',
     publicUrl: '',
+    presignTtlSec: 3600,
   },
 };
 

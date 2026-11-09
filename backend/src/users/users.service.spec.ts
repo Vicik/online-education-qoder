@@ -1,7 +1,8 @@
+import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';
 
-// 构建带假 Prisma 的用户服务
+// 构建带假 Prisma 的用户服务；存储替身模拟 key 签名与 http 原样
 function setup() {
   // Prisma 替身：覆盖资料与概览所需的模型
   const prisma = {
@@ -16,26 +17,42 @@ function setup() {
     couponClaim: { count: jest.fn() },
     post: { count: jest.fn() },
   };
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+  };
   // 被测服务
-  const service = new UsersService(prisma as unknown as PrismaService);
-  return { prisma, service };
+  const service = new UsersService(
+    prisma as unknown as PrismaService,
+    storage as unknown as StorageService,
+  );
+  return { prisma, storage, service };
 }
 
 describe('UsersService', () => {
   describe('getProfile', () => {
-    it('返回只读邮箱与资料字段', async () => {
+    it('返回只读邮箱与资料字段，头像读取时签名', async () => {
       const { prisma, service } = setup();
-      // 数据库返回的资料
+      // 数据库返回的资料（avatarUrl 存对象存储 key）
       const profile = {
         id: 1,
         email: 'user@example.com',
         nickname: '小知',
-        avatarUrl: null,
+        avatarUrl: 'zhixu/avatars/u1.png',
         gender: 'secret',
       };
       prisma.user.findUnique.mockResolvedValue(profile);
 
-      await expect(service.getProfile(1)).resolves.toEqual(profile);
+      await expect(service.getProfile(1)).resolves.toEqual({
+        ...profile,
+        avatarKey: 'zhixu/avatars/u1.png',
+        avatarUrl: 'https://signed/zhixu/avatars/u1.png',
+      });
       // select 不含密码哈希
       const args = prisma.user.findUnique.mock.calls[0][0] as {
         select: Record<string, boolean>;
@@ -46,6 +63,22 @@ describe('UsersService', () => {
         nickname: true,
       });
       expect(args.select.passwordHash).toBeUndefined();
+    });
+
+    it('历史 http 头像原样返回且 avatarKey 为 null', async () => {
+      const { prisma, service } = setup();
+      prisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'user@example.com',
+        nickname: '小知',
+        avatarUrl: 'https://cdn.example.com/a.png',
+        gender: 'secret',
+      });
+
+      await expect(service.getProfile(1)).resolves.toMatchObject({
+        avatarKey: null,
+        avatarUrl: 'https://cdn.example.com/a.png',
+      });
     });
 
     it('用户不存在时抛 2001', async () => {
@@ -61,7 +94,7 @@ describe('UsersService', () => {
   describe('updateProfile', () => {
     it('更新昵称/性别/头像并返回最新资料', async () => {
       const { prisma, service } = setup();
-      // 更新后的资料
+      // 更新后的资料（历史 http 头像原样返回）
       const profile = {
         id: 1,
         email: 'user@example.com',
@@ -77,7 +110,7 @@ describe('UsersService', () => {
           avatarUrl: 'https://cdn.example.com/a.png',
           gender: 'male',
         }),
-      ).resolves.toEqual(profile);
+      ).resolves.toEqual({ ...profile, avatarKey: null });
 
       const args = prisma.user.update.mock.calls[0][0] as {
         where: { id: number };

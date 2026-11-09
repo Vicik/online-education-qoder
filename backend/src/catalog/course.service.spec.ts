@@ -1,7 +1,8 @@
+import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CourseService } from './course.service';
 
-// 构建被测服务及 Prisma 替身
+// 构建被测服务及 Prisma 替身；存储替身模拟「key 签名、http 原样、空值 null」
 function setup() {
   const prisma = {
     order: { findFirst: jest.fn() },
@@ -11,20 +12,42 @@ function setup() {
     flashSaleActivity: { findFirst: jest.fn() },
     couponTemplate: { findMany: jest.fn() },
   };
-  const service = new CourseService(prisma as unknown as PrismaService);
-  return { prisma, service };
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+    signRichHtml: jest.fn(async (html: string) =>
+      html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
+    ),
+  };
+  const service = new CourseService(
+    prisma as unknown as PrismaService,
+    storage as unknown as StorageService,
+  );
+  return { prisma, storage, service };
 }
 
-// 课程列表/详情测试共用的课程行数据
+// 课程列表/详情测试共用的课程行数据（coverUrl 存对象存储 key）
 const courseRow = {
   id: 1,
   name: 'TypeScript 系统入门',
   type: 'video',
-  coverUrl: null,
+  coverUrl: 'zhixu/2026/11/cover.png',
   instructor: '张老师',
   originalCents: 19900,
   saleCents: 9900,
   status: 'published',
+};
+
+// 期望的课程简要信息：coverKey 保留原 key，coverUrl 换签名地址
+const courseBrief = {
+  ...courseRow,
+  coverKey: courseRow.coverUrl,
+  coverUrl: 'https://signed/zhixu/2026/11/cover.png',
 };
 
 describe('CourseService.hasPaidAccess', () => {
@@ -71,7 +94,7 @@ describe('CourseService.listPublished', () => {
     await expect(
       service.listPublished({ page: 1, pageSize: 20 }),
     ).resolves.toEqual({
-      items: [courseRow],
+      items: [courseBrief],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -95,7 +118,8 @@ describe('CourseService.getDetail', () => {
     prisma.course.findFirst.mockResolvedValue({
       ...courseRow,
       intro: '课程简介',
-      detailRich: '<p>详情</p>',
+      detailRich:
+        '<p>详情</p><img data-key="zhixu/2026/11/detail.png" src="zhixu/2026/11/detail.png" />',
     });
     prisma.chapter.findMany.mockResolvedValue([
       { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
@@ -127,6 +151,11 @@ describe('CourseService.getDetail', () => {
 
     const detail = await service.getDetail(1);
 
+    expect(detail.coverKey).toBe('zhixu/2026/11/cover.png');
+    expect(detail.coverUrl).toBe('https://signed/zhixu/2026/11/cover.png');
+    expect(detail.detailRich).toContain(
+      '<p>详情</p><img data-key="zhixu/2026/11/detail.png" src="https://signed/zhixu/2026/11/detail.png"',
+    );
     expect(detail.chapters[0]).not.toHaveProperty('content');
     expect(detail.chapters[0]).toEqual({
       id: 1,
@@ -185,7 +214,7 @@ describe('CourseService.listRecommendations', () => {
     const { prisma, service } = setup();
     prisma.course.findMany.mockResolvedValue([courseRow]);
 
-    await expect(service.listRecommendations()).resolves.toEqual([courseRow]);
+    await expect(service.listRecommendations()).resolves.toEqual([courseBrief]);
     expect(prisma.course.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { status: 'published' },
@@ -222,11 +251,47 @@ describe('CourseService.getChapterContent', () => {
       id: 1,
       title: '第一章',
       contentType: 'video',
-      content: 'videos/ch1.mp4',
+      content: 'https://signed/videos/ch1.mp4',
       sortOrder: 1,
     });
     expect(prisma.chapter.findFirst).toHaveBeenCalledWith({
       where: { id: 1, courseId: 1 },
+    });
+  });
+
+  it('富文本章节读取时重写图片为签名地址', async () => {
+    const { prisma, service } = setup();
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.chapter.findFirst.mockResolvedValue({
+      id: 2,
+      title: '富文本章',
+      contentType: 'rich',
+      content:
+        '<p>正文</p><img data-key="zhixu/2026/11/r.png" src="zhixu/2026/11/r.png" />',
+      sortOrder: 2,
+    });
+
+    const chapter = await service.getChapterContent(1, 1, 2);
+
+    expect(chapter.content).toContain('data-key="zhixu/2026/11/r.png"');
+    expect(chapter.content).toContain(
+      'src="https://signed/zhixu/2026/11/r.png"',
+    );
+  });
+
+  it('章节正文为空时返回 null', async () => {
+    const { prisma, service } = setup();
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.chapter.findFirst.mockResolvedValue({
+      id: 3,
+      title: '空章',
+      contentType: 'video',
+      content: null,
+      sortOrder: 3,
+    });
+
+    await expect(service.getChapterContent(1, 1, 3)).resolves.toMatchObject({
+      content: null,
     });
   });
 
@@ -254,7 +319,7 @@ describe('CourseService.getChapterContent', () => {
 
     await expect(service.getChapterContent(1, 1, 2)).resolves.toMatchObject({
       title: '第二章',
-      content: 'videos/ch2.mp4',
+      content: 'https://signed/videos/ch2.mp4',
     });
     // 不校验课程状态：下架不影响已购用户学习
     expect(prisma.course.findFirst).not.toHaveBeenCalled();

@@ -202,7 +202,8 @@ components:
         id: { type: integer }
         email: { type: string }
         nickname: { type: string }
-        avatarUrl: { type: string, nullable: true }
+        avatarKey: { type: string, nullable: true, description: 头像对象存储 key；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
         gender: { type: string, enum: [male, female, secret] }
         role: { type: string, enum: [user, admin] }
         createdAt: { type: string, format: date-time }
@@ -234,7 +235,8 @@ components:
         id: { type: integer }
         name: { type: string }
         type: { type: string, enum: [video, audio, rich] }
-        coverUrl: { type: string, nullable: true }
+        coverKey: { type: string, nullable: true, description: 封面对象存储 key；历史 http(s) 数据为 null }
+        coverUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
         instructor: { type: string, nullable: true }
         originalCents: { type: integer }
         saleCents: { type: integer }
@@ -255,7 +257,7 @@ components:
         - type: object
           properties:
             intro: { type: string, nullable: true }
-            detailRich: { type: string, nullable: true, description: 服务端净化后的富文本 }
+            detailRich: { type: string, nullable: true, description: 服务端净化后的富文本；图片 src 已重写为签名 URL，data-key 保留 }
             chapters:
               type: array
               items: { $ref: '#/components/schemas/ChapterBrief' }
@@ -272,7 +274,7 @@ components:
         id: { type: integer }
         title: { type: string }
         contentType: { type: string, enum: [video, audio, rich] }
-        content: { type: string, description: rich=净化后 HTML；video/audio=签名访问 URL }
+        content: { type: string, description: rich=净化后 HTML（img 的 src 已换签名 URL、保留 data-key）；video/audio=签名访问 URL }
         sortOrder: { type: integer }
     CourseCreateRequest:
       type: object
@@ -283,7 +285,7 @@ components:
         originalCents: { type: integer, minimum: 0 }
         saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
         instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true }
+        coverUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL） }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     CourseUpdateRequest:
@@ -297,7 +299,7 @@ components:
         originalCents: { type: integer }
         saleCents: { type: integer }
         instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true }
+        coverUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL） }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     ChapterCreateRequest:
@@ -306,7 +308,7 @@ components:
       properties:
         title: { type: string, maxLength: 60 }
         contentType: { type: string, enum: [video, audio, rich], description: 须与课程类型一致 }
-        content: { type: string, nullable: true }
+        content: { type: string, nullable: true, description: rich=HTML（图片建议带 data-key）；video/audio=对象存储 key }
     ChapterUpdateRequest:
       type: object
       properties:
@@ -645,7 +647,7 @@ components:
         userId: { type: integer }
         nickname: { type: string }
         replyToNickname: { type: string, nullable: true }
-        content: { type: string }
+        content: { type: string, description: img 的 src 已换签名 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
     CommentView:
       type: object
@@ -653,7 +655,7 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
-        content: { type: string }
+        content: { type: string, description: img 的 src 已换签名 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
         replies:
           type: array
@@ -664,8 +666,9 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
-        avatarUrl: { type: string, nullable: true }
-        content: { type: string }
+        avatarKey: { type: string, nullable: true, description: 作者头像对象存储 key；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
+        content: { type: string, description: 净化后的富文本；img 的 src 已换签名 URL，data-key 保留 }
         likeCount: { type: integer }
         likedByMe: { type: boolean, description: 仅登录用户返回 }
         commentCount: { type: integer }
@@ -707,21 +710,22 @@ components:
         id: { type: integer }
         email: { type: string, description: 只读 }
         nickname: { type: string }
-        avatarUrl: { type: string, nullable: true }
+        avatarKey: { type: string, nullable: true, description: 头像对象存储 key；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
         gender: { type: string, enum: [male, female, secret] }
     ProfileUpdateRequest:
       type: object
       required: [nickname, gender]
       properties:
         nickname: { type: string, maxLength: 30 }
-        avatarUrl: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL）；传 null 清空 }
         gender: { type: string, enum: [male, female, secret] }
     UploadData:
       type: object
       description: data 结构
       properties:
-        key: { type: string, description: 对象存储 key }
-        url: { type: string, description: 签名访问 URL（私有桶） }
+        key: { type: string, description: 对象存储 key，前端应持久化该值 }
+        url: { type: string, description: 签名访问 URL，仅用于即时预览（默认 1 小时，可由 MINIO_PRESIGN_TTL_SECONDS 配置） }
     OverviewData:
       type: object
       description: data 结构：学习概览统计

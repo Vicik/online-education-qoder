@@ -1,16 +1,24 @@
+import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FavoriteService } from './favorite.service';
 
-// 课程简要信息测试数据
+// 课程简要信息测试数据（coverUrl 存对象存储 key）
 const courseRow = {
   id: 1,
   name: 'TypeScript 系统入门',
   type: 'video',
-  coverUrl: null,
+  coverUrl: 'zhixu/2026/11/cover.png',
   instructor: '张老师',
   originalCents: 19900,
   saleCents: 9900,
   status: 'published',
+};
+
+// 期望的收藏项：coverKey 保留原 key，coverUrl 换签名地址
+const courseBrief = {
+  ...courseRow,
+  coverKey: courseRow.coverUrl,
+  coverUrl: 'https://signed/zhixu/2026/11/cover.png',
 };
 
 // 构建被测服务及 Prisma 替身
@@ -24,8 +32,20 @@ function setup() {
       count: jest.fn(),
     },
   };
-  const service = new FavoriteService(prisma as unknown as PrismaService);
-  return { prisma, service };
+  const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
+  };
+  const service = new FavoriteService(
+    prisma as unknown as PrismaService,
+    storage as unknown as StorageService,
+  );
+  return { prisma, storage, service };
 }
 
 describe('FavoriteService.add', () => {
@@ -79,7 +99,7 @@ describe('FavoriteService.list', () => {
     prisma.favorite.count.mockResolvedValue(1);
 
     await expect(service.list(1, { page: 1, pageSize: 20 })).resolves.toEqual({
-      items: [courseRow],
+      items: [courseBrief],
       total: 1,
       page: 1,
       pageSize: 20,
