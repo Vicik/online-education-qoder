@@ -10,7 +10,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
 import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter';
@@ -37,11 +36,10 @@ export class FilesController {
   // 构造函数：注入存储服务
   constructor(private readonly storage: StorageService) {}
 
-  // 图片上传：内存缓冲 + 2MB 硬限制，校验后重编码入私有桶
+  // 图片上传：FileInterceptor 默认内存缓冲 + 2MB 硬限制，校验后重编码入私有桶
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: memoryStorage(), // 内存缓冲，便于 magic bytes 校验与重编码
       limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }, // 单文件 ≤2MB
     }),
   )
