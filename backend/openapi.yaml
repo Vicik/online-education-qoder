@@ -1,0 +1,2333 @@
+openapi: 3.1.0
+info:
+  title: 知序课堂 API
+  version: 1.0.0
+  description: |
+    依据 backend/接口设计文档.md §5/§7。约定：
+    - 统一响应包 { code, message, data, requestId }，code=0 成功；错误码表见设计文档 §5
+    - 金额一律整数分；时间 ISO 8601 UTC，展示按 Asia/Shanghai
+    - 创建类 POST 携带 Idempotency-Key 请求头（幂等）
+    - 管理端写操作携带 version 乐观锁，冲突返回 409
+    - Session 会话（Cookie），未登录 401、角色不符 403
+servers:
+  - url: /api/v1
+tags:
+  - name: auth
+    description: 认证与会话
+  - name: catalog
+    description: 课程浏览/学习/收藏（用户端）
+  - name: admin-courses
+    description: 课程管理（管理端）
+  - name: coupons
+    description: 优惠券
+  - name: orders
+    description: 订单与模拟支付
+  - name: groupons
+    description: 拼团
+  - name: flash-sales
+    description: 秒杀
+  - name: exams
+    description: 题库与考试
+  - name: community
+    description: 学习社区与屏蔽词
+  - name: user-center
+    description: 用户中心
+  - name: files
+    description: 文件上传
+  - name: admin-dashboard
+    description: 管理工作台
+  - name: health
+    description: 健康检查
+security:
+  - cookieAuth: []
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Session 会话 Cookie（HttpOnly+Secure+SameSite）
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+      description: 页码，从 1 起
+    PageSize:
+      in: query
+      name: pageSize
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      description: 每页条数，默认 20 最大 100
+    courseId:
+      in: path
+      name: courseId
+      required: true
+      schema: { type: integer }
+    chapterId:
+      in: path
+      name: cid
+      required: true
+      schema: { type: integer }
+      description: 章节 id
+    orderId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    templateId:
+      in: path
+      name: templateId
+      required: true
+      schema: { type: integer }
+    grouponId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    groupId:
+      in: path
+      name: gid
+      required: true
+      schema: { type: integer }
+    flashSaleId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    questionId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    examId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    attemptId:
+      in: path
+      name: aid
+      required: true
+      schema: { type: integer }
+    postId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    commentId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    wordId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+  headers:
+    IdempotencyKey:
+      description: 幂等键，创建类 POST 必填；同键重放返回首次结果
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+  responses:
+    Ok:
+      description: 成功（统一响应包）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Created:
+      description: 创建成功
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err400:
+      description: 参数校验失败（code=1001）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err401:
+      description: 未登录（code=2001）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err403:
+      description: 无权访问/未购买/角色不符（code=2002 等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err404:
+      description: 资源不存在（code=3001 等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err409:
+      description: 冲突：乐观锁版本冲突/重复购买/幂等冲突（code=4003/4004 等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err422:
+      description: 业务规则不满足（code=4001/5001 等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Err429:
+      description: 触发限流
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        code: { type: integer, description: 0=成功；非 0 为业务错误码，见接口设计文档 §5 }
+        message: { type: string }
+        data: { type: object, description: 各接口数据类型见路径描述 }
+        requestId: { type: string }
+      required: [code, message, requestId]
+    Page:
+      type: object
+      description: 分页响应；items 元素类型见各接口描述
+      properties:
+        items: { type: array, items: { type: object } }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [items, total, page, pageSize]
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        nickname: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        gender: { type: string, enum: [male, female, secret] }
+        role: { type: string, enum: [user, admin] }
+        createdAt: { type: string, format: date-time }
+    RegisterRequest:
+      type: object
+      required: [email, password, confirmPassword, nickname]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 64, description: D6 已决：8–64 位，鼓励混合字符 }
+        confirmPassword: { type: string }
+        nickname: { type: string, maxLength: 30 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword, confirmPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 8, maxLength: 64 }
+        confirmPassword: { type: string }
+
+    CourseBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        type: { type: string, enum: [video, audio, rich] }
+        coverUrl: { type: string, nullable: true }
+        instructor: { type: string, nullable: true }
+        originalCents: { type: integer }
+        saleCents: { type: integer }
+        status: { type: string, enum: [draft, published, unpublished], description: 用户端仅返回 published }
+        chapterCount: { type: integer, description: 仅管理端返回 }
+        enrollmentCount: { type: integer, description: 仅管理端返回 }
+    ChapterBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        contentType: { type: string, enum: [video, audio, rich] }
+        sortOrder: { type: integer }
+        visited: { type: boolean, description: 仅已登录已购用户返回 }
+    CourseDetail:
+      allOf:
+        - $ref: '#/components/schemas/CourseBrief'
+        - type: object
+          properties:
+            intro: { type: string, nullable: true }
+            detailRich: { type: string, nullable: true, description: 服务端净化后的富文本 }
+            chapters:
+              type: array
+              items: { $ref: '#/components/schemas/ChapterBrief' }
+              description: 未购买仅名称；正文需另行请求章节内容接口
+            groupon: { $ref: '#/components/schemas/GrouponActivityBrief' }
+            flashSale: { $ref: '#/components/schemas/FlashSaleActivityBrief' }
+            claimableCoupons:
+              type: array
+              items: { $ref: '#/components/schemas/CouponTemplateBrief' }
+    ChapterContent:
+      type: object
+      description: 需已购买（未购 403）
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        contentType: { type: string, enum: [video, audio, rich] }
+        content: { type: string, description: rich=净化后 HTML；video/audio=签名访问 URL }
+        sortOrder: { type: integer }
+    CourseCreateRequest:
+      type: object
+      required: [name, type, originalCents, saleCents]
+      properties:
+        name: { type: string, maxLength: 40 }
+        type: { type: string, enum: [video, audio, rich] }
+        originalCents: { type: integer, minimum: 0 }
+        saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
+        instructor: { type: string, nullable: true }
+        coverUrl: { type: string, nullable: true }
+        intro: { type: string, nullable: true }
+        detailRich: { type: string, nullable: true }
+    CourseUpdateRequest:
+      type: object
+      required: [version]
+      description: 可编辑字段按状态矩阵（设计文档 §3.3）；类型在首个章节保存后锁定
+      properties:
+        version: { type: integer, description: 乐观锁版本 }
+        name: { type: string, maxLength: 40 }
+        type: { type: string, enum: [video, audio, rich] }
+        originalCents: { type: integer }
+        saleCents: { type: integer }
+        instructor: { type: string, nullable: true }
+        coverUrl: { type: string, nullable: true }
+        intro: { type: string, nullable: true }
+        detailRich: { type: string, nullable: true }
+    ChapterCreateRequest:
+      type: object
+      required: [title, contentType]
+      properties:
+        title: { type: string, maxLength: 60 }
+        contentType: { type: string, enum: [video, audio, rich], description: 须与课程类型一致 }
+        content: { type: string, nullable: true }
+    ChapterUpdateRequest:
+      type: object
+      properties:
+        title: { type: string, maxLength: 60 }
+        content: { type: string, nullable: true }
+    ChapterReorderRequest:
+      type: object
+      required: [orderedChapterIds]
+      properties:
+        orderedChapterIds:
+          type: array
+          items: { type: integer }
+          description: 全部章节 id 的新顺序；保存后从 1 连续编号
+    StudyRecord:
+      type: object
+      properties:
+        courseId: { type: integer }
+        courseName: { type: string }
+        chapterCount: { type: integer }
+        visitedCount: { type: integer }
+        lastChapterId: { type: integer, nullable: true }
+        lastChapterTitle: { type: string, nullable: true }
+        progressPercent: { type: integer, description: 已访问章节数/总章节数 }
+        completed: { type: boolean, description: 全部章节至少访问一次自动标记 }
+        lastVisitedAt: { type: string, format: date-time }
+    FavoriteCreateRequest:
+      type: object
+      required: [courseId]
+      properties:
+        courseId: { type: integer }
+
+    CouponTemplateBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        discountCents: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        totalQty: { type: integer }
+        claimedCount: { type: integer, description: 当前未失效领取数 }
+        status: { type: string, enum: [disabled, enabled] }
+        courseIds: { type: array, items: { type: integer } }
+    CouponTemplateCreateRequest:
+      type: object
+      required: [name, discountCents, startAt, endAt, totalQty, perUserLimit, courseIds]
+      properties:
+        name: { type: string }
+        discountCents: { type: integer, minimum: 1 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        totalQty: { type: integer, minimum: 1 }
+        perUserLimit: { type: integer, default: 1, description: 本期服务端强制为 1 }
+        courseIds: { type: array, items: { type: integer }, description: 仅已发布课程 }
+        enableOnCreate: { type: boolean, default: false, description: 创建后立即启用（默认不选中） }
+    CouponTemplateUpdateRequest:
+      type: object
+      required: [version]
+      description: 仅停用态可编辑全部字段；启用态只读
+      properties:
+        version: { type: integer }
+        name: { type: string }
+        discountCents: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        totalQty: { type: integer }
+        perUserLimit: { type: integer }
+        courseIds: { type: array, items: { type: integer } }
+    CouponClaim:
+      type: object
+      properties:
+        id: { type: integer }
+        templateId: { type: integer }
+        templateName: { type: string }
+        discountCents: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        courseIds: { type: array, items: { type: integer } }
+        status: { type: string, enum: [unused, used, restored, invalid, expired] }
+        claimedAt: { type: string, format: date-time }
+        usedAt: { type: string, format: date-time, nullable: true }
+
+    CheckoutPreviewData:
+      type: object
+      description: data 结构：服务端计价，客户端不传金额
+      properties:
+        courseId: { type: integer }
+        activityType: { type: string, enum: [normal, groupon, flash_sale] }
+        activityId: { type: integer, nullable: true }
+        originalCents: { type: integer }
+        currentCents: { type: integer }
+        discountCents: { type: integer }
+        paidCents: { type: integer, description: max(0, 当前价 − 券额) }
+        couponClaimId: { type: integer, nullable: true }
+    OrderCreateRequest:
+      type: object
+      required: [courseId]
+      properties:
+        courseId: { type: integer }
+        activityType: { type: string, enum: [normal, groupon, flash_sale], default: normal }
+        activityId: { type: integer, nullable: true, description: 拼团=团组 id；秒杀=活动 id }
+        couponClaimId: { type: integer, nullable: true }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        orderNo: { type: string }
+        courseId: { type: integer }
+        courseName: { type: string }
+        activityType: { type: string, enum: [normal, groupon, flash_sale] }
+        activityId: { type: integer, nullable: true }
+        originalCents: { type: integer }
+        currentCents: { type: integer }
+        discountCents: { type: integer }
+        paidCents: { type: integer }
+        couponClaimId: { type: integer, nullable: true }
+        status: { type: string, enum: [pending, paid, refunded, cancelled] }
+        paidAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    GrouponActivityBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        courseId: { type: integer }
+        courseName: { type: string }
+        name: { type: string }
+        priceCents: { type: integer }
+        targetSize: { type: integer, minimum: 2 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
+    GrouponGroup:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [pending, success, failed] }
+        memberCount: { type: integer }
+        targetSize: { type: integer }
+        expiresAt: { type: string, format: date-time }
+        formedAt: { type: string, format: date-time, nullable: true }
+    GrouponCreateRequest:
+      type: object
+      required: [courseId, name, priceCents, targetSize, startAt, endAt]
+      properties:
+        courseId: { type: integer, description: 仅已发布课程；同课程活动时间不得重叠（含秒杀） }
+        name: { type: string }
+        priceCents: { type: integer, minimum: 0 }
+        targetSize: { type: integer, minimum: 2 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time, description: 必须晚于开始时间 }
+    GrouponUpdateRequest:
+      type: object
+      required: [version]
+      description: 仅未开始活动可编辑
+      properties:
+        version: { type: integer }
+        name: { type: string }
+        priceCents: { type: integer }
+        targetSize: { type: integer, minimum: 2 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+
+    FlashSaleActivityBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        courseId: { type: integer }
+        courseName: { type: string }
+        name: { type: string }
+        priceCents: { type: integer }
+        stock: { type: integer }
+        sold: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
+    FlashSaleCreateRequest:
+      type: object
+      required: [courseId, name, priceCents, stock, startAt, endAt]
+      properties:
+        courseId: { type: integer, description: 仅已发布课程；同课程活动时间不得与拼团/秒杀重叠 }
+        name: { type: string }
+        priceCents: { type: integer, minimum: 0 }
+        stock: { type: integer, minimum: 1 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+    FlashSaleUpdateRequest:
+      type: object
+      required: [version]
+      description: 仅未开始活动可编辑；库存不得小于已售；时间不得与同课程其他活动重叠
+      properties:
+        version: { type: integer }
+        name: { type: string }
+        priceCents: { type: integer }
+        stock: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+
+    QuestionUserView:
+      type: object
+      description: 用户视角题目：**不含答案与解析**（考试安全）
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [single, multiple] }
+        stem: { type: string }
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              text: { type: string }
+        score: { type: integer }
+    QuestionAdminView:
+      allOf:
+        - $ref: '#/components/schemas/QuestionUserView'
+        - type: object
+          properties:
+            answer: { type: array, items: { type: string }, description: 单选恰好 1 个；多选 ≥2 个 }
+            analysis: { type: string }
+            status: { type: string, enum: [enabled, disabled] }
+    QuestionCreateRequest:
+      type: object
+      required: [type, stem, options, answer, analysis, score]
+      properties:
+        type: { type: string, enum: [single, multiple] }
+        stem: { type: string }
+        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string }, text: { type: string } } } }
+        answer: { type: array, minItems: 1, items: { type: string } }
+        analysis: { type: string }
+        score: { type: integer, minimum: 1, description: 分值仅创建时确定，之后不可改 }
+    QuestionUpdateRequest:
+      type: object
+      required: [version]
+      description: 分值不可改
+      properties:
+        version: { type: integer }
+        type: { type: string, enum: [single, multiple] }
+        stem: { type: string }
+        options: { type: array, minItems: 2, maxItems: 6, items: { type: object } }
+        answer: { type: array, items: { type: string } }
+        analysis: { type: string }
+
+    ExamBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        durationMin: { type: integer }
+        passScore: { type: integer }
+        totalScore: { type: integer }
+        questionCount: { type: integer }
+        status: { type: string, enum: [draft, published, ended] }
+        publishedAt: { type: string, format: date-time, nullable: true }
+    ExamCreateRequest:
+      type: object
+      required: [title, durationMin, passScore, questionIds]
+      properties:
+        title: { type: string }
+        description: { type: string, default: '' }
+        durationMin: { type: integer, minimum: 1 }
+        passScore: { type: integer, minimum: 1, description: 大于 0 且不超过总分 }
+        questionIds: { type: array, items: { type: integer }, description: 选题并定序；组卷不改分值，总分=分值之和 }
+    ExamUpdateRequest:
+      type: object
+      required: [version]
+      description: 仅草稿可编辑
+      properties:
+        version: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        durationMin: { type: integer }
+        passScore: { type: integer }
+        questionIds: { type: array, items: { type: integer } }
+    AttemptStartData:
+      type: object
+      description: data 结构：开始考试；题目不含答案；deadlineAt 为服务端权威时间
+      properties:
+        attemptId: { type: integer }
+        examId: { type: integer }
+        examTitle: { type: string }
+        durationMin: { type: integer }
+        deadlineAt: { type: string, format: date-time }
+        totalScore: { type: integer }
+        passScore: { type: integer }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuestionUserView' }
+    SubmitRequest:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+          description: 键为题 id，值为所选选项 key 数组
+    SubmitData:
+      type: object
+      description: data 结构：判分结果（多选需完全匹配且无错选才得分，无部分分）
+      properties:
+        attemptId: { type: integer }
+        score: { type: integer }
+        totalScore: { type: integer }
+        passScore: { type: integer }
+        passed: { type: boolean }
+        submittedAt: { type: string, format: date-time }
+    AttemptResultData:
+      type: object
+      description: data 结构：交卷后才返回答题详情、正确答案与解析
+      properties:
+        attemptId: { type: integer }
+        examTitle: { type: string }
+        score: { type: integer }
+        totalScore: { type: integer }
+        passScore: { type: integer }
+        passed: { type: boolean }
+        submittedAt: { type: string, format: date-time }
+        questions:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/QuestionUserView'
+              - type: object
+                properties:
+                  userAnswers: { type: array, items: { type: string } }
+                  correctAnswers: { type: array, items: { type: string } }
+                  analysis: { type: string }
+
+    ReplyView:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        nickname: { type: string }
+        replyToNickname: { type: string, nullable: true }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+    CommentView:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        nickname: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        replies:
+          type: array
+          items: { $ref: '#/components/schemas/ReplyView' }
+    PostBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        nickname: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        content: { type: string }
+        likeCount: { type: integer }
+        likedByMe: { type: boolean, description: 仅登录用户返回 }
+        commentCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/PostBrief'
+        - type: object
+          properties:
+            comments: { type: array, items: { $ref: '#/components/schemas/CommentView' } }
+    PostCreateRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 2000, description: 屏蔽词校验命中则阻止（code=7001，附命中词） }
+    CommentCreateRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 1000 }
+        replyToUserId: { type: integer, nullable: true, description: 仅回复接口使用 }
+
+    BlockedWord:
+      type: object
+      properties:
+        id: { type: integer }
+        word: { type: string }
+        status: { type: string, enum: [enabled, disabled] }
+    BlockedWordCreateRequest:
+      type: object
+      required: [word]
+      properties:
+        word: { type: string, minLength: 1 }
+
+    ProfileData:
+      type: object
+      description: data 结构
+      properties:
+        id: { type: integer }
+        email: { type: string, description: 只读 }
+        nickname: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        gender: { type: string, enum: [male, female, secret] }
+    ProfileUpdateRequest:
+      type: object
+      required: [nickname, gender]
+      properties:
+        nickname: { type: string, maxLength: 30 }
+        avatarUrl: { type: string, nullable: true }
+        gender: { type: string, enum: [male, female, secret] }
+    UploadData:
+      type: object
+      description: data 结构
+      properties:
+        key: { type: string, description: 对象存储 key }
+        url: { type: string, description: 签名访问 URL（私有桶） }
+    OverviewData:
+      type: object
+      description: data 结构：学习概览统计
+      properties:
+        enrolledCount: { type: integer }
+        completedCount: { type: integer }
+        favoriteCount: { type: integer }
+        couponCount: { type: integer }
+        postCount: { type: integer }
+    DashboardStats:
+      type: object
+      description: data 结构：管理端工作台统计
+      properties:
+        userCount: { type: integer }
+        courseCount: { type: integer }
+        publishedCourseCount: { type: integer }
+        orderCount: { type: integer }
+        paidOrderCount: { type: integer }
+        revenueCents: { type: integer }
+        ongoingGrouponCount: { type: integer }
+        ongoingFlashSaleCount: { type: integer }
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: 注册（不自动登录，跳登录页）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '429': { $ref: '#/components/responses/Err429' }
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 登录（邮箱或密码错误统一提示；角色由账号携带）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: 'data: User'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '422':
+          description: 邮箱或密码错误（code=2003，统一提示）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '429': { $ref: '#/components/responses/Err429' }
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 退出登录（吊销会话）
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 当前用户
+      responses:
+        '200':
+          description: 'data: User'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /auth/password:
+    post:
+      tags: [auth]
+      summary: 修改密码（成功后吊销全部会话，需重新登录）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '422':
+          description: 当前密码错误（code=2004）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /auth/verify-email:
+    post:
+      tags: [auth]
+      summary: 邮箱验证【预留：D7 已决暂不启用】
+      description: 本期返回 501，待接入邮件服务后实现
+      security: []
+      responses:
+        '501': { description: 未实现（预留） }
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      summary: 发起密码重置【预留：D7 已决暂不启用】
+      description: 本期返回 501，待接入邮件服务后实现
+      security: []
+      responses:
+        '501': { description: 未实现（预留） }
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      summary: 一次性 token 重置密码【预留：D7 已决暂不启用】
+      description: 本期返回 501，待接入邮件服务后实现
+      security: []
+      responses:
+        '501': { description: 未实现（预留） }
+
+  /home/recommendations:
+    get:
+      tags: [catalog]
+      summary: 首页推荐课程
+      security: []
+      responses:
+        '200':
+          description: 'data: { courses: [CourseBrief] }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /courses:
+    get:
+      tags: [catalog]
+      summary: 已发布课程列表
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: CourseBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /courses/{courseId}:
+    get:
+      tags: [catalog]
+      summary: 课程详情（含活动信息、可领券、章节目录仅名称）
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: CourseDetail'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /courses/{courseId}/chapters/{cid}/content:
+    get:
+      tags: [catalog]
+      summary: 章节正文（需已购买；未购 403，仅返回章节名）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+        - { $ref: '#/components/parameters/chapterId' }
+      responses:
+        '200':
+          description: 'data: ChapterContent'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /learning/{courseId}/chapters/{cid}/visit:
+    post:
+      tags: [catalog]
+      summary: 记录章节访问（重算进度；全部章节至少访问一次自动标记已学完）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+        - { $ref: '#/components/parameters/chapterId' }
+      responses:
+        '200':
+          description: 'data: { progressPercent, completed }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /user/study-records:
+    get:
+      tags: [catalog]
+      summary: 学习记录
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: StudyRecord）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /favorites:
+    post:
+      tags: [catalog]
+      summary: 收藏课程（幂等）
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FavoriteCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /favorites/{courseId}:
+    delete:
+      tags: [catalog]
+      summary: 取消收藏（幂等）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /user/favorites:
+    get:
+      tags: [catalog]
+      summary: 我的收藏（仅课程）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: CourseBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+
+  /admin/courses:
+    get:
+      tags: [admin-courses]
+      summary: 课程列表（全部状态，含草稿/下架）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - in: query
+          name: status
+          schema: { type: string, enum: [draft, published, unpublished] }
+      responses:
+        '200':
+          description: 'data: Page（items: CourseBrief，含 chapterCount/enrollmentCount）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [admin-courses]
+      summary: 创建课程（草稿；首个章节保存后类型锁定）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CourseCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+  /admin/courses/{courseId}:
+    get:
+      tags: [admin-courses]
+      summary: 课程详情（管理端视角，含草稿/下架）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: CourseDetail'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+    put:
+      tags: [admin-courses]
+      summary: 编辑基本信息（按状态矩阵限制可编辑字段，version 乐观锁）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CourseUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/courses/{courseId}/publish:
+    post:
+      tags: [admin-courses]
+      summary: 发布/重新发布课程
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422':
+          description: 状态不允许（仅草稿/已下架可发布）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/courses/{courseId}/unpublish:
+    post:
+      tags: [admin-courses]
+      summary: 下架课程（下架后禁止新购买，已购用户仍可学习）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422':
+          description: 状态不允许（仅已发布可下架）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/courses/{courseId}/chapters:
+    post:
+      tags: [admin-courses]
+      summary: 新增章节（类型须与课程一致；草稿/已下架可操作）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChapterCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 类型与课程不一致或状态不允许
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/courses/{courseId}/chapters/{cid}:
+    put:
+      tags: [admin-courses]
+      summary: 编辑章节
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+        - { $ref: '#/components/parameters/chapterId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChapterUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+    delete:
+      tags: [admin-courses]
+      summary: 删除章节
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+        - { $ref: '#/components/parameters/chapterId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/courses/{courseId}/chapters/reorder:
+    post:
+      tags: [admin-courses]
+      summary: 章节排序（上移/下移/任意重排，保存后从 1 连续编号）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChapterReorderRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 状态不允许（已发布课程需先下架）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+
+  /courses/{courseId}/coupons:
+    get:
+      tags: [coupons]
+      summary: 课程详情可领取券列表（启用且有效期内）
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: [CouponTemplateBrief]'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /coupons/{templateId}/claim:
+    post:
+      tags: [coupons]
+      summary: 领取优惠券（幂等；限领：同启用周期存在未失效记录则 422）
+      parameters:
+        - { $ref: '#/components/parameters/templateId' }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: 'data: CouponClaim'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 不在有效期/超出总量/限领（code=4xxx）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /user/coupons:
+    get:
+      tags: [coupons]
+      summary: 我的优惠券（未使用/已使用/已过期/已失效筛选）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - in: query
+          name: status
+          schema: { type: string, enum: [unused, used, expired, invalid, restored] }
+      responses:
+        '200':
+          description: 'data: Page（items: CouponClaim）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /admin/coupons:
+    get:
+      tags: [coupons]
+      summary: 优惠券模板列表
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - in: query
+          name: status
+          schema: { type: string, enum: [disabled, enabled] }
+      responses:
+        '200':
+          description: 'data: Page（items: CouponTemplateBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [coupons]
+      summary: 创建优惠券模板（默认不启用）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponTemplateCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 适用课程含未发布课程
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/coupons/{templateId}:
+    get:
+      tags: [coupons]
+      summary: 优惠券模板详情
+      parameters:
+        - { $ref: '#/components/parameters/templateId' }
+      responses:
+        '200':
+          description: 'data: CouponTemplateBrief'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+    put:
+      tags: [coupons]
+      summary: 编辑模板（仅停用态可编辑全部字段；启用态只读 422）
+      parameters:
+        - { $ref: '#/components/parameters/templateId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponTemplateUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/coupons/{templateId}/enable:
+    post:
+      tags: [coupons]
+      summary: 启用模板
+      parameters:
+        - { $ref: '#/components/parameters/templateId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/coupons/{templateId}/disable:
+    post:
+      tags: [coupons]
+      summary: 停用模板（级联：未使用/已恢复领取记录永久置为已失效；已使用保留）
+      parameters:
+        - { $ref: '#/components/parameters/templateId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+
+  /checkout/{courseId}/preview:
+    get:
+      tags: [orders]
+      summary: 价格预览（服务端计价，客户端不传金额）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+        - in: query
+          name: couponId
+          schema: { type: integer }
+          description: 选中的领取记录 id
+        - in: query
+          name: activityType
+          schema: { type: string, enum: [normal, groupon, flash_sale], default: normal }
+        - in: query
+          name: activityId
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 'data: CheckoutPreviewData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 活动无效/券不可用
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /orders:
+    post:
+      tags: [orders]
+      summary: 创建订单（幂等键；服务端定价并核销券；防重复购买）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreateRequest' }
+      responses:
+        '201':
+          description: 'data: Order'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 重复购买（code=4003）或幂等冲突（code=4004）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 课程下架/活动无效/券不可用
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /orders/{id}/pay:
+    post:
+      tags: [orders]
+      summary: 模拟支付（幂等；成功后扣库存/计团/授予学习权限；实付 0 同样生成订单）
+      parameters:
+        - { $ref: '#/components/parameters/orderId' }
+      responses:
+        '200':
+          description: 'data: Order（status=paid）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 已支付（幂等返回首次结果）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 库存不足/团组已满/订单已取消
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /orders/{id}:
+    get:
+      tags: [orders]
+      summary: 订单详情/支付结果（归属校验）
+      parameters:
+        - { $ref: '#/components/parameters/orderId' }
+      responses:
+        '200':
+          description: 'data: Order'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /user/orders:
+    get:
+      tags: [orders]
+      summary: 购买记录（仅自己的订单）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: Order）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /admin/orders:
+    get:
+      tags: [orders]
+      summary: 全部订单（客服/审计）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: Order）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+
+  /groupons:
+    get:
+      tags: [groupons]
+      summary: 拼团活动列表（进行中）
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: GrouponActivityBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /groupons/{id}:
+    get:
+      tags: [groupons]
+      summary: 拼团活动详情 + 待成团团组
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/grouponId' }
+      responses:
+        '200':
+          description: 'data: GrouponActivityBrief + { groups: [GrouponGroup] }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /groupons/{id}/groups:
+    post:
+      tags: [groupons]
+      summary: 发起新团（发起者为首成员；生成待支付订单；一人一次幂等）
+      parameters:
+        - { $ref: '#/components/parameters/grouponId' }
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      responses:
+        '201':
+          description: 'data: { order: Order, group: GrouponGroup }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 已参与（幂等返回首次结果）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 活动未开始/已结束/已参与（code=5xxx）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /groupons/{id}/groups/{gid}/join:
+    post:
+      tags: [groupons]
+      summary: 加入待成团团组（生成待支付订单）
+      parameters:
+        - { $ref: '#/components/parameters/grouponId' }
+        - { $ref: '#/components/parameters/groupId' }
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      responses:
+        '201':
+          description: 'data: { order: Order, group: GrouponGroup }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 团已满/已结束/已参与
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /user/groupons:
+    get:
+      tags: [groupons]
+      summary: 我的拼团（团组状态/订单状态）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: { activity, group, order, status }）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /admin/groupons:
+    get:
+      tags: [groupons]
+      summary: 拼团活动列表（管理端）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: GrouponActivityBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [groupons]
+      summary: 创建拼团活动（仅已发布课程；同课程活动时间不得重叠）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GrouponCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 课程未发布/时间重叠/结束不晚于开始
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/groupons/{id}:
+    put:
+      tags: [groupons]
+      summary: 编辑活动（仅未开始；进行中禁止修改类型/价格/时间）
+      parameters:
+        - { $ref: '#/components/parameters/grouponId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GrouponUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/groupons/{id}/cancel:
+    post:
+      tags: [groupons]
+      summary: 取消活动（仅未开始）
+      parameters:
+        - { $ref: '#/components/parameters/grouponId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+
+  /flash-sales:
+    get:
+      tags: [flash-sales]
+      summary: 秒杀活动列表
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: FlashSaleActivityBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /flash-sales/{id}:
+    get:
+      tags: [flash-sales]
+      summary: 秒杀详情（总库存/剩余库存/倒计时；剩余=stock−sold）
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/flashSaleId' }
+      responses:
+        '200':
+          description: 'data: FlashSaleActivityBrief'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /flash-sales/{id}/purchase:
+    post:
+      tags: [flash-sales]
+      summary: 秒杀下单（幂等 + 限购一次 + 防超卖：预占库存，生成待支付订单）
+      parameters:
+        - { $ref: '#/components/parameters/flashSaleId' }
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      responses:
+        '201':
+          description: 'data: { order: Order }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 已限购/已下单（幂等返回首次结果）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 未开始/已结束/已售罄（code=4001/5002）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/flash-sales:
+    get:
+      tags: [flash-sales]
+      summary: 秒杀活动列表（管理端）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: FlashSaleActivityBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [flash-sales]
+      summary: 创建秒杀活动（仅已发布课程）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlashSaleCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 课程未发布/同课程活动时间重叠
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/flash-sales/{id}:
+    put:
+      tags: [flash-sales]
+      summary: 编辑活动（仅未开始；库存不得小于已售）
+      parameters:
+        - { $ref: '#/components/parameters/flashSaleId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlashSaleUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/flash-sales/{id}/cancel:
+    post:
+      tags: [flash-sales]
+      summary: 取消活动（仅未开始）
+      parameters:
+        - { $ref: '#/components/parameters/flashSaleId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+
+  /admin/questions:
+    get:
+      tags: [exams]
+      summary: 题目列表
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - in: query
+          name: type
+          schema: { type: string, enum: [single, multiple] }
+        - in: query
+          name: status
+          schema: { type: string, enum: [enabled, disabled] }
+      responses:
+        '200':
+          description: 'data: Page（items: QuestionAdminView，含答案/解析）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [exams]
+      summary: 创建题目（单选恰好 1 答案、多选 ≥2；分值仅创建时确定）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuestionCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 选项数/答案数不满足规则
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/questions/{id}:
+    get:
+      tags: [exams]
+      summary: 题目详情
+      parameters:
+        - { $ref: '#/components/parameters/questionId' }
+      responses:
+        '200':
+          description: 'data: QuestionAdminView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+    put:
+      tags: [exams]
+      summary: 编辑题目（分值不可改；请求中的 score 被忽略）
+      parameters:
+        - { $ref: '#/components/parameters/questionId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuestionUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/questions/{id}/enable:
+    post:
+      tags: [exams]
+      summary: 启用题目
+      parameters:
+        - { $ref: '#/components/parameters/questionId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /admin/questions/{id}/disable:
+    post:
+      tags: [exams]
+      summary: 停用题目
+      parameters:
+        - { $ref: '#/components/parameters/questionId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /admin/exams:
+    get:
+      tags: [exams]
+      summary: 考试列表
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: ExamBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [exams]
+      summary: 创建考试（组卷不改分值；及格分 >0 且 ≤总分）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExamCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 及格分超总分/题目不可用
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/exams/{id}:
+    get:
+      tags: [exams]
+      summary: 考试详情（含选题与顺序）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      responses:
+        '200':
+          description: 'data: ExamBrief + { questionIds: [integer] }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+    put:
+      tags: [exams]
+      summary: 编辑考试（仅草稿）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExamUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/exams/{id}/publish:
+    post:
+      tags: [exams]
+      summary: 发布考试（冻结题目快照，题库后续修改不影响历史考试）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /admin/exams/{id}/end:
+    post:
+      tags: [exams]
+      summary: 结束考试
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422': { $ref: '#/components/responses/Err422' }
+  /exams:
+    get:
+      tags: [exams]
+      summary: 已发布考试列表（用户端）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: ExamBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /exams/{id}:
+    get:
+      tags: [exams]
+      summary: 考试详情（不含答案/解析）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      responses:
+        '200':
+          description: 'data: ExamBrief'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /exams/{id}/attempts:
+    post:
+      tags: [exams]
+      summary: 开始考试（每人每场唯一；返回题目快照不含答案 + 服务端 deadline）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+      responses:
+        '201':
+          description: 'data: AttemptStartData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 已考过（code=6001，幂等返回首次结果）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 未发布/已结束
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /exams/{id}/attempts/{aid}/submit:
+    post:
+      tags: [exams]
+      summary: 交卷（幂等；服务端判分；支持提前交卷与自动交卷；超时 422）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+        - { $ref: '#/components/parameters/attemptId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitRequest' }
+      responses:
+        '200':
+          description: 'data: SubmitData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409':
+          description: 已提交（幂等返回首次判分结果）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '422':
+          description: 已过 deadline（code=6002）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /exams/{id}/attempts/{aid}/result:
+    get:
+      tags: [exams]
+      summary: 成绩与解析（交卷后才返回正确答案与解析）
+      parameters:
+        - { $ref: '#/components/parameters/examId' }
+        - { $ref: '#/components/parameters/attemptId' }
+      responses:
+        '200':
+          description: 'data: AttemptResultData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 未交卷
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /user/exams:
+    get:
+      tags: [exams]
+      summary: 我的考试（成绩记录）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: { attemptId, examTitle, score, totalScore, passScore, passed, submittedAt }）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+
+  /posts:
+    get:
+      tags: [community]
+      summary: 信息流
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: PostBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+    post:
+      tags: [community]
+      summary: 发帖（屏蔽词校验：包含匹配、忽略英文大小写，命中阻止并列出命中词）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostCreateRequest' }
+      responses:
+        '201':
+          description: 'data: PostBrief'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '422':
+          description: 命中屏蔽词（code=7001，data 附命中词列表）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '429': { $ref: '#/components/responses/Err429' }
+  /posts/{id}:
+    get:
+      tags: [community]
+      summary: 帖子详情（两层评论：回复挂在一级评论下）
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/postId' }
+      responses:
+        '200':
+          description: 'data: PostDetail'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '404': { $ref: '#/components/responses/Err404' }
+    delete:
+      tags: [community]
+      summary: 删除自己的帖子
+      parameters:
+        - { $ref: '#/components/parameters/postId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /posts/{id}/like:
+    post:
+      tags: [community]
+      summary: 点赞（幂等）
+      parameters:
+        - { $ref: '#/components/parameters/postId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+    delete:
+      tags: [community]
+      summary: 取消点赞（幂等）
+      parameters:
+        - { $ref: '#/components/parameters/postId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /posts/{id}/comments:
+    post:
+      tags: [community]
+      summary: 发表一级评论（屏蔽词校验）
+      parameters:
+        - { $ref: '#/components/parameters/postId' }
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreateRequest' }
+      responses:
+        '201':
+          description: 'data: CommentView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 命中屏蔽词（code=7001）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /comments/{id}/replies:
+    post:
+      tags: [community]
+      summary: 回复（挂在一级评论下，不产生第三层；replyToUserId 表达回复目标）
+      parameters:
+        - { $ref: '#/components/parameters/commentId' }
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreateRequest' }
+      responses:
+        '201':
+          description: 'data: ReplyView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '422':
+          description: 命中屏蔽词（code=7001）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /comments/{id}:
+    delete:
+      tags: [community]
+      summary: 删除自己的评论（删除一级评论级联删除其全部回复）
+      parameters:
+        - { $ref: '#/components/parameters/commentId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /user/posts:
+    get:
+      tags: [community]
+      summary: 我的帖子（仅自己发布的帖子，不含评论与回复）
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: PostBrief）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /admin/blocked-words:
+    get:
+      tags: [community]
+      summary: 屏蔽词列表
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: 'data: Page（items: BlockedWord）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+    post:
+      tags: [community]
+      summary: 新增屏蔽词（修改后立即影响用户端）
+      parameters:
+        - { $ref: '#/components/headers/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockedWordCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '409':
+          description: 屏蔽词已存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/blocked-words/{id}:
+    put:
+      tags: [community]
+      summary: 启用/停用/修改屏蔽词
+      parameters:
+        - { $ref: '#/components/parameters/wordId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                word: { type: string }
+                status: { type: string, enum: [enabled, disabled] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+    delete:
+      tags: [community]
+      summary: 删除屏蔽词
+      parameters:
+        - { $ref: '#/components/parameters/wordId' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+
+  /user/profile:
+    get:
+      tags: [user-center]
+      summary: 个人资料（邮箱只读）
+      responses:
+        '200':
+          description: 'data: ProfileData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+    put:
+      tags: [user-center]
+      summary: 修改资料（仅昵称/头像/性别）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /user/overview:
+    get:
+      tags: [user-center]
+      summary: 学习概览统计
+      responses:
+        '200':
+          description: 'data: OverviewData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+  /user/account:
+    delete:
+      tags: [user-center]
+      summary: 注销账号【预留：D12 已决暂不启用】
+      description: 本期返回 501；实现时软删除 + 个人数据匿名化
+      responses:
+        '501': { description: 未实现（预留） }
+
+  /files/upload:
+    post:
+      tags: [files]
+      summary: 图片上传（PNG/JPEG/WebP，单张 ≤2MB；magic bytes 校验 + 重编码，存储至 MinIO 私有桶）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: 'data: UploadData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '422':
+          description: 类型不支持/超过 2MB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '429': { $ref: '#/components/responses/Err429' }
+
+  /admin/dashboard/stats:
+    get:
+      tags: [admin-dashboard]
+      summary: 工作台统计
+      responses:
+        '200':
+          description: 'data: DashboardStats'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+
+  /healthz:
+    get:
+      tags: [health]
+      summary: 存活检查（根路径，非 /api/v1 前缀）
+      security: []
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema: { type: string }
+  /readyz:
+    get:
+      tags: [health]
+      summary: 就绪检查：PostgreSQL/Redis/MinIO 连通（根路径，非 /api/v1 前缀）
+      security: []
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema: { type: string }
+        '503':
+          description: 依赖未就绪
+          content:
+            text/plain:
+              schema: { type: string }

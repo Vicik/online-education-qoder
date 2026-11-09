@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@aws-sdk/s3-request-presigner": "^3.1164.0"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.3.0"
+  }
+}

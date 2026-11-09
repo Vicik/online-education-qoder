@@ -1,0 +1,547 @@
+// 知序课堂 数据模型（迁移源）
+// 依据：接口设计文档.md §6 数据模型（D3 已决 PostgreSQL）
+// 迁移 SQL 由 `prisma migrate dev --name xxx` 从本文件生成并提交。
+//
+// 关键适配：Prisma 不支持部分唯一索引（partial unique index），
+// 设计文档中的「部分唯一索引」以可空唯一列实现（语义等价）：
+//   - orders.purchaseKey      防重复购买（仅 pending/paid 期间非空）
+//   - orders.flashPurchaseKey 秒杀限购（仅 pending/paid 期间非空）
+//   - coupon_claims.claimKey  券限领（status <> invalid 期间非空）
+// 金额一律整数分（Int）；时间 UTC（timestamptz），展示按 Asia/Shanghai。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 枚举 ----------
+
+enum UserRole {
+  user
+  admin
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+enum Gender {
+  male
+  female
+  secret
+}
+
+enum CourseType {
+  video
+  audio
+  rich
+}
+
+enum CourseStatus {
+  draft
+  published
+  unpublished
+}
+
+enum OrderStatus {
+  pending
+  paid
+  refunded
+  cancelled
+}
+
+enum ActivityType {
+  normal
+  groupon
+  flash_sale
+}
+
+enum PaymentStatus {
+  success
+  refunded
+}
+
+enum CouponTemplateStatus {
+  disabled
+  enabled
+}
+
+enum CouponClaimStatus {
+  unused
+  used
+  restored
+  invalid
+  expired
+}
+
+enum GrouponActivityStatus {
+  not_started
+  ongoing
+  ended
+  cancelled
+}
+
+enum GrouponGroupStatus {
+  pending
+  success
+  failed
+}
+
+enum FlashSaleActivityStatus {
+  not_started
+  ongoing
+  ended
+  cancelled
+}
+
+enum QuestionType {
+  single
+  multiple
+}
+
+enum EnabledStatus {
+  enabled
+  disabled
+}
+
+enum ExamStatus {
+  draft
+  published
+  ended
+}
+
+// ---------- 模型 ----------
+
+model User {
+  id              Int        @id @default(autoincrement())
+  email           String     @unique // 应用层统一转小写后存储
+  passwordHash    String
+  nickname        String
+  avatarUrl       String?
+  gender          Gender     @default(secret)
+  role            UserRole   @default(user)
+  status          UserStatus @default(active)
+  totpSecret      String? // 管理员 TOTP 密钥（D8：管理员登录强制二次验证）
+  emailVerifiedAt DateTime?
+  version         Int        @default(1) // 乐观锁
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  orders          Order[]
+  couponClaims    CouponClaim[]
+  favorites       Favorite[]
+  learningRecords LearningRecord[]
+  posts           Post[]
+  comments        Comment[]
+  postLikes       PostLike[]
+  examAttempts    ExamAttempt[]
+  grouponMembers  GrouponMember[]
+  auditLogs       AuditLog[]
+  idempotencyKeys IdempotencyKey[]
+
+  @@map("users")
+}
+
+model Course {
+  id            Int          @id @default(autoincrement())
+  name          String // 应用层校验 ≤40 字符
+  type          CourseType // 保存首个章节后锁定
+  coverUrl      String?
+  intro         String?
+  detailRich    String?      @db.Text // 服务端净化后的富文本 HTML
+  instructor    String?
+  originalCents Int
+  saleCents     Int // 售价 ≤ 原价（应用层校验）
+  status        CourseStatus @default(draft)
+  version       Int          @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  chapters           Chapter[]
+  orders             Order[]
+  couponTemplates    CouponTemplateCourse[]
+  grouponActivities  GrouponActivity[]
+  flashSaleActivities FlashSaleActivity[]
+  favorites          Favorite[]
+  learningRecords    LearningRecord[]
+
+  @@index([status])
+  @@map("courses")
+}
+
+model Chapter {
+  id          Int        @id @default(autoincrement())
+  courseId    Int
+  title       String // 应用层校验 ≤60 字符
+  contentType CourseType // 必须与课程 type 一致（应用层校验）
+  content     String?    @db.Text // rich: 净化后 HTML；video/audio: 对象存储 key
+  sortOrder   Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learningRecords LearningRecord[]
+
+  @@unique([courseId, sortOrder]) // 重排后从 1 连续编号
+  @@map("chapters")
+}
+
+model Order {
+  id            Int          @id @default(autoincrement())
+  orderNo       String       @unique
+  userId        Int
+  courseId      Int
+  activityType  ActivityType @default(normal)
+  activityId    Int? // groupon: 团组 id；flash_sale: 活动 id；normal 为 null
+  originalCents Int
+  currentCents  Int // 售价/秒杀价/拼团价（服务端定价）
+  discountCents Int          @default(0)
+  paidCents     Int // max(0, current - 券额)
+  couponClaimId Int?         @unique
+  status        OrderStatus  @default(pending)
+  paidAt        DateTime?
+  expiresAt     DateTime? // pending 超时时间（ORDER_PENDING_TTL）
+  version       Int          @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // 部分唯一索引适配：创建时写入，取消/退款时置 NULL
+  purchaseKey      String? @unique // "user:{userId}:course:{courseId}" 防重复购买
+  flashPurchaseKey String? @unique // "user:{userId}:flash:{activityId}" 秒杀限购
+
+  user           User            @relation(fields: [userId], references: [id])
+  course         Course          @relation(fields: [courseId], references: [id])
+  couponClaim    CouponClaim?    @relation(fields: [couponClaimId], references: [id])
+  payment        Payment?
+  grouponMembers GrouponMember[]
+
+  @@index([userId, status])
+  @@index([courseId])
+  @@map("orders")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  orderId       Int           @unique
+  channel       String        @default("mock") // 支付网关抽象：mock；预留 wechat/alipay
+  transactionNo String        @unique
+  amountCents   Int
+  status        PaymentStatus @default(success)
+  paidAt        DateTime      @default(now())
+  refundedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+model CouponTemplate {
+  id            Int                  @id @default(autoincrement())
+  name          String
+  discountCents Int
+  startAt       DateTime
+  endAt         DateTime
+  totalQty      Int // 发放总量（按当前未失效领取记录计数）
+  perUserLimit  Int                  @default(1) // 说明文档业务规则固定为 1，服务端强制
+  claimedCount  Int                  @default(0)
+  status        CouponTemplateStatus @default(disabled)
+  version       Int                  @default(1)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  courses CouponTemplateCourse[]
+  claims  CouponClaim[]
+
+  @@index([status])
+  @@map("coupon_templates")
+}
+
+model CouponTemplateCourse {
+  templateId Int
+  courseId   Int // 仅已发布课程可关联（应用层校验）
+
+  template CouponTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  course   Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, courseId])
+  @@map("coupon_template_courses")
+}
+
+model CouponClaim {
+  id         Int               @id @default(autoincrement())
+  templateId Int
+  userId     Int
+  status     CouponClaimStatus @default(unused)
+  // 限领适配：status <> invalid 期间非空；变 invalid（模板停用级联）时置 NULL
+  claimKey   String?           @unique // "template:{templateId}:user:{userId}"
+  claimedAt  DateTime          @default(now())
+  usedAt     DateTime?
+  version    Int               @default(1)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  template CouponTemplate @relation(fields: [templateId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  order    Order? // 核销订单（orders.couponClaimId，1:1）
+
+  @@index([userId, status])
+  @@index([templateId, status])
+  @@map("coupon_claims")
+}
+
+model GrouponActivity {
+  id         Int                   @id @default(autoincrement())
+  courseId   Int // 仅已发布课程（应用层校验）
+  name       String
+  priceCents Int
+  targetSize Int // 成团人数，≥2
+  startAt    DateTime
+  endAt      DateTime
+  status     GrouponActivityStatus @default(not_started)
+  version    Int                   @default(1)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  course Course         @relation(fields: [courseId], references: [id])
+  groups GrouponGroup[]
+  members GrouponMember[]
+
+  @@index([status])
+  @@index([courseId, startAt, endAt]) // 同课程时间不重叠（服务层校验）
+  @@map("groupon_activities")
+}
+
+model GrouponGroup {
+  id          Int               @id @default(autoincrement())
+  activityId  Int
+  status      GrouponGroupStatus @default(pending)
+  memberCount Int               @default(0) // 支付成功才计入
+  formedAt    DateTime?
+  expiresAt   DateTime // = 活动结束时间
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  activity GrouponActivity @relation(fields: [activityId], references: [id])
+  members  GrouponMember[]
+
+  @@index([activityId, status])
+  @@map("groupon_groups")
+}
+
+model GrouponMember {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  activityId Int // 冗余，支撑 (activityId,userId) 唯一
+  userId     Int
+  orderId    Int      @unique
+  joinedAt   DateTime @default(now())
+
+  group    GrouponGroup    @relation(fields: [groupId], references: [id])
+  activity GrouponActivity @relation(fields: [activityId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
+  order    Order           @relation(fields: [orderId], references: [id])
+
+  @@unique([groupId, userId])
+  @@unique([activityId, userId]) // 同一活动一人一次（幂等兜底）
+  @@map("groupon_members")
+}
+
+model FlashSaleActivity {
+  id         Int                     @id @default(autoincrement())
+  courseId   Int // 仅已发布课程
+  name       String
+  priceCents Int
+  stock      Int
+  sold       Int                     @default(0) // 库存 ≥ 已售（应用层校验）
+  startAt    DateTime
+  endAt      DateTime
+  status     FlashSaleActivityStatus @default(not_started)
+  version    Int                     @default(1)
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@index([status])
+  @@map("flash_sale_activities")
+}
+
+model Question {
+  id        Int           @id @default(autoincrement())
+  type      QuestionType // single: 恰好 1 答案；multiple: ≥2 答案
+  stem      String
+  options   Json // [{key:"A",text:"..."}]，2~6 个
+  answer    Json // ["A"] 或 ["A","C"]；仅服务端判分使用，接口不返回
+  analysis  String
+  score     Int // 分值创建后不可改（应用层校验）
+  status    EnabledStatus @default(enabled)
+  version   Int           @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([type, status])
+  @@map("questions")
+}
+
+model Exam {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  durationMin Int // 时长（分钟）
+  passScore   Int // 0 < passScore ≤ totalScore
+  totalScore  Int // = 题目分值之和
+  status      ExamStatus @default(draft)
+  // 发布时冻结的题目快照：[{questionId, type, stem, options, score, sortOrder, answer, analysis}]
+  // 含 answer/analysis 仅供服务端判分；任何接口不得返回（考试安全 §10.5）
+  snapshot    Json?
+  publishedAt DateTime?
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  attempts ExamAttempt[]
+
+  @@index([status])
+  @@map("exams")
+}
+
+model ExamAttempt {
+  id          Int       @id @default(autoincrement())
+  examId      Int
+  userId      Int
+  startedAt   DateTime  @default(now())
+  deadlineAt  DateTime // 服务端权威时间
+  submittedAt DateTime?
+  score       Int?
+  answers     Json? // 用户提交答案
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  exam Exam @relation(fields: [examId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([examId, userId]) // 每场考试一次正式提交
+  @@index([userId])
+  @@map("exam_attempts")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  content   String   @db.Text // 屏蔽词校验 + 服务端净化后
+  likeCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  comments Comment[]
+  likes    PostLike[]
+
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id            Int      @id @default(autoincrement())
+  postId        Int
+  userId        Int
+  parentId      Int? // 一级评论 id；一级评论为 null（仅两层）
+  replyToUserId Int? // 回复目标：一级评论作者或同层回复作者
+  content       String
+  createdAt     DateTime @default(now())
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([postId, parentId, createdAt])
+  @@map("comments")
+}
+
+model PostLike {
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([postId, userId])
+  @@map("post_likes")
+}
+
+model BlockedWord {
+  id        Int           @id @default(autoincrement())
+  word      String        @unique // 包含匹配、忽略英文大小写（应用层）
+  status    EnabledStatus @default(enabled)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("blocked_words")
+}
+
+model Favorite {
+  userId    Int
+  courseId  Int
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@id([userId, courseId]) // 仅收藏课程
+  @@map("favorites")
+}
+
+model LearningRecord {
+  userId    Int
+  courseId  Int
+  chapterId Int
+  visitedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id])
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+
+  @@id([userId, chapterId]) // 进度 = 已访问章节数 / 总章节数
+  @@index([userId, courseId])
+  @@map("learning_records")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  action     String // 如 "course.publish"、"coupon.disable"
+  targetType String
+  targetId   Int?
+  before     Json?
+  after      Json?
+  ip         String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  key       String // 客户端 Idempotency-Key 头
+  endpoint  String // 规范化端点，如 "POST /orders"
+  response  Json // 首次执行的成功响应缓存
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, key, endpoint])
+  @@map("idempotency_keys")
+}

@@ -1,0 +1,102 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # 基础门禁：编译 + 单测；随后在真实 Postgres/Redis 上执行迁移、种子与集成测试
+  ci:
+    name: lint / build / unit / integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: zhixu
+          POSTGRES_PASSWORD: zhixu
+          POSTGRES_DB: zhixu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zhixu -d zhixu"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://zhixu:zhixu@localhost:5432/zhixu?schema=public
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: ci-session-secret
+      SEED_DEMO_DATA: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+      - run: npm run prisma:migrate
+      - run: npm run prisma:seed
+      - run: npm run test:all
+
+  # 迁移守卫：独立作业验证已提交的 migrations 能在空库上完整 deploy
+  migrations:
+    name: migrate deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: zhixu
+          POSTGRES_PASSWORD: zhixu
+          POSTGRES_DB: zhixu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zhixu -d zhixu"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://zhixu:zhixu@localhost:5432/zhixu?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate
