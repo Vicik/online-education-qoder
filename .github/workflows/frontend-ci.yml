@@ -2,13 +2,23 @@ name: frontend-ci
 
 on:
   push:
-    paths: ['frontend/**']
+    paths:
+      - "frontend/**"
+      - "backend/openapi.yaml"
+      - ".github/workflows/frontend-ci.yml"
   pull_request:
-    paths: ['frontend/**']
+    paths:
+      - "frontend/**"
+      - "backend/openapi.yaml"
+      - ".github/workflows/frontend-ci.yml"
+
+permissions:
+  contents: read
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
