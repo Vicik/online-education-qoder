@@ -44,6 +44,8 @@ export default function LoginPage() {
       const loggedIn = await login(values);
       queryClient.setQueryData(queryKeys.authMe, loggedIn);
       setUser(loggedIn);
+      // 登录响应仅含角色，刷新会话以取回头像与昵称
+      void queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
       message.success('登录成功');
       navigate(resolvePostLoginPath({ role: loggedIn.role ?? 'user' }, searchParams.get('redirect')), {
         replace: true,
