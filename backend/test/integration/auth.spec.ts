@@ -1,7 +1,6 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PrismaClient } from "@prisma/client";
-import { authenticator } from "otplib";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { sessionMiddleware } from "../../src/auth/session.middleware";
@@ -178,37 +177,11 @@ describe("认证与账号（CI 集成）", () => {
     });
   });
 
-  it("管理员登录必须 TOTP；缺码/错码统一报错", async () => {
-    const missing = await request(app.getHttpServer())
+  it("管理员仅凭密码登录成功，返回 admin", async () => {
+    const login = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
       .send({ email: DEMO_ADMIN.email, password: ADMIN_PASSWORD })
-      .expect(401);
-    expect(missing.body.code).toBe(2003);
-
-    const wrong = await request(app.getHttpServer())
-      .post("/api/v1/auth/login")
-      .send({
-        email: DEMO_ADMIN.email,
-        password: ADMIN_PASSWORD,
-        totpCode: "000000",
-      })
-      .expect(401);
-    expect(wrong.body.message).toBe(missing.body.message);
-
-    const admin = await prisma.user.findUnique({
-      where: { email: DEMO_ADMIN.email },
-    });
-    expect(admin?.totpSecret).toBeTruthy();
-    const code = authenticator.generate(admin!.totpSecret!);
-
-    const ok = await request(app.getHttpServer())
-      .post("/api/v1/auth/login")
-      .send({
-        email: DEMO_ADMIN.email,
-        password: ADMIN_PASSWORD,
-        totpCode: code,
-      })
       .expect(200);
-    expect(ok.body.data.role).toBe("admin");
+    expect(login.body.data.role).toBe("admin");
   });
 });

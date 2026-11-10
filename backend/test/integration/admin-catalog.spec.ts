@@ -1,7 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
-import { authenticator } from 'otplib';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { sessionMiddleware } from '../../src/auth/session.middleware';
@@ -41,21 +40,13 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     await prisma.$disconnect();
   });
 
-  // 管理员登录（含 TOTP），返回保持会话的 agent
+  // 管理员登录，返回保持会话的 agent
   const adminAgent = async () => {
     // 保持 Cookie 的请求代理
     const agent = request.agent(app.getHttpServer());
-    // 种子中的管理员 TOTP 密钥
-    const secret = await prisma.user
-      .findUnique({ where: { email: DEMO_ADMIN.email } })
-      .then((user) => user!.totpSecret!);
     await agent
       .post('/api/v1/auth/login')
-      .send({
-        email: DEMO_ADMIN.email,
-        password: DEMO_ADMIN.password,
-        totpCode: authenticator.generate(secret),
-      })
+      .send({ email: DEMO_ADMIN.email, password: DEMO_ADMIN.password })
       .expect(200);
     return agent;
   };

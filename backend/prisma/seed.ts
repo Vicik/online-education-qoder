@@ -2,7 +2,6 @@
 // prod 环境（SEED_DEMO_DATA=false 且 NODE_ENV=production）跳过，演示账号仅注入 dev/staging/CI。
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcrypt";
-import { authenticator } from "otplib";
 import { loadConfig } from "../src/config/configuration";
 import {
   COUPON_TEMPLATE,
@@ -68,25 +67,6 @@ export async function seedDemoData(
     },
     update: {},
   });
-
-  // 管理员 TOTP 密钥：仅缺失时生成，保证种子重复执行不重置已有密钥
-  let adminTotpSecret = admin.totpSecret;
-  if (!adminTotpSecret) {
-    // 随机生成 Base32 密钥
-    adminTotpSecret = authenticator.generateSecret();
-    // 写入管理员账号
-    await prisma.user.update({
-      where: { id: admin.id },
-      data: { totpSecret: adminTotpSecret },
-    });
-    // otpauth URI：dev 控制台扫码绑定（无需在日志中输出密钥本身）
-    const adminTotpUri = authenticator.keyuri(
-      admin.email,
-      "知序课堂",
-      adminTotpSecret,
-    );
-    console.log(`管理员 TOTP 已生成：${adminTotpUri}`);
-  }
 
   // 学员账号：按 email 幂等，已存在时不重置密码
   const user = await prisma.user.upsert({
@@ -378,7 +358,7 @@ export async function seedDemoData(
     await prisma.$executeRawUnsafe(sequenceSql);
   }
 
-  // 输出账号提示（管理员 TOTP 密钥已在生成时打印 otpauth URI）
+  // 输出账号提示
   console.log(`演示数据种子完成：${admin.email}（密码见项目说明文档）`);
   console.log(`演示数据种子完成：${user.email}（密码见项目说明文档）`);
 }

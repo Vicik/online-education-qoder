@@ -13,7 +13,6 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SessionService } from './session.service';
-import { TotpService } from './totp.service';
 
 // 登录失败限流：每分钟允许的失败次数
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -58,7 +57,7 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// 统一的登录失败提示（不泄露账号是否存在或 TOTP 状态）
+// 统一的登录失败提示（不泄露账号是否存在）
 function credentialsError(): BizException {
   return new BizException(ErrorCode.BAD_CREDENTIALS, '邮箱或密码错误', 401);
 }
@@ -66,11 +65,10 @@ function credentialsError(): BizException {
 // 认证服务：注册/登录/登出/当前用户/改密
 @Injectable()
 export class AuthService {
-  // 构造函数：注入数据库、会话、TOTP、限流、配置与存储签名服务
+  // 构造函数：注入数据库、会话、限流、配置与存储签名服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionService,
-    private readonly totp: TotpService,
     private readonly rateLimit: RateLimitService,
     private readonly config: ConfigService,
     private readonly storage: StorageService,
@@ -107,7 +105,7 @@ export class AuthService {
     }
   }
 
-  // 登录：校验密码与管理员 TOTP，成功后建立会话
+  // 登录：校验密码，成功后建立会话
   async login(dto: LoginDto, req: Request): Promise<LoginResult> {
     // 统一小写查询
     const email = normalizeEmail(dto.email);
@@ -131,22 +129,6 @@ export class AuthService {
         LOGIN_WINDOW_SEC,
       );
       throw credentialsError();
-    }
-
-    // 管理员强制 TOTP 二次验证（D8），缺码/错码与密码错误统一提示
-    if (user.role === 'admin') {
-      const totpOk =
-        !!dto.totpCode &&
-        !!user.totpSecret &&
-        this.totp.verify(user.totpSecret, dto.totpCode);
-      if (!totpOk) {
-        await this.rateLimit.penalize(
-          limitKeys,
-          LOGIN_MAX_ATTEMPTS,
-          LOGIN_WINDOW_SEC,
-        );
-        throw credentialsError();
-      }
     }
 
     // 登录成功：重置失败计数并建立会话
