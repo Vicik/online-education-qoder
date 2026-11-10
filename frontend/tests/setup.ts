@@ -24,8 +24,30 @@ function installRequestSignalCompat(): void {
   globalThis.Request = CompatRequest as unknown as typeof Request;
 }
 
+// jsdom 未实现 matchMedia；antd 的响应式 Grid（Form.Item 内部使用 Row）依赖它
+function installMatchMediaStub(): void {
+  // 已有实现时不覆盖
+  if (typeof window.matchMedia === 'function') return;
+  // 固定返回「不匹配」，响应式断点按最小屏处理
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList,
+  });
+}
+
 // 测试生命周期：启动 MSW、逐例重置、结束后关闭
 beforeAll(() => {
+  installMatchMediaStub();
   server.listen({ onUnhandledRequest: 'error' });
   installRequestSignalCompat();
 });
