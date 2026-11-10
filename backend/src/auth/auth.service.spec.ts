@@ -7,7 +7,6 @@ import { RateLimitService } from '../redis/rate-limit.service';
 import { StorageService } from '../storage/storage.service';
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
-import { TotpService } from './totp.service';
 
 // 测试用户邮箱
 const EMAIL = 'User@Example.com';
@@ -33,11 +32,6 @@ async function setup() {
     establish: jest.fn().mockResolvedValue(undefined),
     destroyCurrent: jest.fn().mockResolvedValue(undefined),
     destroyUserSessions: jest.fn().mockResolvedValue(undefined),
-  };
-  // TOTP 服务替身
-  const totp = {
-    verify: jest.fn().mockReturnValue(true),
-    issueSecret: jest.fn(),
   };
   // 限流服务替身
   const rateLimit = {
@@ -65,7 +59,6 @@ async function setup() {
   const service = new AuthService(
     prisma as unknown as PrismaService,
     sessions as unknown as SessionService,
-    totp as unknown as TotpService,
     rateLimit as unknown as RateLimitService,
     config as unknown as ConfigService,
     storage as unknown as StorageService,
@@ -73,7 +66,6 @@ async function setup() {
   return {
     prisma,
     sessions,
-    totp,
     rateLimit,
     storage,
     service,
@@ -257,63 +249,19 @@ describe('AuthService', () => {
       ]);
     });
 
-    it('管理员缺少动态码：统一提示 2003', async () => {
-      const { prisma, totp, sessions, service, passwordHash } = await setup();
+    it('管理员仅凭密码即可登录，返回 admin', async () => {
+      const { prisma, sessions, service, passwordHash } = await setup();
       prisma.user.findUnique.mockResolvedValue({
         id: 2,
         email: 'admin@example.com',
         passwordHash,
         role: 'admin',
         status: 'active',
-        totpSecret: 'JBSWY3DPEHPK3PXP',
       });
 
       await expect(
         service.login(loginDto({ email: 'admin@example.com' }), fakeRequest()),
-      ).rejects.toMatchObject({ bizCode: 2003 });
-      expect(totp.verify).not.toHaveBeenCalled();
-      expect(sessions.establish).not.toHaveBeenCalled();
-    });
-
-    it('管理员动态码错误：统一提示 2003', async () => {
-      const { prisma, totp, sessions, service, passwordHash } = await setup();
-      prisma.user.findUnique.mockResolvedValue({
-        id: 2,
-        email: 'admin@example.com',
-        passwordHash,
-        role: 'admin',
-        status: 'active',
-        totpSecret: 'JBSWY3DPEHPK3PXP',
-      });
-      totp.verify.mockReturnValue(false);
-
-      await expect(
-        service.login(
-          loginDto({ email: 'admin@example.com', totpCode: '000000' }),
-          fakeRequest(),
-        ),
-      ).rejects.toMatchObject({ bizCode: 2003 });
-      expect(sessions.establish).not.toHaveBeenCalled();
-    });
-
-    it('管理员动态码正确：登录成功返回 admin', async () => {
-      const { prisma, totp, sessions, service, passwordHash } = await setup();
-      prisma.user.findUnique.mockResolvedValue({
-        id: 2,
-        email: 'admin@example.com',
-        passwordHash,
-        role: 'admin',
-        status: 'active',
-        totpSecret: 'JBSWY3DPEHPK3PXP',
-      });
-
-      await expect(
-        service.login(
-          loginDto({ email: 'admin@example.com', totpCode: '123456' }),
-          fakeRequest(),
-        ),
       ).resolves.toEqual({ role: 'admin' });
-      expect(totp.verify).toHaveBeenCalledWith('JBSWY3DPEHPK3PXP', '123456');
       expect(sessions.establish).toHaveBeenCalledWith(
         expect.anything(),
         2,

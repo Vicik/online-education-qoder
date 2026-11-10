@@ -126,7 +126,6 @@ model User {
   gender          Gender     @default(secret)
   role            UserRole   @default(user)
   status          UserStatus @default(active)
-  totpSecret      String? // 管理员 TOTP 密钥（D8：管理员登录强制二次验证）
   emailVerifiedAt DateTime?
   version         Int        @default(1) // 乐观锁
   createdAt       DateTime   @default(now())

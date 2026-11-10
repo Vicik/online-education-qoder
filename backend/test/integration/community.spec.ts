@@ -1,7 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
-import { authenticator } from 'otplib';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { sessionMiddleware } from '../../src/auth/session.middleware';
@@ -90,19 +89,12 @@ describe('社区（CI 集成）', () => {
     return agent;
   };
 
-  // 管理员登录（含 TOTP），返回保持会话的 agent
+  // 管理员登录，返回保持会话的 agent
   const loginAdmin = async () => {
     const agent = request.agent(app.getHttpServer());
-    const admin = await prisma.user.findUnique({
-      where: { email: DEMO_ADMIN.email },
-    });
     await agent
       .post('/api/v1/auth/login')
-      .send({
-        email: DEMO_ADMIN.email,
-        password: DEMO_ADMIN.password,
-        totpCode: authenticator.generate(admin!.totpSecret!),
-      })
+      .send({ email: DEMO_ADMIN.email, password: DEMO_ADMIN.password })
       .expect(200);
     return agent;
   };

@@ -2,7 +2,6 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { authenticator } from 'otplib';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { sessionMiddleware } from '../../src/auth/session.middleware';
@@ -71,18 +70,11 @@ describe('拼团（CI 集成，基于种子）', () => {
       .send({ email: joinerEmail, password: PASSWORD })
       .expect(200);
 
-    // 管理员登录（含 TOTP）
+    // 管理员登录
     admin = request.agent(app.getHttpServer());
-    const adminRow = await prisma.user.findUnique({
-      where: { email: DEMO_ADMIN.email },
-    });
     await admin
       .post('/api/v1/auth/login')
-      .send({
-        email: DEMO_ADMIN.email,
-        password: DEMO_ADMIN.password,
-        totpCode: authenticator.generate(adminRow!.totpSecret!),
-      })
+      .send({ email: DEMO_ADMIN.email, password: DEMO_ADMIN.password })
       .expect(200);
   });
 

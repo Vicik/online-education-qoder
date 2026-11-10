@@ -23,7 +23,7 @@
 - **幂等**：创建类 POST（下单/领券/参团/发帖/秒杀/开始考试）必带 `Idempotency-Key`（8–128 字符），`idempotency_keys` 表 `(userId, key, endpoint)` 唯一，重放返回首次结果。
 - **乐观锁**：管理端编辑（课程/券/拼团/秒杀/题目/考试）携带 `version`，`UPDATE ... WHERE version=?` 失败返回 409（code 见各接口）。
 - **部分唯一索引适配**：Prisma 不支持 `WHERE` 部分索引，以可空唯一列实现——`orders.purchaseKey`（防重复购买）、`orders.flashPurchaseKey`（秒杀限购）、`coupon_claims.claimKey`（券限领）；创建时写入，取消/退款/失效时置 NULL。
-- **会话**：Session + Redis（`HttpOnly + Secure + SameSite=Lax`）；改密/退出即时吊销；管理员登录启用 TOTP（D8）。
+- **会话**：Session + Redis（`HttpOnly + Secure + SameSite=Lax`）；改密/退出即时吊销；管理员仅凭邮箱密码登录（D8 已决：不启用 2FA）。
 - **密码**：bcrypt `cost≥12`（D10）；策略 8–64 位（D6），统一错误提示「邮箱或密码错误」。
 - **安全红线**：服务端计价（客户端不传金额）；服务端判分（答案/解析仅在交卷后返回）；富文本服务端白名单净化（sanitize-html，表格 ≤20×20）；资源归属校验防 IDOR；管理端写操作记 `audit_logs`；日志脱敏（不记密码/token/完整邮箱）。
 - **演示账号**（`admin@example.com / abc12345`、`user@example.com / abc12345`）仅由种子在 dev/staging 注入，prod 不注入。
@@ -38,7 +38,7 @@
 | --- | --- | --- | --- | --- |
 | 01 | [项目骨架与基础设施](01-项目骨架与基础设施.md) | 脚手架、配置、公共层（响应包/异常/守卫/幂等/锁/限流/净化）与健康检查 | NestJS 工程、`common/`、`config/`、`prisma/`、`redis/`、`/healthz /readyz`、CI 基础 | — |
 | 02 | [数据库迁移与种子数据](02-数据库迁移与种子数据.md) | 初始迁移 + 幂等种子（演示账号/课程/活动/券） | `migrations/`、`seed.ts`、CI 迁移作业 | 01 |
-| 03 | [认证与会话](03-认证与会话.md) | Session+Redis 登录/注册/改密/登出、登录限流、管理员 TOTP、用户资料 | `auth/`、`users/`、`User.totpSecret` 迁移 | 02 |
+| 03 | [认证与会话](03-认证与会话.md) | Session+Redis 登录/注册/改密/登出、登录限流、用户资料 | `auth/`、`users/` | 02 |
 | 04 | [课程浏览与学习](04-课程浏览与学习.md) | 课程列表/详情/章节正文（已购校验）、学习进度、收藏、首页推荐 | `catalog/`（用户端）、`learning/` | 03 |
 | 05 | [课程管理端](05-课程管理端.md) | 课程/章节管理（状态矩阵 + 乐观锁 + 类型锁定 + 排序）与审计日志 | `catalog/`（管理端）、`audit/` | 04 |
 | 06 | [优惠券](06-优惠券.md) | 模板管理（启停级联）、领取（限领 + 防超发 + 幂等）、我的券 | `promotion/coupon` | 05 |
