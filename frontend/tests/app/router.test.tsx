@@ -32,4 +32,10 @@ describe('router guards', () => {
     renderAt('/admin/courses/create', { role: 'admin' } as SessionUser);
     expect(await screen.findByText('创建课程（建设中）')).toBeInTheDocument();
   });
+
+  it('普通用户进入用户中心渲染侧栏布局', async () => {
+    renderAt('/user', { role: 'user' } as SessionUser);
+    expect(await screen.findByText('学习概览（建设中）')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '用户中心' })).toBeInTheDocument();
+  });
 });
