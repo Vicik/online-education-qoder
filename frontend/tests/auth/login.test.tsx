@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { App as AntdApp } from 'antd';
 import { http, HttpResponse } from 'msw';
 import { RouterProvider, createMemoryRouter } from 'react-router';
-import LoginPage from '@/features/auth/LoginPage';
+import LoginPage, { resolvePostLoginPath } from '@/features/auth/LoginPage';
 import { server } from '../msw/server';
 
 // 测试路由：登录页与落地页探针
@@ -77,5 +77,21 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('密码'), 'abc12345');
     await userEvent.click(screen.getByRole('button', { name: /登\s*录/ }));
     expect(await screen.findByText('user-home')).toBeInTheDocument();
+  });
+});
+
+describe('resolvePostLoginPath', () => {
+  it('管理员始终回 /admin', () => {
+    expect(resolvePostLoginPath({ role: 'admin' }, '/courses/1')).toBe('/admin');
+  });
+
+  it('普通用户无 redirect 时回 /user，有站内 redirect 则优先', () => {
+    expect(resolvePostLoginPath({ role: 'user' }, null)).toBe('/user');
+    expect(resolvePostLoginPath({ role: 'user' }, '/courses/1')).toBe('/courses/1');
+  });
+
+  it('拒绝外链与协议相对地址', () => {
+    expect(resolvePostLoginPath({ role: 'user' }, 'https://evil.example.com')).toBe('/user');
+    expect(resolvePostLoginPath({ role: 'user' }, '//evil.example.com')).toBe('/user');
   });
 });
