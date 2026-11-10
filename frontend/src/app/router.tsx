@@ -22,7 +22,6 @@ export const ROUTES: RouteMeta[] = [
   // 认证页
   { path: '/login', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/LoginPage') },
   { path: '/register', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/RegisterPage') },
-  { path: '/admin/login', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/AdminLoginPage') },
   { path: '/403', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: ForbiddenPage }) },
   { path: '*', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: NotFoundPage }) },
   // 用户端

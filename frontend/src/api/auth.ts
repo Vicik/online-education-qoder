@@ -4,11 +4,10 @@ import { request } from './client';
 // 会话用户类型
 export type SessionUser = components['schemas']['User'];
 
-// 登录请求：管理端额外携带 6 位动态码
+// 登录请求：管理员与普通用户共用，仅邮箱与密码
 export interface LoginPayload {
   email: string;
   password: string;
-  totpCode?: string;
 }
 
 // 注册请求

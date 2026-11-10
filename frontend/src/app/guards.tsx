@@ -27,7 +27,7 @@ export function resolveRedirect(
   meta: RouteMeta,
   path: string,
 ): string | null {
-  // 1. 管理员隔离：非 /admin 路由一律回管理端（/admin/login 除外）
+  // 1. 管理员隔离：非 /admin 路由一律回管理端
   if (user?.role === 'admin' && !path.startsWith('/admin')) return '/admin';
   // 2. 未登录访问受保护路由：带原地址去登录
   if (meta.requiresAuth && !user) return `/login?redirect=${encodeURIComponent(path)}`;

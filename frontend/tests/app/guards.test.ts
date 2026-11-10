@@ -21,9 +21,8 @@ describe('resolveRedirect', () => {
     expect(resolveRedirect({ role: 'admin' } as never, publicRoute, '/')).toBe('/admin');
     expect(resolveRedirect({ role: 'admin' } as never, publicRoute, '/user/orders')).toBe('/admin');
   });
-  it('管理员可进入 /admin 与 /admin/login', () => {
+  it('管理员可进入 /admin 路由', () => {
     expect(resolveRedirect({ role: 'admin' } as never, adminRoute, '/admin/courses')).toBeNull();
-    expect(resolveRedirect({ role: 'admin' } as never, publicRoute, '/admin/login')).toBeNull();
   });
   it('普通用户访问管理端跳 403', () => {
     expect(resolveRedirect({ role: 'user' } as never, adminRoute, '/admin/courses')).toBe('/403');
