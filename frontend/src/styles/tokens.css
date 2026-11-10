@@ -1,0 +1,11 @@
+:root {
+  --color-cta: #12a05c; /* 主 CTA：立即学习/购买 */
+  --color-price: #f5222d; /* 价格 */
+  --color-price-origin: #8c8c8c; /* 原价删除线 */
+  --color-coupon-bg: #fff7e6; /* 优惠券标签底 */
+  --color-coupon-text: #fa8c16; /* 优惠券标签字 */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06); /* 卡片阴影 */
+  --layout-content-width: 1200px; /* 用户端内容宽度 */
+  --layout-nav-height: 64px; /* 顶部导航高度 */
+  --layout-sidebar-width: 220px; /* 用户中心/管理端侧栏宽度 */
+}
