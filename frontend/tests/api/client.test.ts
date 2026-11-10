@@ -1,9 +1,17 @@
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { apiClient, request } from '@/api/client';
 import { ApiError, registerAuthHandlers } from '@/api/errors';
+import { useRequestActivityStore } from '@/stores/request-activity';
 import { server } from '../msw/server';
 
+// 当前待处理请求数，用于断言遮罩计数
+const pendingCount = () => useRequestActivityStore.getState().pendingCount;
+
 describe('api client', () => {
+  beforeEach(() => {
+    useRequestActivityStore.setState({ pendingCount: 0 });
+  });
+
   it('code=0 时返回 data', async () => {
     server.use(
       http.get(/\/api\/v1\/ping$/, () =>
@@ -62,5 +70,29 @@ describe('api client', () => {
     );
     await request({ url: '/time' });
     expect(apiClient).toBeDefined(); // 时钟差值由 lib/server-clock 单测覆盖
+  });
+  it('请求期间待处理数加一，成功后归零', async () => {
+    server.use(
+      http.get(/\/api\/v1\/slow$/, async () => {
+        await delay(150);
+        return HttpResponse.json({ code: 0, message: 'ok', data: null, requestId: 'r6' });
+      }),
+    );
+    const pending = request({ url: '/slow' });
+    await vi.waitFor(() => expect(pendingCount()).toBe(1), { interval: 10 });
+    await pending;
+    expect(pendingCount()).toBe(0);
+  });
+  it('业务错误后待处理数也归零', async () => {
+    server.use(
+      http.get(/\/api\/v1\/fail$/, () =>
+        HttpResponse.json(
+          { code: 1001, message: '参数错误', data: null, requestId: 'r7' },
+          { status: 400 },
+        ),
+      ),
+    );
+    await expect(request({ url: '/fail' })).rejects.toMatchObject({ code: 1001 });
+    expect(pendingCount()).toBe(0);
   });
 });

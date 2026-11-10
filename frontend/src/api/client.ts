@@ -4,6 +4,7 @@ import axios, {
   type AxiosResponse,
 } from 'axios';
 import { syncServerClock } from '@/lib/server-clock';
+import { useRequestActivityStore } from '@/stores/request-activity';
 import {
   ApiError,
   handleAuthError,
@@ -25,9 +26,16 @@ export const apiClient: AxiosInstance = axios.create({
   headers: { Accept: 'application/json' },
 });
 
+// 请求开始：累加全局加载计数（响应拦截器中释放）
+apiClient.interceptors.request.use((config) => {
+  useRequestActivityStore.getState().startRequest();
+  return config;
+});
+
 // 成功响应：解包信封；非 0 业务码抛 ApiError
 apiClient.interceptors.response.use(
   (response) => {
+    useRequestActivityStore.getState().finishRequest();
     syncServerClock(response.headers.date);
     const envelope = response.data as Envelope<unknown>;
     if (envelope.code !== 0) {
@@ -44,6 +52,7 @@ apiClient.interceptors.response.use(
     return envelope.data as unknown as AxiosResponse;
   },
   (error) => {
+    useRequestActivityStore.getState().finishRequest();
     const normalized = normalizeAxiosError(error);
     if (!axios.isAxiosError(error) || !error.config?.skipAuthRedirect) {
       handleAuthError(normalized);
