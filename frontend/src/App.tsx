@@ -1,11 +1,14 @@
+import { RouterProvider } from 'react-router';
 import { RequestOverlay } from '@/components/common/RequestOverlay';
+import { AppProviders } from './app/providers';
+import { router } from './app/router';
 
-// 占位应用：仅验证工程可构建、可测试；步骤 03 接入路由
+// 应用入口：Provider + 浏览器路由 + 全局请求遮罩
 export default function App() {
   return (
-    <>
-      <h1>知序课堂</h1>
+    <AppProviders>
+      <RouterProvider router={router} />
       <RequestOverlay />
-    </>
+    </AppProviders>
   );
 }
