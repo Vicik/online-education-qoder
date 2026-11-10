@@ -20,9 +20,9 @@ function placeholder(title: string): LazyPage {
 // 路由元信息：与设计框架 §5.1 一一对应
 export const ROUTES: RouteMeta[] = [
   // 认证页
-  { path: '/login', layout: 'auth', requiresAuth: false, lazy: placeholder('登录') },
-  { path: '/register', layout: 'auth', requiresAuth: false, lazy: placeholder('注册') },
-  { path: '/admin/login', layout: 'auth', requiresAuth: false, lazy: placeholder('管理端登录') },
+  { path: '/login', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/LoginPage') },
+  { path: '/register', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/RegisterPage') },
+  { path: '/admin/login', layout: 'auth', requiresAuth: false, lazy: () => import('@/features/auth/AdminLoginPage') },
   { path: '/403', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: ForbiddenPage }) },
   { path: '*', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: NotFoundPage }) },
   // 用户端

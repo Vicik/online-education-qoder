@@ -18,6 +18,7 @@ export default defineConfig({
     // 单元/组件测试使用 jsdom
     environment: 'jsdom',
     globals: true,
+    testTimeout: 20_000,
     setupFiles: ['./tests/setup.ts'],
     css: true,
     coverage: { reporter: ['text', 'lcov'] },

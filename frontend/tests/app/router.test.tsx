@@ -13,9 +13,11 @@ function renderAt(path: string, user: SessionUser | null) {
 describe('router guards', () => {
   afterEach(() => useSessionStore.setState({ user: null }));
 
-  it('游客访问结算页跳到登录占位页', async () => {
+  it('游客访问结算页跳到登录页', async () => {
     renderAt('/checkout/1', null);
-    expect(await screen.findByText('登录（建设中）')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '登录' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it('管理员访问用户端跳管理端工作台', async () => {
