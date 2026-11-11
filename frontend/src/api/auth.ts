@@ -47,3 +47,16 @@ export function register(payload: RegisterPayload): Promise<null> {
 export function logout(): Promise<null> {
   return request<null>({ url: '/auth/logout', method: 'POST' });
 }
+
+// 修改密码：成功后后端吊销全部会话，前端需清会话并重新登录
+export function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<void> {
+  return request<void>({
+    url: '/auth/password',
+    method: 'POST',
+    data: payload,
+  });
+}

@@ -38,3 +38,21 @@ export type FlashSaleActivityBrief = Schemas['FlashSaleActivityBrief'];
 
 // 可领取的优惠券模板
 export type CouponTemplateBrief = Schemas['CouponTemplateBrief'];
+
+// 价格预览：服务端计价结果
+export type CheckoutPreviewData = Schemas['CheckoutPreviewData'];
+
+// 创建订单请求体
+export type OrderCreateRequest = Schemas['OrderCreateRequest'];
+
+// 订单
+export type Order = Schemas['Order'];
+
+// 用户领取的优惠券
+export type CouponClaim = Schemas['CouponClaim'];
+
+// 个人资料
+export type ProfileData = Schemas['ProfileData'];
+
+// 学习概览统计
+export type OverviewData = Schemas['OverviewData'];
