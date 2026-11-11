@@ -1,6 +1,12 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { App as AntdApp } from 'antd';
+import { RouterProvider, createMemoryRouter } from 'react-router';
+import { routerFlushSync } from '@/app/flush-sync';
+import { queryClient } from '@/app/query-client';
+import { createAppRoutes } from '@/app/router';
 import ProfilePage from '@/features/user-center/ProfilePage';
 import PasswordPage from '@/features/user-center/PasswordPage';
 import { useSessionStore } from '@/stores/session';
@@ -88,4 +94,31 @@ describe('profile and password', () => {
     expect(router.state.location.search).toBe('?changed=1');
     expect(useSessionStore.getState().user).toBeNull();
   });
+
+  it('真实路由下改密后仍落在带 changed=1 的登录页', async () => {
+    server.use(
+      http.post(/\/api\/v1\/auth\/password$/, () => HttpResponse.json(envelope(null))),
+    );
+
+    const router = createMemoryRouter(createAppRoutes(), { initialEntries: ['/user/password'] });
+    render(
+      <AntdApp>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} flushSync={routerFlushSync} />
+        </QueryClientProvider>
+      </AntdApp>,
+    );
+
+    const user = userEvent.setup({ delay: null });
+    await user.type(await screen.findByLabelText('当前密码'), 'abc12345');
+    await user.type(screen.getByLabelText('新密码'), 'NewPassw0rd2');
+    await user.type(screen.getByLabelText('确认新密码'), 'NewPassw0rd2');
+    await user.click(screen.getByRole('button', { name: '修改密码' }));
+
+    // 守卫不能在跳转后把 changed=1 覆盖成 redirect
+    expect(await screen.findByText('密码已修改，请重新登录', { selector: '.ant-alert-message' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.search).toBe('?changed=1');
+    expect(useSessionStore.getState().user).toBeNull();
+  }, 40_000);
 });

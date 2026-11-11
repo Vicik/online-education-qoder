@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
 import { render } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter, type RouteObject } from 'react-router';
+import { routerFlushSync } from '@/app/flush-sync';
 
 // 页面级测试包装：独立 QueryClient（关闭重试）+ 内存路由 + AntD App 上下文
 export function renderWithProviders(routes: RouteObject[], initialEntry: string) {
@@ -18,7 +19,7 @@ export function renderWithProviders(routes: RouteObject[], initialEntry: string)
   render(
     <AntdApp>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <RouterProvider router={router} flushSync={routerFlushSync} />
       </QueryClientProvider>
     </AntdApp>,
   );

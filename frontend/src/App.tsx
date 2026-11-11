@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router';
 import { RequestOverlay } from '@/components/common/RequestOverlay';
+import { routerFlushSync } from './app/flush-sync';
 import { AppProviders } from './app/providers';
 import { router } from './app/router';
 
@@ -7,7 +8,7 @@ import { router } from './app/router';
 export default function App() {
   return (
     <AppProviders>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} flushSync={routerFlushSync} />
       <RequestOverlay />
     </AppProviders>
   );

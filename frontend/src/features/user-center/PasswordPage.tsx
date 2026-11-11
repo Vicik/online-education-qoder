@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { changePassword } from '@/api/auth';
+import { clearSessionQueries } from '@/app/query-client';
 import { validatePassword } from '@/lib/validators';
 import { useSessionStore } from '@/stores/session';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -32,11 +33,12 @@ export default function PasswordPage() {
   // 改密请求
   const mutation = useMutation({
     mutationFn: changePassword,
-    onSuccess: () => {
+    onSuccess: async () => {
+      // 同步提交到公开登录页再清会话：在受保护路由上清会话会触发守卫用 redirect 覆盖 changed=1
+      await navigate('/login?changed=1', { replace: true, flushSync: true });
       clearSession();
-      queryClient.clear();
+      clearSessionQueries(queryClient);
       message.success('密码已修改，请重新登录');
-      navigate('/login?changed=1', { replace: true });
     },
     onError: (caught: Error) => {
       setError(caught.message);

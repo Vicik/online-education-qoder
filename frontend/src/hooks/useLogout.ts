@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { logout } from '@/api/auth';
-import { queryClient } from '@/app/query-client';
+import { clearSessionQueries, queryClient } from '@/app/query-client';
 import { useSessionStore } from '@/stores/session';
 
 // 登出：无论接口成败都清本地会话并回首页
@@ -12,7 +12,7 @@ export function useLogout(): () => Promise<void> {
       await logout();
     } finally {
       clear();
-      queryClient.clear();
+      clearSessionQueries(queryClient);
       navigate('/');
     }
   };
