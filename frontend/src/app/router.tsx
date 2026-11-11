@@ -47,7 +47,7 @@ export const ROUTES: RouteMeta[] = [
   { path: '/user/orders', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/OrdersPage') },
   { path: '/user/exams', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的考试') },
   { path: '/user/posts', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的帖子') },
-  { path: '/user/coupons', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的优惠券') },
+  { path: '/user/coupons', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/coupon/MyCouponsPage') },
   { path: '/user/favorites', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/FavoritesPage') },
   { path: '/user/profile', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/ProfilePage') },
   { path: '/user/password', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/PasswordPage') },
