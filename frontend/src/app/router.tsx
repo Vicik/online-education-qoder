@@ -7,15 +7,7 @@ import UserLayout from '@/components/layout/UserLayout';
 import { PageLoading } from '@/components/common/PageLoading';
 import ForbiddenPage from '@/features/auth/ForbiddenPage';
 import NotFoundPage from '@/features/auth/NotFoundPage';
-import { GuardedRoute, type LazyPage, type LayoutKey, type RouteMeta } from './guards';
-
-// 占位页面：后续步骤替换为真实 lazy 导入
-function placeholder(title: string): LazyPage {
-  return async () => {
-    const { PagePlaceholder } = await import('@/components/common/PagePlaceholder');
-    return { default: () => <PagePlaceholder title={title} /> };
-  };
-}
+import { GuardedRoute, type LayoutKey, type RouteMeta } from './guards';
 
 // 路由元信息：与设计框架 §5.1 一一对应
 export const ROUTES: RouteMeta[] = [
@@ -52,21 +44,21 @@ export const ROUTES: RouteMeta[] = [
   { path: '/user/profile', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/ProfilePage') },
   { path: '/user/password', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/PasswordPage') },
   // 管理端
-  { path: '/admin', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('工作台') },
+  { path: '/admin', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/dashboard/DashboardPage') },
   { path: '/admin/courses', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseListPage') },
   { path: '/admin/courses/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseCreatePage') },
   { path: '/admin/courses/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseWorkspacePage') },
   { path: '/admin/groupons', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/groupons/GrouponListPage') },
   { path: '/admin/flash-sales', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/flash-sales/FlashSaleListPage') },
-  { path: '/admin/questions', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('题库管理') },
-  { path: '/admin/questions/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('创建题目') },
-  { path: '/admin/questions/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('题目编辑') },
-  { path: '/admin/exams', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('考试管理') },
-  { path: '/admin/exams/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('创建考试') },
-  { path: '/admin/exams/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('考试编辑') },
+  { path: '/admin/questions', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/questions/QuestionListPage') },
+  { path: '/admin/questions/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/questions/QuestionCreatePage') },
+  { path: '/admin/questions/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/questions/QuestionEditPage') },
+  { path: '/admin/exams', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/exams/ExamListPage') },
+  { path: '/admin/exams/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/exams/ExamCreatePage') },
+  { path: '/admin/exams/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/exams/ExamEditPage') },
   { path: '/admin/coupons', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/coupons/CouponListPage') },
   { path: '/admin/coupons/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/coupons/CouponEditPage') },
-  { path: '/admin/blocked-words', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('屏蔽词') },
+  { path: '/admin/blocked-words', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/blocked-words/BlockedWordListPage') },
 ];
 
 // 把同一布局的路由包装为懒加载 + 守卫

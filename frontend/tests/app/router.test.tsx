@@ -33,7 +33,7 @@ describe('router guards', () => {
 
   it('管理员访问用户端跳管理端工作台', async () => {
     renderAt('/courses', { role: 'admin' } as SessionUser);
-    expect(await screen.findByText('工作台（建设中）')).toBeInTheDocument();
+    expect(await screen.findByText(/统计接口尚未开放/)).toBeInTheDocument();
   });
 
   it('普通用户访问管理端跳 403', async () => {
