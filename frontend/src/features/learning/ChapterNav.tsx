@@ -22,7 +22,9 @@ export function ChapterNav({
       dataSource={chapters}
       renderItem={(chapter, index) => {
         // 后端如返回 visited 则以其为准，否则用本地已访问集合
-        const visited = chapter.visited === true || visitedChapterIds.has(chapter.id);
+        const visited =
+          chapter.visited === true ||
+          (chapter.id !== undefined && visitedChapterIds.has(chapter.id));
         return (
           <List.Item
             style={{
@@ -30,7 +32,10 @@ export function ChapterNav({
               paddingInline: 12,
               background: chapter.id === activeChapterId ? '#e6f4ff' : undefined,
             }}
-            onClick={() => onSelect(chapter.id)}
+            onClick={() => {
+              // OpenAPI 中 id 可选，缺省项不可点击
+              if (chapter.id !== undefined) onSelect(chapter.id);
+            }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
               <span>

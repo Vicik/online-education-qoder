@@ -115,6 +115,13 @@ export default function LearningPage() {
     setSearchParams({ chapterId: String(chapterId) });
   }
 
+  // 相对当前章节切换（-1 上一章，1 下一章）
+  function selectRelative(offset: number): void {
+    // 目标章节（可能是越界或缺少 id）
+    const target = chapters[activeIndex + offset];
+    if (target?.id !== undefined) selectChapter(target.id);
+  }
+
   // 未购买：正文接口返回 3002
   if (
     contentQuery.error instanceof ApiError &&
@@ -185,15 +192,12 @@ export default function LearningPage() {
             title={chapters.find((chapter) => chapter.id === activeChapterId)?.title}
             extra={
               <Space>
-                <Button
-                  disabled={activeIndex <= 0}
-                  onClick={() => selectChapter(chapters[activeIndex - 1].id)}
-                >
+                <Button disabled={activeIndex <= 0} onClick={() => selectRelative(-1)}>
                   上一章
                 </Button>
                 <Button
                   disabled={activeIndex < 0 || activeIndex >= chapters.length - 1}
-                  onClick={() => selectChapter(chapters[activeIndex + 1].id)}
+                  onClick={() => selectRelative(1)}
                 >
                   下一章
                 </Button>
