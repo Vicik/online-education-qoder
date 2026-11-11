@@ -77,10 +77,15 @@ export default function ExamEditPage() {
       okText: '确认保存',
       cancelText: '取消',
       cancelButtonProps: { autoInsertSpace: false },
-      onOk: () =>
-        updateMutation.mutateAsync(
-          toExamUpdatePayload(values, query.data!.version ?? 1),
-        ),
+      onOk: async () => {
+        try {
+          await updateMutation.mutateAsync(
+            toExamUpdatePayload(values, query.data!.version ?? 1),
+          );
+        } catch {
+          // 错误已由 onError 提示（409 弹出刷新弹窗）
+        }
+      },
     });
   }
 
