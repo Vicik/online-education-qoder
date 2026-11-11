@@ -53,9 +53,9 @@ export const ROUTES: RouteMeta[] = [
   { path: '/user/password', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/PasswordPage') },
   // 管理端
   { path: '/admin', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('工作台') },
-  { path: '/admin/courses', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('课程列表') },
-  { path: '/admin/courses/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('创建课程') },
-  { path: '/admin/courses/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('课程工作区') },
+  { path: '/admin/courses', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseListPage') },
+  { path: '/admin/courses/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseCreatePage') },
+  { path: '/admin/courses/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseWorkspacePage') },
   { path: '/admin/groupons', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('拼团管理') },
   { path: '/admin/flash-sales', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('秒杀管理') },
   { path: '/admin/questions', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: placeholder('题库管理') },

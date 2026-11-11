@@ -43,7 +43,9 @@ describe('router guards', () => {
 
   it('管理员可进入管理端子路由', async () => {
     renderAt('/admin/courses/create', { role: 'admin' } as SessionUser);
-    expect(await screen.findByText('创建课程（建设中）')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '创建课程' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it('普通用户进入用户中心渲染侧栏布局', async () => {
