@@ -2835,7 +2835,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description data: AttemptStartData */
+                /** @description data: AttemptStartData；重复开始时幂等返回既有记录，不新建 */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -2846,15 +2846,6 @@ export interface paths {
                 };
                 401: components["responses"]["Err401"];
                 404: components["responses"]["Err404"];
-                /** @description 已考过（code=6001，幂等返回首次结果） */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Envelope"];
-                    };
-                };
                 /** @description 未发布/已结束 */
                 422: {
                     headers: {
@@ -3009,7 +3000,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description data: Page（items: { attemptId, examTitle, score, totalScore, passScore, passed, submittedAt }） */
+                /** @description data: Page（items: MyExamRecord） */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4309,6 +4300,18 @@ export interface components {
                 correctAnswers?: string[];
                 analysis?: string;
             })[];
+        };
+        /** @description 我的考试记录；未交卷时 score/passed/submittedAt 为 null */
+        MyExamRecord: {
+            attemptId?: number;
+            examId?: number;
+            examTitle?: string;
+            score?: number | null;
+            totalScore?: number;
+            passScore?: number;
+            passed?: boolean | null;
+            /** Format: date-time */
+            submittedAt?: string | null;
         };
         ReplyView: {
             id?: number;

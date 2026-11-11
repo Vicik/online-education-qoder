@@ -641,6 +641,18 @@ components:
                   userAnswers: { type: array, items: { type: string } }
                   correctAnswers: { type: array, items: { type: string } }
                   analysis: { type: string }
+    MyExamRecord:
+      type: object
+      description: 我的考试记录；未交卷时 score/passed/submittedAt 为 null
+      properties:
+        attemptId: { type: integer }
+        examId: { type: integer }
+        examTitle: { type: string }
+        score: { type: integer, nullable: true }
+        totalScore: { type: integer }
+        passScore: { type: integer }
+        passed: { type: boolean, nullable: true }
+        submittedAt: { type: string, format: date-time, nullable: true }
 
     ReplyView:
       type: object
@@ -1920,17 +1932,12 @@ paths:
         - { $ref: '#/components/parameters/examId' }
       responses:
         '201':
-          description: 'data: AttemptStartData'
+          description: 'data: AttemptStartData；重复开始时幂等返回既有记录，不新建'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '404': { $ref: '#/components/responses/Err404' }
-        '409':
-          description: 已考过（code=6001，幂等返回首次结果）
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Envelope' }
         '422':
           description: 未发布/已结束
           content:
@@ -1997,7 +2004,7 @@ paths:
         - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
-          description: 'data: Page（items: { attemptId, examTitle, score, totalScore, passScore, passed, submittedAt }）'
+          description: 'data: Page（items: MyExamRecord）'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }

@@ -74,3 +74,24 @@ export type CommentView = Schemas['CommentView'];
 
 // 回复：不产生第三层
 export type ReplyView = Schemas['ReplyView'];
+
+// 考试摘要：列表与详情共用
+export type ExamBrief = Schemas['ExamBrief'];
+
+// 用户视角题目：不含答案与解析
+export type ExamQuestion = Schemas['QuestionUserView'];
+
+// 开始考试返回：题目快照 + 服务端截止时间
+export type AttemptStartData = Schemas['AttemptStartData'];
+
+// 交卷判分结果
+export type SubmitData = Schemas['SubmitData'];
+
+// 成绩详情：含用户答案、正确答案与解析
+export type AttemptResultData = Schemas['AttemptResultData'];
+
+// 成绩详情中的单题
+export type ExamResultQuestion = NonNullable<AttemptResultData['questions']>[number];
+
+// 我的考试记录
+export type MyExamRecord = Schemas['MyExamRecord'];
