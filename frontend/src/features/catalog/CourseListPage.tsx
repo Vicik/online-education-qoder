@@ -31,7 +31,7 @@ export default function CourseListPage() {
 
   return (
     <div>
-      <PageHeader title="全部课程" />
+      <PageHeader title="课程" />
 
       {query.isError ? (
         <EmptyState

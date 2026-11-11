@@ -1,14 +1,18 @@
-import { Button, Card, Popover, Tabs, Typography } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { App as AntdApp, Button, Card, Popover, Tabs, Typography } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { getCourseDetail, getRecommendations } from '@/api/catalog';
 import { ApiError, getErrorAction } from '@/api/errors';
+import { claimCoupon, listMyCoupons } from '@/api/promotion';
 import { queryKeys } from '@/api/query-keys';
+import { listMyOrders } from '@/api/trade';
 import type { CourseBrief, CourseDetail } from '@/api/types';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
+import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
+import { courseTypeLabel } from '@/lib/course';
 import { useSessionStore, type SessionUser } from '@/stores/session';
 import { CourseActivityBar } from './CourseActivityBar';
 import { CourseChapterList } from './CourseChapterList';
@@ -16,23 +20,20 @@ import { CourseCouponList } from './CourseCouponList';
 import { FavoriteButton } from './FavoriteButton';
 import './CourseDetailPage.css';
 
-// 课程类型中文名：详情页元信息展示
-const COURSE_TYPE_LABELS: Record<string, string> = {
-  video: '视频',
-  audio: '音频',
-  rich: '图文',
-};
-
-// 详情页主按钮：游客先登录并回跳，登录用户进入结算
-export function resolveCourseCta(
+// 详情页主按钮：游客先登录并回跳，已购去学习，未购进入结算
+function resolveCourseCta(
   user: SessionUser | null,
   courseId: number,
+  purchased = false,
 ): { label: string; to: string } {
   if (!user) {
     return {
       label: '立即学习',
       to: `/login?redirect=${encodeURIComponent(`/courses/${courseId}`)}`,
     };
+  }
+  if (purchased) {
+    return { label: '去学习', to: `/learning/${courseId}` };
   }
   return { label: '立即购买', to: `/checkout/${courseId}` };
 }
@@ -85,6 +86,35 @@ export default function CourseDetailPage() {
     queryKey: queryKeys.homeRecommendations,
     queryFn: getRecommendations,
   });
+  // 购买记录：登录后用于判断当前课程是否已购
+  const ordersQuery = useQuery({
+    queryKey: queryKeys.myOrdersAll,
+    queryFn: () => listMyOrders(1, 100),
+    enabled: Boolean(user),
+    retry: false,
+  });
+  // 我的领取记录：登录后判断券是否已领取（含全部状态）
+  const claimsQuery = useQuery({
+    queryKey: queryKeys.myCoupons('all', 1),
+    queryFn: () => listMyCoupons(undefined, 1, 100),
+    enabled: Boolean(user),
+    retry: false,
+  });
+  // QueryClient：领券成功或状态变化后刷新领取记录
+  const queryClient = useQueryClient();
+  // AntD message
+  const { message } = AntdApp.useApp();
+  // 领券：成功后券卡切换为已领取
+  const claimMutation = useIdempotentMutation(claimCoupon, {
+    onSuccess: () => {
+      message.success('领取成功');
+      queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('all', 1) });
+    },
+    onError: (error) => {
+      message.error(error.message);
+      queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('all', 1) });
+    },
+  });
 
   // 非 3001 的错误在此兜底；2001/2002 已由全局处理
   if (
@@ -116,12 +146,24 @@ export default function CourseDetailPage() {
   const course: CourseDetail = query.data;
   // 课程 id：详情响应缺省时回退路由参数
   const detailId = course.id ?? courseId;
+  // 是否已购买：存在该课程的已支付订单
+  const purchased = Boolean(
+    ordersQuery.data?.items.some(
+      (order) => order.courseId === detailId && order.status === 'paid',
+    ),
+  );
   // 主按钮文案与目标
-  const cta = resolveCourseCta(user, detailId);
+  const cta = resolveCourseCta(user, detailId, purchased);
   // 可领优惠券
   const coupons = course.claimableCoupons ?? [];
+  // 已领取的模板 id：invalid 记录不占用限领额度
+  const claimedTemplateIds = new Set(
+    (claimsQuery.data?.items ?? []).flatMap((item) =>
+      item.status !== 'invalid' && item.templateId !== undefined ? [item.templateId] : [],
+    ),
+  );
   // 课程类型中文名
-  const typeLabel = course.type ? COURSE_TYPE_LABELS[course.type] : undefined;
+  const typeLabel = courseTypeLabel(course.type);
   // 是否免费课程
   const isFree = (course.saleCents ?? 0) === 0;
   // 推荐位：排除当前课程，最多三条
@@ -165,7 +207,34 @@ export default function CourseDetailPage() {
               trigger="click"
               placement="bottomLeft"
               overlayClassName="course-coupon-popover"
-              content={<CourseCouponList coupons={coupons} courseName={course.name ?? ''} />}
+              content={
+                <CourseCouponList
+                  coupons={coupons}
+                  courseName={course.name ?? ''}
+                  claimedIds={claimedTemplateIds}
+                  renderAction={(coupon) => {
+                    // 模板 id 缺失时不渲染操作
+                    const couponId = coupon.id;
+                    if (couponId === undefined) return null;
+                    // 登录用户等待领取记录，避免先出现「去领取」再跳变
+                    if (user && claimsQuery.isPending) return null;
+                    return claimedTemplateIds.has(couponId) ? (
+                      <span className="coupon-card-claimed">已领取</span>
+                    ) : (
+                      <Button
+                        size="small"
+                        className="coupon-card-claim"
+                        loading={
+                          claimMutation.isPending && claimMutation.variables === couponId
+                        }
+                        onClick={() => claimMutation.mutate(couponId)}
+                      >
+                        去领取
+                      </Button>
+                    );
+                  }}
+                />
+              }
             >
               <button type="button" className="course-detail-coupon">
                 领取优惠券
@@ -181,11 +250,6 @@ export default function CourseDetailPage() {
             >
               {cta.label}
             </Button>
-            {user && (
-              <Link className="course-detail-learning" to={`/learning/${detailId}`}>
-                已购买？去学习
-              </Link>
-            )}
           </div>
         </div>
       </div>

@@ -57,6 +57,36 @@ function detail() {
   };
 }
 
+// 我的券领取记录桩：登录后用于判断券是否已领取
+function mockMyCoupons(items: () => unknown[]) {
+  server.use(
+    http.get(/\/api\/v1\/user\/coupons$/, () => {
+      const rows = items();
+      return HttpResponse.json(
+        envelope({ items: rows, total: rows.length, page: 1, pageSize: 100 }),
+      );
+    }),
+  );
+}
+
+// 领取记录桩数据
+function claim(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 21,
+    templateId: 9,
+    templateName: '新学员立减券',
+    discountCents: 2000,
+    startAt: '2026-11-01T00:00:00.000Z',
+    endAt: '2026-12-31T00:00:00.000Z',
+    courseIds: [1],
+    status: 'unused',
+    claimKey: 'template:9:user:2',
+    claimedAt: '2026-11-10T00:00:00.000Z',
+    usedAt: null,
+    ...overrides,
+  };
+}
+
 // 详情接口桩
 function mockDetail() {
   server.use(
@@ -69,6 +99,15 @@ function mockFavoriteIds() {
   server.use(
     http.get(/\/api\/v1\/user\/favorites$/, () =>
       HttpResponse.json(envelope({ items: [], total: 0, page: 1, pageSize: 100 })),
+    ),
+  );
+}
+
+// 购买记录桩：详情页据此判断当前课程是否已购
+function mockOrders(items: unknown[]) {
+  server.use(
+    http.get(/\/api\/v1\/user\/orders$/, () =>
+      HttpResponse.json(envelope({ items, total: items.length, page: 1, pageSize: 100 })),
     ),
   );
 }
@@ -101,6 +140,7 @@ function mockRecommendations() {
 describe('CourseDetailPage', () => {
   beforeEach(() => {
     mockRecommendations();
+    mockMyCoupons(() => []);
   });
 
   afterEach(() => {
@@ -128,6 +168,65 @@ describe('CourseDetailPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '领取优惠券' }));
     expect(await screen.findByText(/新学员立减券/)).toBeInTheDocument();
+  });
+
+  it('已领取的券展示已领取', async () => {
+    mockDetail();
+    mockFavoriteIds();
+    mockOrders([]);
+    mockMyCoupons(() => [claim()]);
+    useSessionStore.getState().setUser({
+      id: 2,
+      email: 'user@example.com',
+      nickname: '学员',
+      avatarKey: null,
+      avatarUrl: null,
+      gender: 'secret',
+      role: 'user',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    } as never);
+
+    renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
+
+    await userEvent.click(await screen.findByRole('button', { name: '领取优惠券' }));
+    expect(await screen.findByText('已领取')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '去领取' })).not.toBeInTheDocument();
+  });
+
+  it('未领取的券可去领取，成功后变为已领取', async () => {
+    mockDetail();
+    mockFavoriteIds();
+    mockOrders([]);
+    let claimed = false;
+    let claimKey: string | null = null;
+    mockMyCoupons(() => (claimed ? [claim()] : []));
+    server.use(
+      http.post(/\/api\/v1\/coupons\/9\/claim$/, ({ request }) => {
+        claimKey = request.headers.get('Idempotency-Key');
+        claimed = true;
+        return HttpResponse.json(envelope(claim()), { status: 201 });
+      }),
+    );
+    useSessionStore.getState().setUser({
+      id: 2,
+      email: 'user@example.com',
+      nickname: '学员',
+      avatarKey: null,
+      avatarUrl: null,
+      gender: 'secret',
+      role: 'user',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    } as never);
+
+    renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
+
+    await userEvent.click(await screen.findByRole('button', { name: '领取优惠券' }));
+    await userEvent.click(await screen.findByRole('button', { name: '去领取' }));
+
+    expect(await screen.findByText('领取成功')).toBeInTheDocument();
+    expect(await screen.findByText('已领取')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '去领取' })).not.toBeInTheDocument();
+    expect(claimKey).toBeTruthy();
   });
 
   it('右侧精品推荐展示非当前课程', async () => {
@@ -158,6 +257,7 @@ describe('CourseDetailPage', () => {
   it('普通用户点立即购买进结算页', async () => {
     mockDetail();
     mockFavoriteIds();
+    mockOrders([]);
     useSessionStore.getState().setUser({
       id: 2,
       email: 'user@example.com',
@@ -181,6 +281,53 @@ describe('CourseDetailPage', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/checkout/1');
     });
+  });
+
+  it('已购用户显示去学习并进入学习页', async () => {
+    mockDetail();
+    mockFavoriteIds();
+    mockOrders([
+      {
+        id: 7,
+        orderNo: 'ZX202611100007',
+        courseId: 1,
+        courseName: 'TypeScript 系统入门',
+        activityType: 'normal',
+        activityId: null,
+        originalCents: 19900,
+        currentCents: 9900,
+        discountCents: 0,
+        paidCents: 9900,
+        couponClaimId: null,
+        status: 'paid',
+        paidAt: '2026-11-10T02:00:00.000Z',
+        createdAt: '2026-11-10T01:59:00.000Z',
+      },
+    ]);
+    useSessionStore.getState().setUser({
+      id: 2,
+      email: 'user@example.com',
+      nickname: '学员',
+      avatarKey: null,
+      avatarUrl: null,
+      gender: 'secret',
+      role: 'user',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    } as never);
+
+    const { router } = renderWithProviders(
+      [
+        { path: '/courses/:id', element: <CourseDetailPage /> },
+        { path: '/learning/:courseId', element: <div>learning-page</div> },
+      ],
+      '/courses/1',
+    );
+
+    const cta = await screen.findByRole('button', { name: '去学习' });
+    expect(screen.queryByText('已购买？去学习')).not.toBeInTheDocument();
+
+    await userEvent.click(cta);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
   });
 
   it('3001 显示课程不存在空态', async () => {

@@ -46,6 +46,7 @@ describe('CourseListPage', () => {
 
     renderWithProviders([{ path: '/courses', element: <CourseListPage /> }], '/courses');
 
+    expect(await screen.findByRole('heading', { name: '课程' })).toBeInTheDocument();
     expect(await screen.findByText('课程 1')).toBeInTheDocument();
     await userEvent.click(screen.getByTitle('2'));
 

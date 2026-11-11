@@ -9,7 +9,7 @@ export interface NavItem {
 // 用户端顶部导航（考试仅普通用户显示）
 const USER_BASE_NAV_ITEMS: NavItem[] = [
   { path: '/', label: '首页' },
-  { path: '/courses', label: '全部课程' },
+  { path: '/courses', label: '课程' },
   { path: '/groupons', label: '拼团' },
   { path: '/flash-sales', label: '秒杀' },
   { path: '/community', label: '学习社区' },

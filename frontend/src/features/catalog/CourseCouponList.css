@@ -1,4 +1,4 @@
-/* 可领券弹层：橙色券卡，样式对齐参考图 */
+/* 可领券弹层：橙色券卡，已领取置灰，样式对齐参考图 */
 .coupon-panel {
   width: 560px;
   max-width: 80vw;
@@ -19,8 +19,11 @@
 .coupon-card {
   padding: 20px 24px;
   border-radius: 4px;
-  background: #ff6a00;
+  background: linear-gradient(90deg, #ff9a1f 0%, #ff6a00 60%, #ff5c00 100%);
   color: #fff;
+}
+.coupon-card--claimed {
+  background: linear-gradient(90deg, #d0d3d8 0%, #c6c9cf 100%);
 }
 .coupon-card-amount {
   font-size: 26px;
@@ -39,11 +42,25 @@
 }
 .coupon-card-action {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  min-height: 24px;
   margin-top: 12px;
 }
-.coupon-card-action .ant-btn {
-  color: #fff;
-  background: #ffa940;
-  border-color: #ffa940;
+.coupon-card-action .ant-btn.coupon-card-claim {
+  padding: 0 12px;
+  border-color: transparent;
+  border-radius: 2px;
+  color: #ff6a00;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+}
+.coupon-card-action .ant-btn.coupon-card-claim:hover {
+  border-color: transparent;
+  color: #ff6a00;
+  background: #fff;
+}
+.coupon-card-claimed {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
 }

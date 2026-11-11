@@ -44,6 +44,8 @@ export default function HomePage() {
           justifyContent: 'space-between',
           alignItems: 'center',
           marginTop: 32,
+          // 与推荐课程标题的默认下边距对齐，保证标题到课程网格的间距一致
+          marginBottom: 10,
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>

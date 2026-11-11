@@ -108,9 +108,6 @@
   background: #0e8a4d !important;
   border-color: #0e8a4d !important;
 }
-.course-detail-learning {
-  font-size: 14px;
-}
 /* 券弹层：加大内边距，贴近参考图的白色面板 */
 .course-coupon-popover .ant-popover-inner {
   padding: 20px 24px;
