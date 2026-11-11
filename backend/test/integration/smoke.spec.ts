@@ -5,6 +5,7 @@ import {
   COURSE_TYPESCRIPT,
   COURSE_WRITING,
   DEMO_ADMIN,
+  DEMO_GROUPON_USER,
   DEMO_USER,
   FLASH_SALE_ACTIVITY,
   GROUPON_ACTIVITY,
@@ -31,12 +32,26 @@ describe('迁移与种子冒烟（CI）', () => {
     }
   });
 
-  it('演示账号就位（admin/user，均 active）', async () => {
+  it('演示账号就位（admin/user/groupon，均 active）', async () => {
     const admin = await prisma.user.findUnique({ where: { email: DEMO_ADMIN.email } });
     expect(admin?.role).toBe('admin');
     expect(admin?.status).toBe('active');
     const user = await prisma.user.findUnique({ where: { email: DEMO_USER.email } });
     expect(user?.role).toBe('user');
+    const grouponUser = await prisma.user.findUnique({
+      where: { email: DEMO_GROUPON_USER.email },
+    });
+    expect(grouponUser?.role).toBe('user');
+    expect(grouponUser?.status).toBe('active');
+  });
+
+  it('学员账号持普通已支付订单（可学习）', async () => {
+    const user = await prisma.user.findUnique({ where: { email: DEMO_USER.email } });
+    const order = await prisma.order.findFirst({
+      where: { userId: user!.id, courseId: COURSE_TYPESCRIPT.id },
+    });
+    expect(order?.status).toBe('paid');
+    expect(order?.activityType).toBe('normal');
   });
 
   it('course-typescript 为已发布视频课且含 2 个章节', async () => {
@@ -60,9 +75,16 @@ describe('迁移与种子冒烟（CI）', () => {
     expect(g?.status).toBe('pending');
     expect(g?.memberCount).toBe(1);
     expect(await prisma.grouponMember.count({ where: { groupId: g!.id } })).toBe(1);
-    const order = await prisma.order.findUnique({
-      where: { id: (await prisma.grouponMember.findFirst({ where: { groupId: g!.id } }))!.orderId } });
+    const member = await prisma.grouponMember.findFirst({ where: { groupId: g!.id } });
+    const grouponUser = await prisma.user.findUnique({
+      where: { email: DEMO_GROUPON_USER.email },
+    });
+    // 拼团演示使用独立账号，避免占用学员账号的课程购买位
+    expect(member?.userId).toBe(grouponUser!.id);
+    const order = await prisma.order.findUnique({ where: { id: member!.orderId } });
     expect(order?.status).toBe('paid');
+    expect(order?.activityType).toBe('groupon');
+    expect(order?.userId).toBe(grouponUser!.id);
   });
 
   it('未开始秒杀活动（库存 > 已售）', async () => {
@@ -80,6 +102,7 @@ describe('迁移与种子冒烟（CI）', () => {
   it('种子可重复执行且不产生重复数据', async () => {
     await execSeed();
     expect(await prisma.user.count({ where: { email: DEMO_ADMIN.email } })).toBe(1);
+    expect(await prisma.user.count({ where: { email: DEMO_GROUPON_USER.email } })).toBe(1);
     expect(await prisma.chapter.count({ where: { courseId: COURSE_TYPESCRIPT.id } })).toBe(2);
   });
 });

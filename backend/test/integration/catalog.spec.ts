@@ -10,6 +10,7 @@ import {
   COUPON_TEMPLATE,
   COURSE_TYPESCRIPT,
   COURSE_WRITING,
+  DEMO_GROUPON_USER,
   DEMO_USER,
   GROUPON_ACTIVITY,
 } from '../../prisma/seed-data';
@@ -119,18 +120,34 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     }
   });
 
-  it('游客访问章节正文 401；登录未购 403（code=3002）', async () => {
+  it('游客访问章节正文 401', async () => {
     await request(app.getHttpServer())
       .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
       .expect(401);
+  });
 
+  it('种子学员持普通已支付订单，可读取章节正文', async () => {
     const agent = request.agent(app.getHttpServer());
     await agent
       .post('/api/v1/auth/login')
       .send({ email: DEMO_USER.email, password: DEMO_USER.password })
       .expect(200);
 
-    // 种子用户仅有待成团拼团订单，未成团不可学习
+    const res = await agent
+      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
+      .expect(200);
+    expect(res.body.data.title).toBe(COURSE_TYPESCRIPT.chapters[0].title);
+    expect(res.body.data.content).toBeTruthy();
+  });
+
+  it('拼团待成团用户不可学习（code=3002）', async () => {
+    const agent = request.agent(app.getHttpServer());
+    await agent
+      .post('/api/v1/auth/login')
+      .send({ email: DEMO_GROUPON_USER.email, password: DEMO_GROUPON_USER.password })
+      .expect(200);
+
+    // 独立拼团演示账号仅有待成团拼团订单，未成团不可学习
     const res = await agent
       .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
       .expect(403);

@@ -9,11 +9,19 @@ export const DEMO_ADMIN = {
   role: 'admin' as const, // 角色：管理员
 };
 
-// 演示学员账号
+// 演示学员账号（持有课程 1 的普通已支付订单，可直接学习）
 export const DEMO_USER = {
   email: 'user@example.com', // 登录邮箱
   password: 'abc12345', // 明文密码，仅种子用于生成哈希
   nickname: '学员小明', // 昵称
+  role: 'user' as const, // 角色：普通用户
+};
+
+// 演示拼团学员账号（「仅差一人」待成团订单的持有者，避免占用学员账号的购买位）
+export const DEMO_GROUPON_USER = {
+  email: 'groupon@example.com', // 登录邮箱
+  password: 'abc12345', // 明文密码，仅种子用于生成哈希
+  nickname: '拼团学员', // 昵称
   role: 'user' as const, // 角色：普通用户
 };
 
@@ -71,7 +79,7 @@ export const COUPON_TEMPLATE = {
   discountCents: 2000, // 面额（分）
 };
 
-// 仅差一人成团的演示团组（成员为 DEMO_USER）
+// 仅差一人成团的演示团组（成员为 DEMO_GROUPON_USER）
 export const GROUPON_GROUP_ONE_SHORT = {
   id: 1, // 固定团组 id
 };

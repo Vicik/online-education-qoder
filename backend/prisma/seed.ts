@@ -8,6 +8,7 @@ import {
   COURSE_TYPESCRIPT,
   COURSE_WRITING,
   DEMO_ADMIN,
+  DEMO_GROUPON_USER,
   DEMO_USER,
   FLASH_SALE_ACTIVITY,
   GROUPON_ACTIVITY,
@@ -18,6 +19,10 @@ import {
 const DEMO_GROUPON_ORDER_NO = "GRP-DEMO-0001";
 // 「仅差一人」演示团组订单的固定支付流水号
 const DEMO_GROUPON_TRANSACTION_NO = "MOCK-SEED-GRP-0001";
+// 演示学员普通已购订单的固定订单号（幂等 upsert 依据）
+const DEMO_NORMAL_ORDER_NO = "ZX-DEMO-0001";
+// 演示学员普通已购订单的固定支付流水号
+const DEMO_NORMAL_TRANSACTION_NO = "MOCK-SEED-ZX-0001";
 // 上海时区相对 UTC 的固定偏移（毫秒，无夏令时）
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 // 一小时毫秒数
@@ -49,11 +54,13 @@ export async function seedDemoData(
   // 种子执行时刻，所有相对时间以此为基准
   const now = new Date();
 
-  // 并行生成两个演示账号的密码哈希
-  const [adminPasswordHash, userPasswordHash] = await Promise.all([
-    bcrypt.hash(DEMO_ADMIN.password, bcryptCost),
-    bcrypt.hash(DEMO_USER.password, bcryptCost),
-  ]);
+  // 并行生成三个演示账号的密码哈希
+  const [adminPasswordHash, userPasswordHash, grouponUserPasswordHash] =
+    await Promise.all([
+      bcrypt.hash(DEMO_ADMIN.password, bcryptCost),
+      bcrypt.hash(DEMO_USER.password, bcryptCost),
+      bcrypt.hash(DEMO_GROUPON_USER.password, bcryptCost),
+    ]);
 
   // 管理员账号：按 email 幂等，已存在时不重置密码
   const admin = await prisma.user.upsert({
@@ -76,6 +83,19 @@ export async function seedDemoData(
       passwordHash: userPasswordHash, // 密码哈希
       nickname: DEMO_USER.nickname, // 昵称
       role: DEMO_USER.role, // user
+      status: "active", // 启用
+    },
+    update: {},
+  });
+
+  // 拼团演示账号：按 email 幂等，承载「仅差一人」待成团订单
+  const grouponUser = await prisma.user.upsert({
+    where: { email: DEMO_GROUPON_USER.email },
+    create: {
+      email: DEMO_GROUPON_USER.email, // 登录邮箱
+      passwordHash: grouponUserPasswordHash, // 密码哈希
+      nickname: DEMO_GROUPON_USER.nickname, // 昵称
+      role: DEMO_GROUPON_USER.role, // user
       status: "active", // 启用
     },
     update: {},
@@ -264,12 +284,12 @@ export async function seedDemoData(
     },
   });
 
-  // 团组成员的已支付订单：按固定订单号幂等
+  // 团组成员的已支付订单：按固定订单号幂等（归属于拼团演示账号）
   const grouponOrder = await prisma.order.upsert({
     where: { orderNo: DEMO_GROUPON_ORDER_NO },
     create: {
       orderNo: DEMO_GROUPON_ORDER_NO, // 固定订单号
-      userId: user.id, // 学员账号
+      userId: grouponUser.id, // 拼团演示账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
       activityType: "groupon", // 拼团订单
       activityId: GROUPON_GROUP_ONE_SHORT.id, // 团组 id
@@ -281,11 +301,11 @@ export async function seedDemoData(
       status: "paid", // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
-      purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
+      purchaseKey: `user:${grouponUser.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
       flashPurchaseKey: null, // 非秒杀订单
     },
     update: {
-      userId: user.id, // 学员账号
+      userId: grouponUser.id, // 拼团演示账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
       activityType: "groupon", // 拼团订单
       activityId: GROUPON_GROUP_ONE_SHORT.id, // 团组 id
@@ -297,7 +317,7 @@ export async function seedDemoData(
       status: "paid", // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
-      purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
+      purchaseKey: `user:${grouponUser.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
       flashPurchaseKey: null, // 非秒杀订单
     },
   });
@@ -323,23 +343,91 @@ export async function seedDemoData(
     },
   });
 
+  // 清理旧版种子把学员账号加入演示团的成员关系，释放该账号的课程购买位
+  await prisma.grouponMember.deleteMany({
+    where: {
+      groupId: GROUPON_GROUP_ONE_SHORT.id,
+      userId: user.id,
+      orderId: grouponOrder.id, // 仅限旧种子写入的成员订单，避免误删真实参团记录
+    },
+  });
+
   // 团组成员：按 (groupId, userId) 幂等
   await prisma.grouponMember.upsert({
     where: {
       groupId_userId: {
         groupId: GROUPON_GROUP_ONE_SHORT.id,
-        userId: user.id,
+        userId: grouponUser.id,
       },
     },
     create: {
       groupId: GROUPON_GROUP_ONE_SHORT.id, // 所属团组
       activityId: GROUPON_ACTIVITY.id, // 冗余活动 id
-      userId: user.id, // 成员
+      userId: grouponUser.id, // 拼团演示账号
       orderId: grouponOrder.id, // 成员订单
     },
     update: {
       activityId: GROUPON_ACTIVITY.id, // 冗余活动 id
       orderId: grouponOrder.id, // 成员订单
+    },
+  });
+
+  // 学员账号的普通已购订单：与课程页购买结果一致，可直接学习
+  const normalOrder = await prisma.order.upsert({
+    where: { orderNo: DEMO_NORMAL_ORDER_NO },
+    create: {
+      orderNo: DEMO_NORMAL_ORDER_NO, // 固定订单号
+      userId: user.id, // 学员账号
+      courseId: COURSE_TYPESCRIPT.id, // 课程
+      activityType: "normal", // 普通购买
+      activityId: null, // 无活动
+      originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
+      currentCents: COURSE_TYPESCRIPT.saleCents, // 当前价 = 课程售价
+      discountCents: 0, // 未用券
+      paidCents: COURSE_TYPESCRIPT.saleCents, // 实付 = 课程售价
+      couponClaimId: null, // 未核销券
+      status: "paid", // 已支付
+      paidAt: now, // 支付时间
+      expiresAt: null, // 已支付订单无待支付超时
+      purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
+      flashPurchaseKey: null, // 非秒杀订单
+    },
+    update: {
+      userId: user.id, // 学员账号
+      courseId: COURSE_TYPESCRIPT.id, // 课程
+      activityType: "normal", // 普通购买
+      activityId: null, // 无活动
+      originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
+      currentCents: COURSE_TYPESCRIPT.saleCents, // 当前价 = 课程售价
+      discountCents: 0, // 未用券
+      paidCents: COURSE_TYPESCRIPT.saleCents, // 实付 = 课程售价
+      couponClaimId: null, // 未核销券
+      status: "paid", // 已支付
+      paidAt: now, // 支付时间
+      expiresAt: null, // 已支付订单无待支付超时
+      purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
+      flashPurchaseKey: null, // 非秒杀订单
+    },
+  });
+
+  // 普通已购订单对应的模拟支付成功记录：按固定流水号幂等
+  await prisma.payment.upsert({
+    where: { transactionNo: DEMO_NORMAL_TRANSACTION_NO },
+    create: {
+      orderId: normalOrder.id, // 所属订单
+      channel: "mock", // 模拟支付渠道
+      transactionNo: DEMO_NORMAL_TRANSACTION_NO, // 固定流水号
+      amountCents: COURSE_TYPESCRIPT.saleCents, // 支付金额
+      status: "success", // 支付成功
+      paidAt: now, // 支付时间
+    },
+    update: {
+      orderId: normalOrder.id, // 所属订单
+      channel: "mock", // 模拟支付渠道
+      amountCents: COURSE_TYPESCRIPT.saleCents, // 支付金额
+      status: "success", // 支付成功
+      paidAt: now, // 支付时间
+      refundedAt: null, // 种子订单不退款
     },
   });
 
@@ -361,6 +449,7 @@ export async function seedDemoData(
   // 输出账号提示
   console.log(`演示数据种子完成：${admin.email}（密码见项目说明文档）`);
   console.log(`演示数据种子完成：${user.email}（密码见项目说明文档）`);
+  console.log(`演示数据种子完成：${grouponUser.email}（密码见项目说明文档）`);
 }
 
 // 独立执行种子：不传 client 时自建并关闭（供集成测试直接调用）

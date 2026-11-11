@@ -26,7 +26,7 @@
 - **会话**：Session + Redis（`HttpOnly + Secure + SameSite=Lax`）；改密/退出即时吊销；管理员仅凭邮箱密码登录（D8 已决：不启用 2FA）。
 - **密码**：bcrypt `cost≥12`（D10）；策略 8–64 位（D6），统一错误提示「邮箱或密码错误」。
 - **安全红线**：服务端计价（客户端不传金额）；服务端判分（答案/解析仅在交卷后返回）；富文本服务端白名单净化（sanitize-html，表格 ≤20×20）；资源归属校验防 IDOR；管理端写操作记 `audit_logs`；日志脱敏（不记密码/token/完整邮箱）。
-- **演示账号**（`admin@example.com / abc12345`、`user@example.com / abc12345`）仅由种子在 dev/staging 注入，prod 不注入。
+- **演示账号**（`admin@example.com / abc12345`、`user@example.com / abc12345`、`groupon@example.com / abc12345`）仅由种子在 dev/staging 注入，prod 不注入。
 - **环境约束（本机）**：① Prisma CLI 在本机拉取引擎超时 → `migrate/generate` 一律在 CI 执行；② 本机 Docker 拉取镜像不可靠 → 依赖 testcontainers 的集成/E2E/并发测试以 CI 结果为准；**本机只保证单元测试（`npm test`）可运行**。每步「完成标准」区分「本机可验证」与「CI 验证」。
 - **git**：仓库尚未初始化。`git init` 需**单独确认**，不与 add/commit 串联；各步骤中的「提交」动作均假定仓库已初始化。
 
