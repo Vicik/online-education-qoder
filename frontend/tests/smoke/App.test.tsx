@@ -13,8 +13,21 @@ describe('App', () => {
           { status: 401 },
         ),
       ),
+      // 首页两个区块：空数据即可，避免未拦截请求
+      http.get(/\/api\/v1\/home\/recommendations$/, () =>
+        HttpResponse.json({ code: 0, message: 'ok', data: { courses: [] }, requestId: 'r-home' }),
+      ),
+      http.get(/\/api\/v1\/courses$/, () =>
+        HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: { items: [], total: 0, page: 1, pageSize: 8 },
+          requestId: 'r-courses',
+        }),
+      ),
     );
     render(<App />);
-    expect(await screen.findByText('知序课堂')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: '知序课堂' })).toBeInTheDocument();
   });
 });
+

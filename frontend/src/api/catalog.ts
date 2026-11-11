@@ -77,14 +77,20 @@ export function removeFavorite(courseId: number): Promise<void> {
 export async function listFavoriteIds(): Promise<Set<number>> {
   // 第一页同时给出总数
   const firstPage = await listFavorites(1, 100);
-  // 收藏 id 集合
-  const ids = new Set(firstPage.items.map((item) => item.id));
+  // 收藏 id 集合（OpenAPI 字段可选，过滤缺省 id）
+  const ids = new Set(
+    firstPage.items
+      .map((item) => item.id)
+      .filter((id): id is number => id !== undefined),
+  );
   // 剩余页数
   const totalPages = Math.ceil(firstPage.total / 100);
   for (let page = 2; page <= totalPages; page += 1) {
     // 后续页
     const nextPage = await listFavorites(page, 100);
-    nextPage.items.forEach((item) => ids.add(item.id));
+    nextPage.items.forEach((item) => {
+      if (item.id !== undefined) ids.add(item.id);
+    });
   }
   return ids;
 }
