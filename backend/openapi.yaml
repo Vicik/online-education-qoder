@@ -256,6 +256,7 @@ components:
         - $ref: '#/components/schemas/CourseBrief'
         - type: object
           properties:
+            version: { type: integer, description: 乐观锁版本；管理端编辑回传，用户端忽略 }
             intro: { type: string, nullable: true }
             detailRich: { type: string, nullable: true, description: 服务端净化后的富文本；图片 src 已重写为签名 URL，data-key 保留 }
             chapters:
@@ -322,6 +323,13 @@ components:
           type: array
           items: { type: integer }
           description: 全部章节 id 的新顺序；保存后从 1 连续编号
+    CourseAdminWriteResult:
+      type: object
+      description: 管理端课程写操作返回（课程行摘要），前端消费 id/status/version
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [draft, published, unpublished] }
+        version: { type: integer }
     StudyRecord:
       type: object
       properties:
@@ -1015,7 +1023,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CourseCreateRequest' }
       responses:
-        '201': { $ref: '#/components/responses/Created' }
+        '201':
+          description: 'data: CourseAdminWriteResult（新建草稿）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '400': { $ref: '#/components/responses/Err400' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
@@ -1045,7 +1057,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CourseUpdateRequest' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: CourseAdminWriteResult'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '400': { $ref: '#/components/responses/Err400' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
@@ -1059,7 +1075,11 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/courseId' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: CourseAdminWriteResult'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '404': { $ref: '#/components/responses/Err404' }
@@ -1076,7 +1096,11 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/courseId' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: CourseAdminWriteResult'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '404': { $ref: '#/components/responses/Err404' }

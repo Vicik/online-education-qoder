@@ -95,3 +95,34 @@ export type ExamResultQuestion = NonNullable<AttemptResultData['questions']>[num
 
 // 我的考试记录
 export type MyExamRecord = Schemas['MyExamRecord'];
+
+// 管理端课程列表项：课程摘要 + 章节数 + 报名人数
+export type AdminCourseListItem = Schemas['CourseBrief'] & {
+  chapterCount: number;
+  enrollmentCount: number;
+};
+
+// 管理端课程详情：用户端详情 + version（步骤 14 契约修正）
+export type AdminCourseDetail = Schemas['CourseDetail'];
+
+// 章节目录项：id/标题/内容类型/序号（不含正文）；schema 字段可选，此处收敛为必有元素
+export type AdminChapter = NonNullable<AdminCourseDetail['chapters']>[number];
+
+// 课程状态：草稿/已发布/已下架（剔除 schema 可选性产生的 undefined）
+export type CourseStatus = NonNullable<AdminCourseDetail['status']>;
+
+// 创建课程请求
+export type CourseCreateInput = Schemas['CourseCreateRequest'];
+
+// 编辑课程请求：version 必填
+export type CourseUpdateInput = Schemas['CourseUpdateRequest'];
+
+// 新增章节请求
+export type ChapterCreateInput = Schemas['ChapterCreateRequest'];
+
+// 编辑章节请求：content 缺省表示保持原正文
+export type ChapterUpdateInput = Schemas['ChapterUpdateRequest'];
+
+// 课程写操作返回：id/status/version
+export type CourseWriteResult = Schemas['CourseAdminWriteResult'];
+

@@ -92,6 +92,7 @@ export interface ChapterContent {
 
 // 课程详情：基础信息 + 活动 + 可领券 + 章节目录
 export interface CourseDetail extends CourseBrief {
+  version: number; // 乐观锁版本：管理端编辑回传，用户端忽略
   intro: string | null; // 课程简介
   detailRich: string | null; // 课程详情富文本
   chapters: ChapterBrief[]; // 章节目录（不含正文）
@@ -259,6 +260,7 @@ export class CourseService {
 
     return {
       ...(await toCourseBrief(course, this.storage)),
+      version: course.version,
       intro: course.intro,
       // 富文本图片读取时重写为签名地址
       detailRich:

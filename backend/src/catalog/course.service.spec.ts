@@ -117,6 +117,7 @@ describe('CourseService.getDetail', () => {
     const endAt = new Date('2026-12-01T00:00:00Z');
     prisma.course.findFirst.mockResolvedValue({
       ...courseRow,
+      version: 3,
       intro: '课程简介',
       detailRich:
         '<p>详情</p><img data-key="zhixu/2026/11/detail.png" src="zhixu/2026/11/detail.png" />',
@@ -153,6 +154,7 @@ describe('CourseService.getDetail', () => {
 
     expect(detail.coverKey).toBe('zhixu/2026/11/cover.png');
     expect(detail.coverUrl).toBe('https://signed/zhixu/2026/11/cover.png');
+    expect(detail.version).toBe(3);
     expect(detail.detailRich).toContain(
       '<p>详情</p><img data-key="zhixu/2026/11/detail.png" src="https://signed/zhixu/2026/11/detail.png"',
     );

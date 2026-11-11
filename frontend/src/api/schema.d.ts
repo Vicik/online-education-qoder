@@ -714,7 +714,15 @@ export interface paths {
                 };
             };
             responses: {
-                201: components["responses"]["Created"];
+                /** @description data: CourseAdminWriteResult（新建草稿） */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
@@ -775,7 +783,15 @@ export interface paths {
                 };
             };
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
@@ -812,7 +828,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
@@ -855,7 +879,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
@@ -3900,6 +3932,8 @@ export interface components {
             visited?: boolean;
         };
         CourseDetail: components["schemas"]["CourseBrief"] & {
+            /** @description 乐观锁版本；管理端编辑回传，用户端忽略 */
+            version?: number;
             intro?: string | null;
             /** @description 服务端净化后的富文本；图片 src 已重写为签名 URL，data-key 保留 */
             detailRich?: string | null;
@@ -3964,6 +3998,13 @@ export interface components {
         ChapterReorderRequest: {
             /** @description 全部章节 id 的新顺序；保存后从 1 连续编号 */
             orderedChapterIds: number[];
+        };
+        /** @description 管理端课程写操作返回（课程行摘要），前端消费 id/status/version */
+        CourseAdminWriteResult: {
+            id?: number;
+            /** @enum {string} */
+            status?: "draft" | "published" | "unpublished";
+            version?: number;
         };
         StudyRecord: {
             courseId?: number;
