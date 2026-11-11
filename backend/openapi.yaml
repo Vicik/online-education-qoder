@@ -360,6 +360,7 @@ components:
         claimedCount: { type: integer, description: 当前未失效领取数 }
         status: { type: string, enum: [disabled, enabled] }
         courseIds: { type: array, items: { type: integer } }
+        version: { type: integer, description: 乐观锁版本号（管理端编辑回传；用户端忽略） }
     CouponTemplateCreateRequest:
       type: object
       required: [name, discountCents, startAt, endAt, totalQty, perUserLimit, courseIds]
@@ -449,6 +450,7 @@ components:
         startAt: { type: string, format: date-time }
         endAt: { type: string, format: date-time }
         status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
+        version: { type: integer, description: 乐观锁版本号（管理端编辑回传） }
     GrouponGroup:
       type: object
       properties:

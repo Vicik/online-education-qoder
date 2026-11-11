@@ -55,6 +55,8 @@ export const queryKeys = {
   adminGroupons: (page: number) => ['admin', 'groupons', page] as const,
   adminFlashSales: (page: number) => ['admin', 'flash-sales', page] as const,
   adminCoupons: (page: number, status = 'all') => ['admin', 'coupons', page, status] as const,
+  // 管理端优惠券详情：编辑页单条缓存
+  adminCoupon: (id: number) => ['admin', 'coupons', 'detail', id] as const,
   // 题目/屏蔽词带筛选参数；考试仅分页（步骤 16 定稿）
   adminQuestions: (params: string) => ['admin', 'questions', params] as const,
   adminQuestion: (id: number) => ['admin', 'questions', 'detail', id] as const,

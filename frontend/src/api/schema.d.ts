@@ -4037,6 +4037,8 @@ export interface components {
             /** @enum {string} */
             status?: "disabled" | "enabled";
             courseIds?: number[];
+            /** @description 乐观锁版本号（管理端编辑回传；用户端忽略） */
+            version?: number;
         };
         CouponTemplateCreateRequest: {
             name: string;
@@ -4146,6 +4148,8 @@ export interface components {
             endAt?: string;
             /** @enum {string} */
             status?: "not_started" | "ongoing" | "ended" | "cancelled";
+            /** @description 乐观锁版本号（管理端编辑回传） */
+            version?: number;
         };
         GrouponGroup: {
             id?: number;

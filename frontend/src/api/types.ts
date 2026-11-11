@@ -126,3 +126,36 @@ export type ChapterUpdateInput = Schemas['ChapterUpdateRequest'];
 // 课程写操作返回：id/status/version
 export type CourseWriteResult = Schemas['CourseAdminWriteResult'];
 
+// 管理端拼团活动：含 version（步骤 15 契约修正）
+export type AdminGroupon = Schemas['GrouponActivityBrief'];
+
+// 创建拼团活动请求
+export type GrouponCreateInput = Schemas['GrouponCreateRequest'];
+
+// 编辑拼团活动请求：version 必填
+export type GrouponUpdateInput = Schemas['GrouponUpdateRequest'];
+
+// 管理端秒杀活动：含 remaining 与 version（步骤 11 契约修正）
+export type AdminFlashSale = Schemas['FlashSaleActivityBrief'];
+
+// 创建秒杀活动请求
+export type FlashSaleCreateInput = Schemas['FlashSaleCreateRequest'];
+
+// 编辑秒杀活动请求：version 必填
+export type FlashSaleUpdateInput = Schemas['FlashSaleUpdateRequest'];
+
+// 管理端优惠券模板：含 version（步骤 15 契约修正）
+export type AdminCouponTemplate = Schemas['CouponTemplateBrief'];
+
+// 创建优惠券模板请求：默认不启用
+export type CouponTemplateCreateInput = Schemas['CouponTemplateCreateRequest'];
+
+// 编辑优惠券模板请求：仅停用态可编辑，version 必填
+export type CouponTemplateUpdateInput = Schemas['CouponTemplateUpdateRequest'];
+
+// 活动状态：未开始/进行中/已结束/已取消
+export type ActivityStatus = AdminGroupon['status'];
+
+// 优惠券模板状态：停用/启用
+export type CouponTemplateStatus = NonNullable<AdminCouponTemplate['status']>;
+
