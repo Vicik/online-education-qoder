@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExamDetailPage from '@/features/exam/ExamDetailPage';
 import ExamListPage from '@/features/exam/ExamListPage';
+import MyExamsPage from '@/features/exam/MyExamsPage';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../utils/render';
 
@@ -374,5 +375,71 @@ describe('ExamDetailPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/exams'));
+  });
+});
+
+describe('MyExamsPage', () => {
+  it('已交卷记录展示成绩与查看成绩入口', async () => {
+    server.use(
+      http.get(/\/api\/v1\/user\/exams$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              {
+                attemptId: 9,
+                examId: 5,
+                examTitle: '期中测验',
+                score: 8,
+                totalScore: 10,
+                passScore: 6,
+                passed: true,
+                submittedAt: '2026-11-10T00:05:00.000Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders([{ path: '/user/exams', element: <MyExamsPage /> }], '/user/exams');
+
+    expect(await screen.findByText('期中测验')).toBeInTheDocument();
+    expect(screen.getByText('8 / 10')).toBeInTheDocument();
+    expect(screen.getByText('及格')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '查看成绩' })).toHaveAttribute('href', '/exams/5');
+  });
+
+  it('未交卷记录展示继续考试', async () => {
+    server.use(
+      http.get(/\/api\/v1\/user\/exams$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              {
+                attemptId: 9,
+                examId: 5,
+                examTitle: '期中测验',
+                score: null,
+                totalScore: 10,
+                passScore: 6,
+                passed: null,
+                submittedAt: null,
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders([{ path: '/user/exams', element: <MyExamsPage /> }], '/user/exams');
+
+    expect(await screen.findByText('未交卷')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '继续考试' })).toHaveAttribute('href', '/exams/5');
   });
 });
