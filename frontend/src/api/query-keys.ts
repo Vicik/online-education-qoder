@@ -14,6 +14,8 @@ export const queryKeys = {
   courseCoupons: (id: number) => ['courses', id, 'coupons'] as const,
   // 学习
   studyRecords: (page = 1) => ['study-records', page] as const,
+  // 学习记录域失效前缀
+  studyRecordsRoot: ['study-records'] as const,
   favorites: (page = 1) => ['favorites', 'mine', page] as const,
   // 收藏 id 全集（详情页判断收藏态）
   favoriteIds: ['favorites', 'ids'] as const,
