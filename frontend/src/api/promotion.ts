@@ -1,5 +1,5 @@
 import { request } from './client';
-import type { CouponClaim, PageResult } from './types';
+import type { CouponClaim, CouponTemplateBrief, PageResult } from './types';
 
 // 我的券状态：与后端 CouponClaimStatus 一致
 export type CouponStatus = 'unused' | 'used' | 'expired' | 'invalid' | 'restored';
@@ -14,6 +14,14 @@ export function listMyCoupons(
     url: '/user/coupons',
     method: 'GET',
     params: { ...(status ? { status } : {}), page, pageSize },
+  });
+}
+
+// 课程详情可领券列表（公开；启用 + 有效期内 + 适用该课程 + 未发完）
+export function listCourseCoupons(courseId: number): Promise<CouponTemplateBrief[]> {
+  return request<CouponTemplateBrief[]>({
+    url: `/courses/${courseId}/coupons`,
+    method: 'GET',
   });
 }
 
