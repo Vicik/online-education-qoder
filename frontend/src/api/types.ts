@@ -62,3 +62,15 @@ export type ProfileData = Schemas['ProfileData'];
 
 // 学习概览统计
 export type OverviewData = Schemas['OverviewData'];
+
+// 帖子摘要：作者、内容、点赞/评论计数
+export type PostBrief = Schemas['PostBrief'];
+
+// 帖子详情：摘要 + 两层评论树
+export type PostDetail = Schemas['PostDetail'];
+
+// 一级评论：含回复列表
+export type CommentView = Schemas['CommentView'];
+
+// 回复：不产生第三层
+export type ReplyView = Schemas['ReplyView'];
