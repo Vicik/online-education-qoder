@@ -2611,7 +2611,15 @@ export interface paths {
                 };
             };
             responses: {
-                201: components["responses"]["Created"];
+                /** @description data: ExamAdminView（新建草稿） */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
@@ -2651,7 +2659,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description data: ExamBrief + { questionIds: [integer] } */
+                /** @description data: ExamAdminView */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2681,7 +2689,15 @@ export interface paths {
                 };
             };
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: ExamAdminView */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
@@ -2717,7 +2733,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: ExamAdminView */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
@@ -2751,7 +2775,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                200: components["responses"]["Ok"];
+                /** @description data: ExamAdminView */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
@@ -3431,6 +3463,7 @@ export interface paths {
                     page?: components["parameters"]["Page"];
                     /** @description 每页条数，默认 20 最大 100 */
                     pageSize?: components["parameters"]["PageSize"];
+                    status?: "enabled" | "disabled";
                 };
                 header?: never;
                 path?: never;
@@ -3507,11 +3540,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        word?: string;
-                        /** @enum {string} */
-                        status?: "enabled" | "disabled";
-                    };
+                    "application/json": components["schemas"]["BlockedWordUpdateRequest"];
                 };
             };
             responses: {
@@ -4246,6 +4275,12 @@ export interface components {
             analysis?: string;
             /** @enum {string} */
             status?: "enabled" | "disabled";
+            /** @description 乐观锁版本（管理端编辑回传） */
+            version?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
         };
         QuestionCreateRequest: {
             /** @enum {string} */
@@ -4266,7 +4301,10 @@ export interface components {
             /** @enum {string} */
             type?: "single" | "multiple";
             stem?: string;
-            options?: Record<string, never>[];
+            options?: {
+                key?: string;
+                text?: string;
+            }[];
             answer?: string[];
             analysis?: string;
         };
@@ -4282,6 +4320,12 @@ export interface components {
             status?: "draft" | "published" | "ended";
             /** Format: date-time */
             publishedAt?: string | null;
+        };
+        ExamAdminView: components["schemas"]["ExamBrief"] & {
+            /** @description 乐观锁版本（管理端编辑回传） */
+            version?: number;
+            /** @description 组卷题目 id，按出题顺序 */
+            questionIds?: number[];
         };
         ExamCreateRequest: {
             title: string;
@@ -4415,6 +4459,11 @@ export interface components {
         };
         BlockedWordCreateRequest: {
             word: string;
+        };
+        BlockedWordUpdateRequest: {
+            word?: string;
+            /** @enum {string} */
+            status?: "enabled" | "disabled";
         };
         /** @description data 结构 */
         ProfileData: {

@@ -542,6 +542,9 @@ components:
             answer: { type: array, items: { type: string }, description: 单选恰好 1 个；多选 ≥2 个 }
             analysis: { type: string }
             status: { type: string, enum: [enabled, disabled] }
+            version: { type: integer, description: 乐观锁版本（管理端编辑回传） }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
     QuestionCreateRequest:
       type: object
       required: [type, stem, options, answer, analysis, score]
@@ -560,7 +563,7 @@ components:
         version: { type: integer }
         type: { type: string, enum: [single, multiple] }
         stem: { type: string }
-        options: { type: array, minItems: 2, maxItems: 6, items: { type: object } }
+        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string }, text: { type: string } } } }
         answer: { type: array, items: { type: string } }
         analysis: { type: string }
 
@@ -576,6 +579,16 @@ components:
         questionCount: { type: integer }
         status: { type: string, enum: [draft, published, ended] }
         publishedAt: { type: string, format: date-time, nullable: true }
+    ExamAdminView:
+      allOf:
+        - $ref: '#/components/schemas/ExamBrief'
+        - type: object
+          properties:
+            version: { type: integer, description: 乐观锁版本（管理端编辑回传） }
+            questionIds:
+              type: array
+              items: { type: integer }
+              description: 组卷题目 id，按出题顺序
     ExamCreateRequest:
       type: object
       required: [title, durationMin, passScore, questionIds]
@@ -725,7 +738,12 @@ components:
       type: object
       required: [word]
       properties:
-        word: { type: string, minLength: 1 }
+        word: { type: string, minLength: 1, maxLength: 100 }
+    BlockedWordUpdateRequest:
+      type: object
+      properties:
+        word: { type: string, minLength: 1, maxLength: 100 }
+        status: { type: string, enum: [enabled, disabled] }
 
     ProfileData:
       type: object
@@ -1857,7 +1875,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ExamCreateRequest' }
       responses:
-        '201': { $ref: '#/components/responses/Created' }
+        '201':
+          description: 'data: ExamAdminView（新建草稿）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '400': { $ref: '#/components/responses/Err400' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
@@ -1874,7 +1896,7 @@ paths:
         - { $ref: '#/components/parameters/examId' }
       responses:
         '200':
-          description: 'data: ExamBrief + { questionIds: [integer] }'
+          description: 'data: ExamAdminView'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
@@ -1892,7 +1914,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ExamUpdateRequest' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: ExamAdminView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '404': { $ref: '#/components/responses/Err404' }
@@ -1905,7 +1931,11 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/examId' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: ExamAdminView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '404': { $ref: '#/components/responses/Err404' }
@@ -1917,7 +1947,11 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/examId' }
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: 'data: ExamAdminView'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '404': { $ref: '#/components/responses/Err404' }
@@ -2201,6 +2235,9 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - in: query
+          name: status
+          schema: { type: string, enum: [enabled, disabled] }
       responses:
         '200':
           description: 'data: Page（items: BlockedWord）'
@@ -2239,11 +2276,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                word: { type: string }
-                status: { type: string, enum: [enabled, disabled] }
+            schema: { $ref: '#/components/schemas/BlockedWordUpdateRequest' }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '401': { $ref: '#/components/responses/Err401' }

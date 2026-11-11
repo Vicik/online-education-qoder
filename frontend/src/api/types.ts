@@ -159,3 +159,46 @@ export type ActivityStatus = AdminGroupon['status'];
 // 优惠券模板状态：停用/启用
 export type CouponTemplateStatus = NonNullable<AdminCouponTemplate['status']>;
 
+// 管理端题目：含答案、解析、version 与时间
+export type AdminQuestion = Schemas['QuestionAdminView'];
+
+// 创建题目请求：分值仅创建时确定
+export type QuestionCreateInput = Schemas['QuestionCreateRequest'];
+
+// 编辑题目请求：version 必填；score 由服务端忽略
+export type QuestionUpdateInput = Schemas['QuestionUpdateRequest'];
+
+// 题目题型：单选/多选
+export type AdminQuestionType = NonNullable<AdminQuestion['type']>;
+
+// 题目状态：启用/停用
+export type AdminQuestionStatus = NonNullable<AdminQuestion['status']>;
+
+// 管理端考试列表项
+export type AdminExam = Schemas['ExamBrief'];
+
+// 管理端考试详情：含 version 与组卷题目顺序
+export type AdminExamDetail = Schemas['ExamAdminView'];
+
+// 创建考试请求：题目按 questionIds 顺序组卷
+export type ExamCreateInput = Schemas['ExamCreateRequest'];
+
+// 编辑考试请求：version 必填，仅草稿可编辑
+export type ExamUpdateInput = Schemas['ExamUpdateRequest'];
+
+// 考试状态：草稿/已发布/已结束
+export type AdminExamStatus = NonNullable<AdminExam['status']>;
+
+// 管理端屏蔽词
+export type AdminBlockedWord = Schemas['BlockedWord'];
+
+// 新增屏蔽词请求
+export type BlockedWordCreateInput = Schemas['BlockedWordCreateRequest'];
+
+// 修改屏蔽词请求：word/status 均可选
+export type BlockedWordUpdateInput = Schemas['BlockedWordUpdateRequest'];
+
+// 屏蔽词状态：启用/停用
+export type BlockedWordStatus = NonNullable<AdminBlockedWord['status']>;
+
+
