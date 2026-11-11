@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   CouponClaim,
   CouponTemplateBrief,
+  FlashSaleActivityBrief,
   GrouponActivityBrief,
   GrouponDetail,
   GrouponGroup,
@@ -83,6 +84,39 @@ export function joinGrouponGroup(
 ): Promise<{ order: Order; group: GrouponGroup }> {
   return request<{ order: Order; group: GrouponGroup }>({
     url: `/groupons/${activityId}/groups/${groupId}/join`,
+    method: 'POST',
+    data: {},
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+// 秒杀活动列表（公开；未开始 + 进行中，含服务端剩余库存）
+export function listFlashSales(
+  page = 1,
+  pageSize = 12,
+): Promise<PageResult<FlashSaleActivityBrief>> {
+  return request<PageResult<FlashSaleActivityBrief>>({
+    url: '/flash-sales',
+    method: 'GET',
+    params: { page, pageSize },
+  });
+}
+
+// 秒杀详情（公开；剩余库存与倒计时字段）
+export function getFlashSale(activityId: number): Promise<FlashSaleActivityBrief> {
+  return request<FlashSaleActivityBrief>({
+    url: `/flash-sales/${activityId}`,
+    method: 'GET',
+  });
+}
+
+// 秒杀下单：必须携带幂等键，返回待支付订单
+export function purchaseFlashSale(
+  activityId: number,
+  idempotencyKey: string,
+): Promise<{ order: Order }> {
+  return request<{ order: Order }>({
+    url: `/flash-sales/${activityId}/purchase`,
     method: 'POST',
     data: {},
     headers: { 'Idempotency-Key': idempotencyKey },

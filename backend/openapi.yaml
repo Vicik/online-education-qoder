@@ -482,9 +482,11 @@ components:
         priceCents: { type: integer }
         stock: { type: integer }
         sold: { type: integer }
+        remaining: { type: integer, description: 剩余可购数量（Redis 预占后的服务端值） }
         startAt: { type: string, format: date-time }
         endAt: { type: string, format: date-time }
         status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
+        version: { type: integer, description: 乐观锁版本号（管理端编辑回传） }
     FlashSaleCreateRequest:
       type: object
       required: [courseId, name, priceCents, stock, startAt, endAt]

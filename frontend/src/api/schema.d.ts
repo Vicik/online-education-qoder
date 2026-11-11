@@ -4159,12 +4159,16 @@ export interface components {
             priceCents?: number;
             stock?: number;
             sold?: number;
+            /** @description 剩余可购数量（Redis 预占后的服务端值） */
+            remaining?: number;
             /** Format: date-time */
             startAt?: string;
             /** Format: date-time */
             endAt?: string;
             /** @enum {string} */
             status?: "not_started" | "ongoing" | "ended" | "cancelled";
+            /** @description 乐观锁版本号（管理端编辑回传） */
+            version?: number;
         };
         FlashSaleCreateRequest: {
             /** @description 仅已发布课程；同课程活动时间不得与拼团/秒杀重叠 */
