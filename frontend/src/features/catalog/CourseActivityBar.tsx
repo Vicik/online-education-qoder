@@ -15,7 +15,7 @@ export function CourseActivityBar({
   if (!groupon && !flashSale) return null;
 
   return (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card size="small" className="course-activity-bar">
       {groupon && (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Tag color="red">拼团</Tag>

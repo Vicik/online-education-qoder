@@ -1,0 +1,49 @@
+/* 可领券弹层：橙色券卡，样式对齐参考图 */
+.coupon-panel {
+  width: 560px;
+  max-width: 80vw;
+}
+.coupon-panel-title {
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.coupon-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.coupon-card {
+  padding: 20px 24px;
+  border-radius: 4px;
+  background: #ff6a00;
+  color: #fff;
+}
+.coupon-card-amount {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.coupon-card-name {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.coupon-card-line {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.coupon-card-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.coupon-card-action .ant-btn {
+  color: #fff;
+  background: #ffa940;
+  border-color: #ffa940;
+}

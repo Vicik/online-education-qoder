@@ -73,19 +73,69 @@ function mockFavoriteIds() {
   );
 }
 
+// 推荐位桩：右侧精品推荐会请求，排除当前课程后展示
+function mockRecommendations() {
+  server.use(
+    http.get(/\/api\/v1\/home\/recommendations$/, () =>
+      HttpResponse.json(
+        envelope({
+          courses: [
+            {
+              id: 2,
+              name: '推荐课程甲',
+              type: 'video',
+              coverKey: null,
+              coverUrl: null,
+              instructor: '李老师',
+              originalCents: 19900,
+              saleCents: 9900,
+              status: 'published',
+            },
+          ],
+        }),
+      ),
+    ),
+  );
+}
+
 describe('CourseDetailPage', () => {
+  beforeEach(() => {
+    mockRecommendations();
+  });
+
   afterEach(() => {
     useSessionStore.getState().clear();
   });
 
-  it('渲染活动、可领券、章节名与富文本详情', async () => {
+  it('渲染活动、课程概述与章节目录页签', async () => {
     mockDetail();
     renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
 
     expect(await screen.findByText('双人成团')).toBeInTheDocument();
-    expect(screen.getByText(/新学员立减券/)).toBeInTheDocument();
-    expect(screen.getByText(/第一章 类型系统/)).toBeInTheDocument();
     expect(screen.getByText('详细介绍')).toBeInTheDocument();
+    expect(screen.queryByText(/第一章 类型系统/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: '章节目录' }));
+    expect(await screen.findByText(/第一章 类型系统/)).toBeInTheDocument();
+  });
+
+  it('点击领取优惠券才弹出券卡', async () => {
+    mockDetail();
+    renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
+
+    expect(await screen.findByText('详细介绍')).toBeInTheDocument();
+    expect(screen.queryByText(/新学员立减券/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '领取优惠券' }));
+    expect(await screen.findByText(/新学员立减券/)).toBeInTheDocument();
+  });
+
+  it('右侧精品推荐展示非当前课程', async () => {
+    mockDetail();
+    renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
+
+    expect(await screen.findByText('精品推荐')).toBeInTheDocument();
+    expect(await screen.findByText('推荐课程甲')).toBeInTheDocument();
   });
 
   it('游客点立即学习跳登录并带 redirect', async () => {

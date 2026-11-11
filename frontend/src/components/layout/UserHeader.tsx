@@ -1,5 +1,5 @@
-import { Avatar, Button, Dropdown, Layout, Tooltip } from 'antd';
-import { LoginOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Button, Dropdown, Layout } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { getUserNavItems } from '@/app/navigation';
 import { useLogout } from '@/hooks/useLogout';
@@ -68,15 +68,15 @@ export function UserHeader() {
               </button>
             </Dropdown>
           ) : (
-            <Tooltip title="登录">
-              <Button
-                shape="circle"
-                icon={<LoginOutlined />}
-                aria-label="登录"
-                style={{ width: 36, height: 36 }}
-                onClick={() => navigate('/login')}
-              />
-            </Tooltip>
+            <Button
+              shape="circle"
+              aria-label="登录"
+              autoInsertSpace={false}
+              style={{ width: 36, height: 36, padding: 0, fontSize: 12 }}
+              onClick={() => navigate('/login')}
+            >
+              登录
+            </Button>
           )}
         </div>
       </div>

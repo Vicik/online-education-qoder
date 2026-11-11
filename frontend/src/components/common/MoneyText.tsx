@@ -11,8 +11,9 @@ export function MoneyText({
   size?: 'default' | 'large';
 }) {
   return (
-    <span>
+    <span className="money-text">
       <span
+        className="money-text-value"
         style={{
           color: 'var(--color-price)',
           fontWeight: 600,
@@ -23,9 +24,11 @@ export function MoneyText({
       </span>
       {originalCents !== undefined && originalCents > cents && (
         <span
+          className="money-text-original"
           style={{
             marginLeft: 8,
             color: 'var(--color-price-origin)',
+            fontSize: size === 'large' ? 24 : 14,
             textDecoration: 'line-through',
           }}
         >

@@ -1,12 +1,12 @@
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Card, Popover, Tabs, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { getCourseDetail } from '@/api/catalog';
+import { getCourseDetail, getRecommendations } from '@/api/catalog';
 import { ApiError, getErrorAction } from '@/api/errors';
 import { queryKeys } from '@/api/query-keys';
-import type { CourseDetail } from '@/api/types';
+import type { CourseBrief, CourseDetail } from '@/api/types';
 import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
 import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
 import { useSessionStore, type SessionUser } from '@/stores/session';
@@ -14,6 +14,14 @@ import { CourseActivityBar } from './CourseActivityBar';
 import { CourseChapterList } from './CourseChapterList';
 import { CourseCouponList } from './CourseCouponList';
 import { FavoriteButton } from './FavoriteButton';
+import './CourseDetailPage.css';
+
+// 课程类型中文名：详情页元信息展示
+const COURSE_TYPE_LABELS: Record<string, string> = {
+  video: '视频',
+  audio: '音频',
+  rich: '图文',
+};
 
 // 详情页主按钮：游客先登录并回跳，登录用户进入结算
 export function resolveCourseCta(
@@ -29,7 +37,31 @@ export function resolveCourseCta(
   return { label: '立即购买', to: `/checkout/${courseId}` };
 }
 
-// 课程详情页：基础信息 + 活动 + 可领券 + 富文本详情 + 章节目录
+// 精品推荐项：左侧封面 + 右侧名称与价格
+function SideCourseCard({ course }: { course: CourseBrief }) {
+  // 封面是否加载失败
+  const [coverFailed, setCoverFailed] = useState(false);
+
+  return (
+    <Link to={`/courses/${course.id}`} className="course-detail-side-item">
+      <div className="course-detail-side-cover">
+        {course.coverUrl && !coverFailed && (
+          <img
+            src={course.coverUrl}
+            alt={course.name ?? '课程封面'}
+            onError={() => setCoverFailed(true)}
+          />
+        )}
+      </div>
+      <div className="course-detail-side-info">
+        <span className="course-detail-side-name">{course.name}</span>
+        <MoneyText cents={course.saleCents ?? 0} originalCents={course.originalCents} />
+      </div>
+    </Link>
+  );
+}
+
+// 课程详情页：顶部信息卡 + 列表/详情页签 + 精品推荐
 export default function CourseDetailPage() {
   // 路由参数：课程 id
   const { id: rawId } = useParams();
@@ -47,6 +79,11 @@ export default function CourseDetailPage() {
     queryKey: queryKeys.course(courseId),
     queryFn: () => getCourseDetail(courseId),
     enabled: validId,
+  });
+  // 精品推荐：与首页共享缓存
+  const recommendations = useQuery({
+    queryKey: queryKeys.homeRecommendations,
+    queryFn: getRecommendations,
   });
 
   // 非 3001 的错误在此兜底；2001/2002 已由全局处理
@@ -81,59 +118,119 @@ export default function CourseDetailPage() {
   const detailId = course.id ?? courseId;
   // 主按钮文案与目标
   const cta = resolveCourseCta(user, detailId);
+  // 可领优惠券
+  const coupons = course.claimableCoupons ?? [];
+  // 课程类型中文名
+  const typeLabel = course.type ? COURSE_TYPE_LABELS[course.type] : undefined;
+  // 是否免费课程
+  const isFree = (course.saleCents ?? 0) === 0;
+  // 推荐位：排除当前课程，最多三条
+  const recommendItems = (recommendations.data ?? [])
+    .filter((item) => item.id !== detailId)
+    .slice(0, 3);
 
   return (
-    <div>
-      <PageHeader title={course.name} />
-
-      <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ width: 320 }}>
-            {course.coverUrl ? (
-              <img
-                src={course.coverUrl}
-                alt={course.name ?? '课程封面'}
-                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 6 }}
-                onError={() => query.refetch()}
-              />
-            ) : (
-              <div style={{ width: '100%', height: 180, background: '#f0f2f5', borderRadius: 6 }} />
-            )}
+    <div className="course-detail">
+      <div className="course-detail-hero">
+        <div className="course-detail-cover">
+          {course.coverUrl ? (
+            <img
+              src={course.coverUrl}
+              alt={course.name ?? '课程封面'}
+              onError={() => query.refetch()}
+            />
+          ) : (
+            <div className="course-detail-cover-placeholder" />
+          )}
+        </div>
+        <div className="course-detail-info">
+          <div className="course-detail-heading">
+            <h1 className="course-detail-title">{course.name}</h1>
+            {user && <FavoriteButton courseId={detailId} />}
           </div>
-          <div style={{ flex: 1, minWidth: 280 }}>
+          <p className="course-detail-meta">
+            {typeLabel && <span>【{typeLabel}】</span>}
+            <span>讲师：{course.instructor ?? '—'}</span>
+          </p>
+          <div className="course-detail-price">
             <MoneyText
               cents={course.saleCents ?? 0}
               originalCents={course.originalCents}
               size="large"
             />
-            <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-              讲师：{course.instructor ?? '—'}
-            </Typography.Paragraph>
-            <Space wrap>
-              <Button type="primary" size="large" onClick={() => navigate(cta.to)}>
-                {cta.label}
-              </Button>
-              {user && <FavoriteButton courseId={detailId} />}
-              {user && <Link to={`/learning/${detailId}`}>已购买？去学习</Link>}
-            </Space>
+            {isFree && <span className="course-detail-free">免费</span>}
+          </div>
+          {coupons.length > 0 && (
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              overlayClassName="course-coupon-popover"
+              content={<CourseCouponList coupons={coupons} courseName={course.name ?? ''} />}
+            >
+              <button type="button" className="course-detail-coupon">
+                领取优惠券
+              </button>
+            </Popover>
+          )}
+          <div className="course-detail-actions">
+            <Button
+              type="primary"
+              size="large"
+              className="course-detail-cta"
+              onClick={() => navigate(cta.to)}
+            >
+              {cta.label}
+            </Button>
+            {user && (
+              <Link className="course-detail-learning" to={`/learning/${detailId}`}>
+                已购买？去学习
+              </Link>
+            )}
           </div>
         </div>
-      </Card>
+      </div>
 
       <CourseActivityBar groupon={course.groupon ?? null} flashSale={course.flashSale ?? null} />
-      <CourseCouponList coupons={course.claimableCoupons ?? []} />
 
-      <Card title="课程介绍" style={{ marginBottom: 16 }}>
-        {course.intro && <Typography.Paragraph>{course.intro}</Typography.Paragraph>}
-        {course.detailRich && <RichTextViewer html={course.detailRich} />}
-        {!course.intro && !course.detailRich && (
-          <Typography.Text type="secondary">暂无介绍</Typography.Text>
+      <div className="course-detail-body">
+        <div className="course-detail-main">
+          <Tabs
+            defaultActiveKey="intro"
+            className="course-detail-tabs"
+            items={[
+              {
+                key: 'intro',
+                label: '详情',
+                children: (
+                  <div className="course-detail-intro">
+                    <h2 className="course-detail-section-title">课程概述</h2>
+                    {course.intro && <Typography.Paragraph>{course.intro}</Typography.Paragraph>}
+                    {course.detailRich && <RichTextViewer html={course.detailRich} />}
+                    {!course.intro && !course.detailRich && (
+                      <Typography.Text type="secondary">暂无介绍</Typography.Text>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'chapters',
+                label: '章节目录',
+                children: <CourseChapterList chapters={course.chapters ?? []} />,
+              },
+            ]}
+          />
+        </div>
+        {recommendItems.length > 0 && (
+          <aside className="course-detail-side">
+            <h2 className="course-detail-side-title">精品推荐</h2>
+            <div className="course-detail-side-list">
+              {recommendItems.map((item) => (
+                <SideCourseCard key={item.id} course={item} />
+              ))}
+            </div>
+          </aside>
         )}
-      </Card>
-
-      <Card title="章节目录">
-        <CourseChapterList chapters={course.chapters ?? []} />
-      </Card>
+      </div>
     </div>
   );
 }

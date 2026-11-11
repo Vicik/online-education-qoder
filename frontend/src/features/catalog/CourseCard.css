@@ -1,0 +1,5 @@
+/* 课程卡片价格：原价单独下移 5px，售价保持原位 */
+.course-card-price .money-text-original {
+  position: relative;
+  top: 5px;
+}
