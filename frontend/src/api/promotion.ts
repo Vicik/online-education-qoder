@@ -1,5 +1,13 @@
 import { request } from './client';
-import type { CouponClaim, CouponTemplateBrief, PageResult } from './types';
+import type {
+  CouponClaim,
+  CouponTemplateBrief,
+  GrouponActivityBrief,
+  GrouponDetail,
+  GrouponGroup,
+  Order,
+  PageResult,
+} from './types';
 
 // 我的券状态：与后端 CouponClaimStatus 一致
 export type CouponStatus = 'unused' | 'used' | 'expired' | 'invalid' | 'restored';
@@ -30,6 +38,53 @@ export function claimCoupon(templateId: number, idempotencyKey: string): Promise
   return request<CouponClaim>({
     url: `/coupons/${templateId}/claim`,
     method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+// 拼团活动列表（公开；后端仅返回进行中活动，按开始时间正序分页）
+export function listGroupons(
+  page = 1,
+  pageSize = 12,
+): Promise<PageResult<GrouponActivityBrief>> {
+  return request<PageResult<GrouponActivityBrief>>({
+    url: '/groupons',
+    method: 'GET',
+    params: { page, pageSize },
+  });
+}
+
+// 拼团详情：活动信息 + 仅待成团的团组
+export function getGroupon(activityId: number): Promise<GrouponDetail> {
+  return request<GrouponDetail>({
+    url: `/groupons/${activityId}`,
+    method: 'GET',
+  });
+}
+
+// 发起新团：必须携带幂等键，返回待支付订单与新建团组
+export function createGrouponGroup(
+  activityId: number,
+  idempotencyKey: string,
+): Promise<{ order: Order; group: GrouponGroup }> {
+  return request<{ order: Order; group: GrouponGroup }>({
+    url: `/groupons/${activityId}/groups`,
+    method: 'POST',
+    data: {},
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+// 加入待成团团组：必须携带幂等键，返回待支付订单与团组
+export function joinGrouponGroup(
+  activityId: number,
+  groupId: number,
+  idempotencyKey: string,
+): Promise<{ order: Order; group: GrouponGroup }> {
+  return request<{ order: Order; group: GrouponGroup }>({
+    url: `/groupons/${activityId}/groups/${groupId}/join`,
+    method: 'POST',
+    data: {},
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }

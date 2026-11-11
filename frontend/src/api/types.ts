@@ -33,6 +33,12 @@ export type StudyRecord = Schemas['StudyRecord'];
 // 进行中的拼团活动
 export type GrouponActivityBrief = Schemas['GrouponActivityBrief'];
 
+// 团组：状态、已支付成员数、成团人数与截止时间
+export type GrouponGroup = Schemas['GrouponGroup'];
+
+// 拼团详情：活动信息 + 待成团团组
+export type GrouponDetail = GrouponActivityBrief & { groups: GrouponGroup[] };
+
 // 进行中的秒杀活动
 export type FlashSaleActivityBrief = Schemas['FlashSaleActivityBrief'];
 
