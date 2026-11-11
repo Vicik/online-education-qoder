@@ -23,6 +23,23 @@ function preview(couponId: number | null) {
   };
 }
 
+function courseDetail() {
+  return {
+    id: 1,
+    name: 'TypeScript 系统入门',
+    type: 'video',
+    coverKey: null,
+    coverUrl: null,
+    instructor: '张老师',
+    originalCents: 19900,
+    saleCents: 9900,
+    status: 'published',
+    intro: null,
+    detailRich: null,
+    chapters: [],
+  };
+}
+
 function order(overrides: Record<string, unknown> = {}) {
   return {
     id: 1,
@@ -45,6 +62,9 @@ function order(overrides: Record<string, unknown> = {}) {
 
 describe('CheckoutPage', () => {
   beforeEach(() => {
+    server.use(
+      http.get(/\/api\/v1\/courses\/1$/, () => HttpResponse.json(envelope(courseDetail()))),
+    );
     useSessionStore.getState().setUser({
       id: 2,
       email: 'user@example.com',
@@ -61,9 +81,8 @@ describe('CheckoutPage', () => {
     useSessionStore.getState().clear();
   });
 
-  it('选券后重新预览，创建订单并支付后跳结果页', async () => {
+  it('选券后重新预览并创建订单后跳支付页', async () => {
     let created = 0;
-    let paid = 0;
     let idempotencyKey = '';
 
     server.use(
@@ -99,32 +118,33 @@ describe('CheckoutPage', () => {
         idempotencyKey = request.headers.get('idempotency-key') ?? '';
         return HttpResponse.json(envelope(order()), { status: 201 });
       }),
-      http.post(/\/api\/v1\/orders\/1\/pay$/, () => {
-        paid += 1;
-        return HttpResponse.json(envelope(order({ status: 'paid' })));
-      }),
     );
 
     const { router } = renderWithProviders(
       [
         { path: '/checkout/:courseId', element: <CheckoutPage /> },
-        { path: '/order/:id/result', element: <div>order-result</div> },
+        { path: '/order/:id/pay', element: <div>pay-page</div> },
       ],
       '/checkout/1',
     );
 
     expect((await screen.findAllByText('¥99.00')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('产品信息')).toBeInTheDocument();
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
+    expect(screen.getByText('视频')).toBeInTheDocument();
+    expect(screen.getByText('支付方式')).toBeInTheDocument();
+    expect(screen.getByText('微信支付')).toBeInTheDocument();
+    expect(screen.getByText('请在30分钟内完成支付')).toBeInTheDocument();
+    expect(screen.getByText(/需支付/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('combobox'));
     await userEvent.click(await screen.findByText(/新学员立减券/));
     expect(await screen.findByText('¥79.00')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '确认支付' }));
-    await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/order/1/result'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/order/1/pay'));
     expect(created).toBe(1);
-    expect(paid).toBe(1);
     expect(idempotencyKey.length).toBeGreaterThanOrEqual(8);
   });
 
@@ -150,8 +170,9 @@ describe('CheckoutPage', () => {
       '/checkout/1',
     );
 
+    expect(await screen.findByText('暂无优惠券')).toBeInTheDocument();
+
     await userEvent.click(await screen.findByRole('button', { name: '确认支付' }));
-    await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
 
     expect((await screen.findAllByText('您已购买该课程')).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '去学习' })).toHaveAttribute('href', '/learning/1');
@@ -205,40 +226,32 @@ describe('CheckoutPage', () => {
     expect(await screen.findByText('¥79.00')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '确认支付' }));
-    await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
 
     await waitFor(() => expect(screen.queryByText('¥79.00')).not.toBeInTheDocument());
     expect(await screen.findAllByText('¥99.00')).not.toHaveLength(0);
   });
 
-  it('既有订单模式只支付不创建', async () => {
+  it('既有订单模式只进入支付页不创建', async () => {
     let created = 0;
-    let paid = 0;
     server.use(
       http.get(/\/api\/v1\/orders\/5$/, () => HttpResponse.json(envelope(order({ id: 5 })))),
       http.post(/\/api\/v1\/orders$/, () => {
         created += 1;
         return HttpResponse.json(envelope(order()), { status: 201 });
       }),
-      http.post(/\/api\/v1\/orders\/5\/pay$/, () => {
-        paid += 1;
-        return HttpResponse.json(envelope(order({ id: 5, status: 'paid' })));
-      }),
     );
 
     const { router } = renderWithProviders(
       [
         { path: '/checkout/:courseId', element: <CheckoutPage /> },
-        { path: '/order/:id/result', element: <div>order-result</div> },
+        { path: '/order/:id/pay', element: <div>pay-page</div> },
       ],
       '/checkout/1?orderId=5',
     );
 
     await userEvent.click(await screen.findByRole('button', { name: '确认支付' }));
-    await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/order/5/result'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/order/5/pay'));
     expect(created).toBe(0);
-    expect(paid).toBe(1);
   });
 });

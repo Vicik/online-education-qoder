@@ -19,10 +19,14 @@ describe('ConfirmAction', () => {
     const onConfirm = vi.fn().mockResolvedValue(undefined);
     renderConfirm(onConfirm);
     await userEvent.click(screen.getByRole('button', { name: /删\s*除/ }));
-    await userEvent.click(await screen.findByRole('button', { name: /取\s*消/ }));
+    const cancelButton = await screen.findByRole('button', { name: /取\s*消/ });
+    expect(cancelButton.textContent).toBe('取消');
+    await userEvent.click(cancelButton);
     expect(onConfirm).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: /删\s*除/ }));
-    await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
+    const okButton = await screen.findByRole('button', { name: /确\s*定/ });
+    expect(okButton.textContent).toBe('确定');
+    await userEvent.click(okButton);
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 });

@@ -1,35 +1,21 @@
-import { Alert, App as AntdApp, Button, Card, Descriptions, Select, Typography } from 'antd';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { WechatOutlined } from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Card, Select } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { getCourseDetail } from '@/api/catalog';
 import { ApiError } from '@/api/errors';
 import { listMyCoupons } from '@/api/promotion';
-import { createOrder, getCheckoutPreview, getOrder, payOrder } from '@/api/trade';
+import { createOrder, getCheckoutPreview, getOrder } from '@/api/trade';
 import { queryKeys } from '@/api/query-keys';
-import type { CheckoutPreviewData, Order, OrderCreateRequest } from '@/api/types';
-import { ConfirmAction } from '@/components/common/ConfirmAction';
+import type { Order, OrderCreateRequest } from '@/api/types';
 import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
+import { courseTypeLabel } from '@/lib/course';
 import { formatCents } from '@/lib/money';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
+import './CheckoutPage.css';
 
-// 金额明细展示
-function PriceBreakdown({ preview }: { preview: Order | CheckoutPreviewData }) {
-  return (
-    <Descriptions column={1} bordered size="small">
-      <Descriptions.Item label="原价">{formatCents(preview.originalCents ?? 0)}</Descriptions.Item>
-      <Descriptions.Item label="当前价">{formatCents(preview.currentCents ?? 0)}</Descriptions.Item>
-      <Descriptions.Item label="优惠">-{formatCents(preview.discountCents ?? 0)}</Descriptions.Item>
-      <Descriptions.Item label="实付">
-        <Typography.Text strong type="danger">
-          {formatCents(preview.paidCents ?? 0)}
-        </Typography.Text>
-      </Descriptions.Item>
-    </Descriptions>
-  );
-}
-
-// 结算页：服务端计价；拼团/秒杀传 orderId 时只支付既有订单
+// 结算页：服务端计价；确认后创建订单并进入支付页
 export default function CheckoutPage() {
   // 路由课程 id
   const { courseId: rawCourseId } = useParams();
@@ -45,10 +31,10 @@ export default function CheckoutPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   // 已购买标记：展示去学习入口
   const [duplicatePurchase, setDuplicatePurchase] = useState(false);
+  // 封面是否加载失败
+  const [coverFailed, setCoverFailed] = useState(false);
   // 跳转
   const navigate = useNavigate();
-  // QueryClient
-  const queryClient = useQueryClient();
   // AntD message
   const { message } = AntdApp.useApp();
 
@@ -71,13 +57,21 @@ export default function CheckoutPage() {
     queryFn: () => listMyCoupons('unused', 1, 100),
     enabled: existingOrderId === null,
   });
+  // 产品课程 id：既有订单模式以订单课程为准
+  const productCourseId =
+    existingOrderId !== null ? (orderQuery.data?.courseId ?? courseId) : courseId;
+  // 课程详情：仅用于封面与类型展示，失败不影响下单
+  const courseQuery = useQuery({
+    queryKey: queryKeys.course(productCourseId),
+    queryFn: () => getCourseDetail(productCourseId),
+    enabled: Number.isInteger(productCourseId) && productCourseId > 0,
+    retry: false,
+  });
 
   // 创建订单（幂等）
   const createMutation = useIdempotentMutation(
     (payload: OrderCreateRequest, idempotencyKey: string) => createOrder(payload, idempotencyKey),
   );
-  // 模拟支付
-  const payMutation = useMutation({ mutationFn: payOrder });
 
   // 当前展示的金额来源
   const amountSource = existingOrderId !== null ? orderQuery.data : previewQuery.data;
@@ -87,6 +81,18 @@ export default function CheckoutPage() {
     (existingOrderId !== null ? orderQuery.data?.status === 'pending' : true);
   // 实付金额
   const paidCents = amountSource?.paidCents ?? 0;
+  // 当前价（活动价）
+  const currentCents = amountSource?.currentCents ?? 0;
+  // 原价
+  const originalCents = amountSource?.originalCents ?? 0;
+  // 优惠金额
+  const discountCents = amountSource?.discountCents ?? 0;
+  // 课程名称：详情优先，订单兜底
+  const courseName = courseQuery.data?.name ?? orderQuery.data?.courseName ?? '课程订单';
+  // 课程类型中文名
+  const typeLabel = courseTypeLabel(courseQuery.data?.type);
+  // 课程封面
+  const coverUrl = courseQuery.data?.coverUrl;
   // 按钮文案：0 元为确认报名
   const submitLabel = paidCents === 0 ? '确认报名' : '确认支付';
 
@@ -99,7 +105,7 @@ export default function CheckoutPage() {
         label: `${coupon.templateName ?? ''}（立减 ${formatCents(coupon.discountCents ?? 0)}）`,
       })) ?? [];
 
-  // 提交：创建（或取既有）订单后支付
+  // 提交：创建（或取既有）订单后进入支付页
   async function handleSubmit(): Promise<void> {
     setSubmitError(null);
     try {
@@ -120,21 +126,17 @@ export default function CheckoutPage() {
         });
       }
 
-      // 订单 id 用于支付与跳转
+      // 订单 id 用于支付页路由
       const orderId = order.id;
       if (orderId === undefined) {
         setSubmitError('订单信息异常，请稍后重试');
         return;
       }
 
-      await payMutation.mutateAsync(orderId);
-      queryClient.invalidateQueries({ queryKey: queryKeys.myOrders(1) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('unused', 1) });
-      navigate(`/order/${orderId}/result`, { replace: true });
+      navigate(`/order/${orderId}/pay`, { replace: true });
     } catch (error) {
       if (!(error instanceof ApiError)) {
-        setSubmitError('支付失败，请稍后重试');
+        setSubmitError('提交失败，请稍后重试');
         return;
       }
       if (error.code === 4003) {
@@ -190,47 +192,79 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="确认订单" />
-      <Card style={{ maxWidth: 640 }}>
-        <Typography.Title level={5}>{orderQuery.data?.courseName ?? '课程订单'}</Typography.Title>
-        <PriceBreakdown preview={amountSource} />
+    <div className="checkout-page">
+      <section className="checkout-card">
+        <h2 className="checkout-section-title">产品信息</h2>
+        <div className="checkout-product">
+          <div className="checkout-product-cover">
+            {coverUrl && !coverFailed ? (
+              <img
+                src={coverUrl}
+                alt={courseName}
+                onError={() => setCoverFailed(true)}
+              />
+            ) : (
+              <div className="checkout-product-cover-placeholder" />
+            )}
+          </div>
+          <div className="checkout-product-info">
+            <h3 className="checkout-product-name">{courseName}</h3>
+            {typeLabel && <span className="checkout-product-type">{typeLabel}</span>}
+          </div>
+          <span className="checkout-product-price">{formatCents(currentCents)}</span>
+        </div>
 
         {existingOrderId === null && (
-          <div style={{ marginTop: 16 }}>
-            <Typography.Text>优惠券</Typography.Text>
-            <Select
-              allowClear
-              style={{ width: '100%', marginTop: 8 }}
-              placeholder="不使用优惠券"
-              value={couponId}
-              onChange={(value) => setCouponId(value)}
-              options={couponOptions}
-            />
-          </div>
+          <>
+            <h2 className="checkout-section-title">优惠券</h2>
+            {couponOptions.length > 0 ? (
+              <Select
+                allowClear
+                className="checkout-coupon-select"
+                placeholder="不使用优惠券"
+                value={couponId}
+                onChange={(value) => setCouponId(value)}
+                options={couponOptions}
+              />
+            ) : (
+              <p className="checkout-empty">暂无优惠券</p>
+            )}
+          </>
         )}
 
-        {submitError && <Alert type="error" showIcon message={submitError} style={{ marginTop: 16 }} />}
-
-        <div style={{ marginTop: 24, textAlign: 'right' }}>
-          <ConfirmAction
-            title={`${submitLabel} ${formatCents(paidCents)}？`}
-            content="支付为模拟支付，确认后将立即完成订单。"
-            okText="确定"
-            onConfirm={handleSubmit}
-            disabled={!payable || createMutation.isPending || payMutation.isPending}
-          >
-            <Button
-              type="primary"
-              size="large"
-              disabled={!payable}
-              loading={createMutation.isPending || payMutation.isPending}
-            >
-              {submitLabel}
-            </Button>
-          </ConfirmAction>
+        <h2 className="checkout-section-title">支付方式</h2>
+        <div className="checkout-pay-method">
+          <WechatOutlined />
+          <span>微信支付</span>
         </div>
-      </Card>
+        <p className="checkout-pay-hint">请在30分钟内完成支付</p>
+
+        {submitError && <Alert type="error" showIcon message={submitError} className="checkout-error" />}
+
+        <div className="checkout-footer">
+          <div className="checkout-summary">
+            {originalCents > currentCents || discountCents > 0 ? (
+              <span className="checkout-summary-origin">
+                原价 {formatCents(originalCents)}
+                {discountCents > 0 && `，已优惠 ${formatCents(discountCents)}`}
+              </span>
+            ) : null}
+            <span className="checkout-summary-paid">
+              需支付 <strong>{formatCents(paidCents)}</strong>
+            </span>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            className="checkout-submit"
+            disabled={!payable || createMutation.isPending}
+            loading={createMutation.isPending}
+            onClick={handleSubmit}
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

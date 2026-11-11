@@ -36,6 +36,7 @@ export const ROUTES: RouteMeta[] = [
   { path: '/community/:postId', layout: 'user', requiresAuth: false, lazy: placeholder('帖子详情') },
   { path: '/community/new', layout: 'user', requiresAuth: true, roles: ['user'], lazy: placeholder('发布帖子') },
   { path: '/checkout/:courseId', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/CheckoutPage') },
+  { path: '/order/:id/pay', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/OrderPayPage') },
   { path: '/order/:id/result', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/OrderResultPage') },
   { path: '/learning/:courseId', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/learning/LearningPage') },
   { path: '/exams', layout: 'user', requiresAuth: true, roles: ['user'], lazy: placeholder('考试列表') },

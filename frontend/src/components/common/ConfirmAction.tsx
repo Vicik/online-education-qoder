@@ -42,7 +42,9 @@ export function ConfirmAction({
       content,
       okText,
       cancelText,
-      okButtonProps: { danger },
+      // 两个汉字的按钮不自动插空格，保持参考图文案
+      okButtonProps: { danger, autoInsertSpace: false },
+      cancelButtonProps: { autoInsertSpace: false },
       onOk: async () => {
         try {
           await onConfirm();

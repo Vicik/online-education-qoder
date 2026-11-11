@@ -1,0 +1,104 @@
+/* 支付页：浅灰背景上的居中白色卡片，视觉对齐参考图 */
+.pay-page {
+  display: flex;
+  justify-content: center;
+}
+
+/* 支付卡片：约 480px 宽 */
+.pay-card {
+  width: 480px;
+  max-width: 100%;
+  padding: 32px 40px 40px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 支付成功提示：位于标题上方 */
+.pay-success {
+  margin-bottom: 24px;
+}
+
+.pay-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+/* 二维码有效期提示：时间红色 */
+.pay-expire {
+  margin: 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+.pay-countdown {
+  color: var(--color-price);
+}
+
+/* 支付金额：居中，金额红色 */
+.pay-amount {
+  margin: 24px 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  text-align: center;
+}
+.pay-amount span {
+  margin-left: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-price);
+}
+
+/* 二维码容器：白底细边框 */
+.pay-qr {
+  width: 300px;
+  margin: 0 auto;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+.pay-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.pay-qr-placeholder {
+  width: 100%;
+  height: 274px;
+  background: #fafafa;
+}
+
+/* 扫码提示：绿色微信图标 + 两行灰字 */
+.pay-scan-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: #8c8c8c;
+}
+.pay-scan-icon {
+  font-size: 22px;
+  color: var(--color-cta);
+}
+.pay-scan-hint div {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pay-error {
+  margin-top: 20px;
+}
+
+/* 窄屏：收窄卡片内边距与二维码 */
+@media (max-width: 520px) {
+  .pay-card {
+    padding: 24px 20px 32px;
+  }
+  .pay-qr {
+    width: 100%;
+    max-width: 300px;
+  }
+}

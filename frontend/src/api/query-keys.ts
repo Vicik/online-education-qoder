@@ -25,6 +25,8 @@ export const queryKeys = {
   checkout: (courseId: number, params: string) => ['checkout', courseId, params] as const,
   order: (id: number) => ['order', id] as const,
   myOrders: (page: number) => ['orders', 'mine', page] as const,
+  // 全部购买记录：详情页判断是否已购，独立于购买记录分页缓存
+  myOrdersAll: ['orders', 'mine', 'all'] as const,
   // 活动
   groupons: (page: number) => ['groupons', page] as const,
   groupon: (id: number) => ['groupon', id] as const,
