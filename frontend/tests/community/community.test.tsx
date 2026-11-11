@@ -2,6 +2,8 @@ import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FeedPage from '@/features/community/FeedPage';
+import MyPostsPage from '@/features/community/MyPostsPage';
+import NewPostPage from '@/features/community/NewPostPage';
 import PostDetailPage from '@/features/community/PostDetailPage';
 import { useSessionStore } from '@/stores/session';
 import { server } from '../msw/server';
@@ -205,5 +207,77 @@ describe('PostDetailPage', () => {
     // 帖子作者为 userId=1，评论作者为 userId=2
     expect(await screen.findByRole('button', { name: '删除帖子' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '删除评论' })).not.toBeInTheDocument();
+  });
+});
+
+describe('NewPostPage', () => {
+  beforeEach(() => loginAsUser());
+
+  it('发帖携带幂等键并在成功后进入详情', async () => {
+    // 捕获幂等键
+    let key = '';
+    server.use(
+      http.post(/\/api\/v1\/posts$/, ({ request }) => {
+        key = request.headers.get('idempotency-key') ?? '';
+        return HttpResponse.json(envelope(post()), { status: 201 });
+      }),
+    );
+    const { router } = renderWithProviders(
+      [
+        { path: '/community/new', element: <NewPostPage /> },
+        { path: '/community/:postId', element: <div>post-detail</div> },
+      ],
+      '/community/new',
+    );
+
+    await userEvent.type(await screen.findByRole('textbox'), '第一帖');
+    await userEvent.click(screen.getByRole('button', { name: '发布' }));
+
+    await waitFor(() => expect(key.length).toBeGreaterThanOrEqual(8));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/community/1'));
+  });
+
+  it('7001 列出全部命中词', async () => {
+    server.use(
+      http.post(/\/api\/v1\/posts$/, () =>
+        HttpResponse.json(
+          { code: 7001, message: '内容包含敏感词', data: ['违禁词', 'badword'], requestId: 'r-blocked' },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    renderWithProviders([{ path: '/community/new', element: <NewPostPage /> }], '/community/new');
+
+    await userEvent.type(await screen.findByRole('textbox'), '内容');
+    await userEvent.click(screen.getByRole('button', { name: '发布' }));
+
+    expect(await screen.findByText(/违禁词/)).toBeInTheDocument();
+    expect(screen.getByText(/badword/)).toBeInTheDocument();
+  });
+});
+
+describe('MyPostsPage', () => {
+  beforeEach(() => loginAsUser());
+
+  it('展示本人帖子并可删除', async () => {
+    // 删除请求次数
+    let deleted = 0;
+    server.use(
+      http.get(/\/api\/v1\/user\/posts$/, () =>
+        HttpResponse.json(envelope({ items: [post()], total: 1, page: 1, pageSize: 10 })),
+      ),
+      http.delete(/\/api\/v1\/posts\/1$/, () => {
+        deleted += 1;
+        return HttpResponse.json(envelope(null));
+      }),
+    );
+
+    renderWithProviders([{ path: '/user/posts', element: <MyPostsPage /> }], '/user/posts');
+
+    expect(await screen.findByText('第一帖')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '删除' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+    await waitFor(() => expect(deleted).toBe(1));
   });
 });

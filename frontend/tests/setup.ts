@@ -1,3 +1,4 @@
+import '@ant-design/v5-patch-for-react-19';
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import dayjs from 'dayjs';
@@ -45,9 +46,39 @@ function installMatchMediaStub(): void {
   });
 }
 
+// jsdom 未实现布局查询；tiptap/prosemirror 在输入后滚动选区会调用，返回零尺寸即可
+function installLayoutStubs(): void {
+  // 零尺寸矩形
+  const zeroRect = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    toJSON: () => ({}),
+  } as DOMRect;
+  // 空矩形列表
+  const emptyRects = {
+    length: 0,
+    item: () => null,
+    [Symbol.iterator]: function* () {},
+  } as unknown as DOMRectList;
+  if (typeof Range !== 'undefined') {
+    Range.prototype.getClientRects = () => emptyRects;
+    Range.prototype.getBoundingClientRect = () => zeroRect;
+  }
+  if (typeof document !== 'undefined' && typeof document.elementFromPoint !== 'function') {
+    document.elementFromPoint = () => null;
+  }
+}
+
 // 测试生命周期：启动 MSW、逐例重置、结束后关闭
 beforeAll(() => {
   installMatchMediaStub();
+  installLayoutStubs();
   server.listen({ onUnhandledRequest: 'error' });
   installRequestSignalCompat();
 });
