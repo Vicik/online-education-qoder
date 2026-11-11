@@ -1,7 +1,8 @@
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LearningPage from '@/features/learning/LearningPage';
+import { ChapterViewer } from '@/features/learning/ChapterViewer';
 import { useSessionStore } from '@/stores/session';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../utils/render';
@@ -122,5 +123,37 @@ describe('LearningPage', () => {
 
     expect(await screen.findByText('购买后可学习')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '去购买' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '查看课程详情' })).toBeInTheDocument();
+  });
+});
+
+describe('ChapterViewer', () => {
+  it('视频章节渲染 video 并带上签名地址', () => {
+    const { container } = render(
+      <ChapterViewer
+        content={{ id: 21, contentType: 'video', content: 'https://cdn.example.com/v.mp4' }}
+      />,
+    );
+
+    const video = container.querySelector('video');
+    expect(video).toHaveAttribute('src', 'https://cdn.example.com/v.mp4');
+    expect(video).toHaveAttribute('controls');
+  });
+
+  it('音频章节渲染 audio 并带上签名地址', () => {
+    const { container } = render(
+      <ChapterViewer
+        content={{ id: 22, contentType: 'audio', content: 'https://cdn.example.com/a.mp3' }}
+      />,
+    );
+
+    const audio = container.querySelector('audio');
+    expect(audio).toHaveAttribute('src', 'https://cdn.example.com/a.mp3');
+    expect(audio).toHaveAttribute('controls');
+  });
+
+  it('正文缺失展示空态', () => {
+    render(<ChapterViewer content={{ id: 23, contentType: 'rich' }} />);
+    expect(screen.getByText('章节内容暂未上传')).toBeInTheDocument();
   });
 });

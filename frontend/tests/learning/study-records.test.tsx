@@ -64,6 +64,7 @@ describe('StudyRecordsPage', () => {
 
     expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
     expect(screen.getByText('已学完')).toBeInTheDocument();
+    expect(screen.getByText('第二章 泛型')).toBeInTheDocument();
     expect(screen.getByText(/100%/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '继续学习' }));
