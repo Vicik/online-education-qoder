@@ -24,6 +24,12 @@ export type CourseDetail = Schemas['CourseDetail'];
 // 章节目录项（不含正文）
 export type ChapterBrief = Schemas['ChapterBrief'];
 
+// 章节正文（rich=净化 HTML；video/audio=签名地址）
+export type ChapterContent = Schemas['ChapterContent'];
+
+// 学习记录项
+export type StudyRecord = Schemas['StudyRecord'];
+
 // 进行中的拼团活动
 export type GrouponActivityBrief = Schemas['GrouponActivityBrief'];
 
