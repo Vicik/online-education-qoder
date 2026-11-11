@@ -1,13 +1,24 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 import { createAppRoutes } from '@/app/router';
 import { useSessionStore, type SessionUser } from '@/stores/session';
+import { server } from '../msw/server';
 
 // 在指定地址与角色下渲染应用路由
 function renderAt(path: string, user: SessionUser | null) {
   useSessionStore.setState({ user });
   const router = createMemoryRouter(createAppRoutes(), { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  // 真实页面依赖 QueryClient，测试关闭重试
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
 }
 
 describe('router guards', () => {
@@ -36,8 +47,18 @@ describe('router guards', () => {
   });
 
   it('普通用户进入用户中心渲染侧栏布局', async () => {
+    server.use(
+      http.get(/\/api\/v1\/user\/overview$/, () =>
+        HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: { enrolledCount: 0, completedCount: 0, favoriteCount: 0, couponCount: 0, postCount: 0 },
+          requestId: 'r-router',
+        }),
+      ),
+    );
     renderAt('/user', { role: 'user' } as SessionUser);
-    expect(await screen.findByText('学习概览（建设中）')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '学习概览' })).toBeInTheDocument();
     expect(screen.getByText('我的帖子')).toBeInTheDocument();
   });
 });
