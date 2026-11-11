@@ -34,6 +34,8 @@ export const queryKeys = {
   flashSale: (id: number) => ['flash-sale', id] as const,
   // 券
   myCoupons: (status: string, page: number) => ['coupons', 'mine', status, page] as const,
+  // 我的券域失效前缀：领券成功后失效所有状态页签
+  myCouponsRoot: ['coupons', 'mine'] as const,
   // 考试
   exams: (page: number) => ['exams', page] as const,
   exam: (id: number) => ['exam', id] as const,

@@ -1,17 +1,17 @@
-import { App as AntdApp, Button, Card, Popover, Tabs, Typography } from 'antd';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, Card, Popover, Tabs, Typography } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { getCourseDetail, getRecommendations } from '@/api/catalog';
 import { ApiError, getErrorAction } from '@/api/errors';
-import { claimCoupon, listMyCoupons } from '@/api/promotion';
+import { listMyCoupons } from '@/api/promotion';
 import { queryKeys } from '@/api/query-keys';
 import { listMyOrders } from '@/api/trade';
 import type { CourseBrief, CourseDetail } from '@/api/types';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
-import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
+import { ClaimCouponButton } from '@/features/coupon/ClaimCouponButton';
 import { courseTypeLabel } from '@/lib/course';
 import { useSessionStore, type SessionUser } from '@/stores/session';
 import { CourseActivityBar } from './CourseActivityBar';
@@ -99,21 +99,6 @@ export default function CourseDetailPage() {
     queryFn: () => listMyCoupons(undefined, 1, 100),
     enabled: Boolean(user),
     retry: false,
-  });
-  // QueryClient：领券成功或状态变化后刷新领取记录
-  const queryClient = useQueryClient();
-  // AntD message
-  const { message } = AntdApp.useApp();
-  // 领券：成功后券卡切换为已领取
-  const claimMutation = useIdempotentMutation(claimCoupon, {
-    onSuccess: () => {
-      message.success('领取成功');
-      queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('all', 1) });
-    },
-    onError: (error) => {
-      message.error(error.message);
-      queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('all', 1) });
-    },
   });
 
   // 非 3001 的错误在此兜底；2001/2002 已由全局处理
@@ -216,21 +201,14 @@ export default function CourseDetailPage() {
                     // 模板 id 缺失时不渲染操作
                     const couponId = coupon.id;
                     if (couponId === undefined) return null;
-                    // 登录用户等待领取记录，避免先出现「去领取」再跳变
+                    // 登录用户等待领取记录，避免先出现「领取」再跳变
                     if (user && claimsQuery.isPending) return null;
-                    return claimedTemplateIds.has(couponId) ? (
-                      <span className="coupon-card-claimed">已领取</span>
-                    ) : (
-                      <Button
-                        size="small"
-                        className="coupon-card-claim"
-                        loading={
-                          claimMutation.isPending && claimMutation.variables === couponId
-                        }
-                        onClick={() => claimMutation.mutate(couponId)}
-                      >
-                        去领取
-                      </Button>
+                    return (
+                      <ClaimCouponButton
+                        coupon={coupon}
+                        courseId={detailId}
+                        claimed={claimedTemplateIds.has(couponId)}
+                      />
                     );
                   }}
                 />
