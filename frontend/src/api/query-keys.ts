@@ -4,6 +4,8 @@ export const queryKeys = {
   authMe: ['auth', 'me'] as const,
   // 首页
   homeRecommendations: ['home', 'recommendations'] as const,
+  // 首页最新课程（独立于课程列表分页缓存）
+  homeLatest: ['home', 'latest'] as const,
   // 课程
   courses: (page: number) => ['courses', page] as const,
   course: (id: number) => ['course', id] as const,
@@ -13,6 +15,10 @@ export const queryKeys = {
   // 学习
   studyRecords: (page = 1) => ['study-records', page] as const,
   favorites: (page = 1) => ['favorites', 'mine', page] as const,
+  // 收藏 id 全集（详情页判断收藏态）
+  favoriteIds: ['favorites', 'ids'] as const,
+  // 收藏域失效前缀：覆盖 id 集与各页列表
+  favoritesRoot: ['favorites'] as const,
   // 交易
   checkout: (courseId: number, params: string) => ['checkout', courseId, params] as const,
   order: (id: number) => ['order', id] as const,

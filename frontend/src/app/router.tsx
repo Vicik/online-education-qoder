@@ -25,9 +25,9 @@ export const ROUTES: RouteMeta[] = [
   { path: '/403', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: ForbiddenPage }) },
   { path: '*', layout: 'auth', requiresAuth: false, lazy: async () => ({ default: NotFoundPage }) },
   // 用户端
-  { path: '/', layout: 'user', requiresAuth: false, lazy: placeholder('首页') },
-  { path: '/courses', layout: 'user', requiresAuth: false, lazy: placeholder('课程列表') },
-  { path: '/courses/:id', layout: 'user', requiresAuth: false, lazy: placeholder('课程详情') },
+  { path: '/', layout: 'user', requiresAuth: false, lazy: () => import('@/features/home/HomePage') },
+  { path: '/courses', layout: 'user', requiresAuth: false, lazy: () => import('@/features/catalog/CourseListPage') },
+  { path: '/courses/:id', layout: 'user', requiresAuth: false, lazy: () => import('@/features/catalog/CourseDetailPage') },
   { path: '/groupons', layout: 'user', requiresAuth: false, lazy: placeholder('拼团列表') },
   { path: '/groupons/:id', layout: 'user', requiresAuth: false, lazy: placeholder('拼团详情') },
   { path: '/flash-sales', layout: 'user', requiresAuth: false, lazy: placeholder('秒杀列表') },
@@ -47,7 +47,7 @@ export const ROUTES: RouteMeta[] = [
   { path: '/user/exams', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的考试') },
   { path: '/user/posts', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的帖子') },
   { path: '/user/coupons', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的优惠券') },
-  { path: '/user/favorites', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('我的收藏') },
+  { path: '/user/favorites', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/user-center/FavoritesPage') },
   { path: '/user/profile', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('修改资料') },
   { path: '/user/password', layout: 'user-center', requiresAuth: true, roles: ['user'], lazy: placeholder('修改密码') },
   // 管理端
