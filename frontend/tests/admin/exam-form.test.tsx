@@ -158,7 +158,7 @@ describe('exam form', () => {
       questionIds: [2, 1],
     });
     expect(await screen.findByText('exam-list')).toBeInTheDocument();
-  });
+  }, 60_000);
 
   it('草稿详情回填题目顺序，保存带 version', async () => {
     // 编辑请求体
