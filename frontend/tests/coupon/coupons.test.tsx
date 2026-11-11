@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClaimCouponButton } from '@/features/coupon/ClaimCouponButton';
+import MyCouponsPage from '@/features/coupon/MyCouponsPage';
 import { useSessionStore } from '@/stores/session';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../utils/render';
@@ -110,5 +111,75 @@ describe('ClaimCouponButton', () => {
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByRole('button', { name: '已领取' })).toBeDisabled();
+  });
+});
+
+// 领取记录桩
+function claim(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 21,
+    templateId: 9,
+    templateName: '新学员立减券',
+    discountCents: 2000,
+    startAt: '2026-11-01T00:00:00.000Z',
+    endAt: '2026-12-31T00:00:00.000Z',
+    courseIds: [1],
+    status: 'unused',
+    claimedAt: '2026-11-10T00:00:00.000Z',
+    usedAt: null,
+    ...overrides,
+  };
+}
+
+describe('MyCouponsPage', () => {
+  beforeEach(() => loginAsUser());
+
+  it('四个页签按状态请求，单课程跳详情', async () => {
+    // 捕获状态参数
+    const statuses: string[] = [];
+    server.use(
+      http.get(/\/api\/v1\/user\/coupons$/, ({ request }) => {
+        statuses.push(new URL(request.url).searchParams.get('status') ?? '');
+        return HttpResponse.json(
+          envelope({ items: [claim()], total: 1, page: 1, pageSize: 20 }),
+        );
+      }),
+    );
+
+    renderWithProviders([{ path: '/user/coupons', element: <MyCouponsPage /> }], '/user/coupons');
+
+    expect(await screen.findByText('新学员立减券')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '去使用' })).toHaveAttribute('href', '/courses/1');
+    expect(statuses[0]).toBe('unused');
+
+    await userEvent.click(screen.getByRole('tab', { name: '已使用' }));
+    await waitFor(() => expect(statuses).toContain('used'));
+  });
+
+  it('多课程券去使用跳课程列表，已使用不提供入口', async () => {
+    server.use(
+      http.get(/\/api\/v1\/user\/coupons$/, ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status');
+        return HttpResponse.json(
+          envelope({
+            items:
+              status === 'unused'
+                ? [claim({ id: 22, courseIds: [1, 2] })]
+                : [claim({ id: 23, status: 'used', usedAt: '2026-11-09T00:00:00.000Z' })],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+          }),
+        );
+      }),
+    );
+
+    renderWithProviders([{ path: '/user/coupons', element: <MyCouponsPage /> }], '/user/coupons');
+
+    expect(await screen.findByRole('link', { name: '去使用' })).toHaveAttribute('href', '/courses');
+    await userEvent.click(screen.getByRole('tab', { name: '已使用' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: '去使用' })).not.toBeInTheDocument(),
+    );
   });
 });
