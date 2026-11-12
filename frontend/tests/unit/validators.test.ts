@@ -1,4 +1,5 @@
 import {
+  isAllowedMedia,
   validateConfirmPassword,
   validateEmail,
   validatePassScore,
@@ -30,5 +31,41 @@ describe('validators', () => {
   it('结束时间必须晚于开始时间', () => {
     expect(validateTimeRange('2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z')).toBeNull();
     expect(validateTimeRange('2026-01-02T00:00:00Z', '2026-01-01T00:00:00Z')).not.toBeNull();
+  });
+});
+
+// 构造指定大小的伪文件：jsdom 不允许真的分配 1GB
+function fakeFile(name: string, type: string, size: number): File {
+  const file = new File(['x'], name, { type });
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
+}
+
+describe('isAllowedMedia', () => {
+  it('视频按 MIME 或扩展名识别，并限制 1GB', () => {
+    expect(isAllowedMedia(fakeFile('a.mp4', 'video/mp4', 1024), 'video')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.webm', 'video/webm', 1024), 'video')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.mp4', '', 1024), 'video')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.mkv', 'video/x-matroska', 1024), 'video')).toBe(false);
+    expect(isAllowedMedia(fakeFile('a.mp4', 'video/mp4', 1024 * 1024 * 1024), 'video')).toBe(
+      true,
+    );
+    expect(
+      isAllowedMedia(fakeFile('a.mp4', 'video/mp4', 1024 * 1024 * 1024 + 1), 'video'),
+    ).toBe(false);
+  });
+
+  it('音频接受 MP3/M4A，并限制 100MB', () => {
+    expect(isAllowedMedia(fakeFile('a.mp3', 'audio/mpeg', 1024), 'audio')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.m4a', 'audio/mp4', 1024), 'audio')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.m4a', '', 1024), 'audio')).toBe(true);
+    expect(isAllowedMedia(fakeFile('a.wav', 'audio/wav', 1024), 'audio')).toBe(false);
+    expect(
+      isAllowedMedia(fakeFile('a.mp3', 'audio/mpeg', 100 * 1024 * 1024 + 1), 'audio'),
+    ).toBe(false);
+  });
+
+  it('空文件不允许', () => {
+    expect(isAllowedMedia(fakeFile('a.mp4', 'video/mp4', 0), 'video')).toBe(false);
   });
 });

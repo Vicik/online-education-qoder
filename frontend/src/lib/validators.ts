@@ -60,3 +60,34 @@ export function validateTimeRange(startAt: string, endAt: string): string | null
 export function isAllowedImage(file: File): boolean {
   return ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_BYTES;
 }
+
+// 媒体大类：视频或音频
+export type MediaKind = 'video' | 'audio';
+// 视频允许的 MIME
+export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+// 音频允许的 MIME
+export const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
+// 视频允许的扩展名
+const VIDEO_EXTENSIONS = ['.mp4', '.webm'];
+// 音频允许的扩展名
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a'];
+// 音频上限 100MB
+export const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
+// 视频上限 1GB
+export const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
+
+// 判断文件名是否以允许的扩展名结尾
+function hasExtension(file: File, extensions: string[]): boolean {
+  const name = file.name.toLowerCase();
+  return extensions.some((extension) => name.endsWith(extension));
+}
+
+// 上传前预检媒体：类型、扩展名与大小，服务端仍是最终门槛
+export function isAllowedMedia(file: File, kind: MediaKind): boolean {
+  const limit = kind === 'video' ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES;
+  if (file.size <= 0 || file.size > limit) return false;
+  if (kind === 'video') {
+    return ALLOWED_VIDEO_TYPES.includes(file.type) || hasExtension(file, VIDEO_EXTENSIONS);
+  }
+  return ALLOWED_AUDIO_TYPES.includes(file.type) || hasExtension(file, AUDIO_EXTENSIONS);
+}
