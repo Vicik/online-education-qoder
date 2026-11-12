@@ -1,0 +1,113 @@
+name: frontend-e2e
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/frontend-e2e.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/frontend-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # 真实 Postgres/Redis + 种子数据 + Vite dev server 下运行核心 E2E
+  e2e:
+    name: playwright (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: zhixu
+          POSTGRES_PASSWORD: zhixu
+          POSTGRES_DB: zhixu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zhixu -d zhixu"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://zhixu:zhixu@localhost:5432/zhixu?schema=public
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: ci-session-secret
+      SEED_DEMO_DATA: 'true'
+      E2E_BASE_URL: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend
+        working-directory: backend
+        run: npm ci
+      - name: Migrate and seed
+        working-directory: backend
+        run: |
+          npm run prisma:generate
+          npm run prisma:migrate
+          npm run prisma:seed
+      - name: Start backend
+        working-directory: backend
+        run: |
+          npm run build
+          nohup node dist/src/main.js > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/v1/healthz; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/backend.log
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173 > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/frontend.log
+          exit 1
+      - name: Run E2E
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
