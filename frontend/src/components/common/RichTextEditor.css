@@ -1,0 +1,343 @@
+/* 富文本编辑器：白底页面 + 分组工具栏 + 底部状态栏 */
+.rte {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ebedf0;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* 工具栏：浅灰底、可换行，始终贴在编辑区上方 */
+.rte__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 8px;
+  background: #f5f6f8;
+  border-bottom: 1px solid #ebedf0;
+}
+
+/* 表格工具条：紧贴分组工具栏下方 */
+.rte__toolbar--table {
+  background: #fafbfc;
+  border-bottom: 1px solid #ebedf0;
+}
+
+/* 工具按钮：26px 方形图标按钮，压缩到常见表单宽度也能单行放下 */
+.rte__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #4e5969;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.rte__tool:hover:not(:disabled) {
+  background: #e8eaed;
+  color: #1f2329;
+}
+
+.rte__tool:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.rte__tool--active {
+  background: #e8f3ff;
+  color: #1677ff;
+}
+
+.rte__tool:disabled {
+  color: #c9cdd4;
+  cursor: not-allowed;
+}
+
+/* 工具分组分隔线 */
+.rte__divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: #dee0e3;
+}
+
+/* 下拉框：固定宽度，避免工具栏跳动
+   用 .rte__toolbar 提高优先级，压过 antd 运行时注入的 .ant-select-in-form-item{width:100%} */
+.rte__toolbar .rte__select {
+  flex: 0 0 auto;
+  width: 72px;
+  margin: 0 1px;
+}
+
+/* 段落格式下拉更宽，容纳「标题 1」 */
+.rte__toolbar .rte__select--block {
+  width: 84px;
+}
+
+/* 颜色按钮中的色块 */
+.rte__color {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+/* 引用图标 */
+.rte__quote {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* 编辑画布：像纸张一样留白 */
+.rte__canvas {
+  flex: 1;
+  min-height: 240px;
+  max-height: 520px;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.rte__canvas .ProseMirror {
+  min-height: 208px;
+  outline: none;
+  color: #1f2329;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+/* 占位提示：首段空时显示 */
+.rte__canvas .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #c9cdd4;
+  pointer-events: none;
+}
+
+/* 正文元素间距 */
+.rte__canvas .ProseMirror p {
+  margin: 0 0 8px;
+}
+
+.rte__canvas .ProseMirror h1,
+.rte__canvas .ProseMirror h2,
+.rte__canvas .ProseMirror h3,
+.rte__canvas .ProseMirror h4,
+.rte__canvas .ProseMirror h5,
+.rte__canvas .ProseMirror h6 {
+  margin: 16px 0 8px;
+  color: #1f2329;
+  line-height: 1.4;
+}
+
+.rte__canvas .ProseMirror h1 {
+  font-size: 24px;
+}
+
+.rte__canvas .ProseMirror h2 {
+  font-size: 20px;
+}
+
+.rte__canvas .ProseMirror h3 {
+  font-size: 16px;
+}
+
+.rte__canvas .ProseMirror h4 {
+  font-size: 15px;
+}
+
+.rte__canvas .ProseMirror h5,
+.rte__canvas .ProseMirror h6 {
+  font-size: 14px;
+}
+
+.rte__canvas .ProseMirror blockquote {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid #1677ff;
+  background: #f7f8fa;
+  color: #4e5969;
+}
+
+.rte__canvas .ProseMirror ul,
+.rte__canvas .ProseMirror ol {
+  margin: 0 0 8px;
+  padding-left: 24px;
+}
+
+.rte__canvas .ProseMirror hr {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid #dee0e3;
+}
+
+.rte__canvas .ProseMirror a {
+  color: #1677ff;
+  text-decoration: underline;
+}
+
+.rte__canvas .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.rte__canvas .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid #1677ff;
+}
+
+/* 表格：与文档风格一致的细边框 */
+.rte__canvas .ProseMirror table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.rte__canvas .ProseMirror th,
+.rte__canvas .ProseMirror td {
+  min-width: 40px;
+  padding: 6px 8px;
+  border: 1px solid #dee0e3;
+  vertical-align: top;
+}
+
+.rte__canvas .ProseMirror th {
+  background: #f5f6f8;
+  font-weight: 600;
+}
+
+.rte__canvas .ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(22, 119, 255, 0.12);
+  pointer-events: none;
+}
+
+/* 状态栏 */
+.rte__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 6px 12px;
+  border-top: 1px solid #ebedf0;
+  background: #fafbfc;
+  color: #86909c;
+  font-size: 12px;
+}
+
+/* 全屏：铺满视口，画布可滚动 */
+.rte--fullscreen {
+  position: fixed;
+  inset: 0;
+  /* 高于 antd Modal/Drawer 的 1000，弹窗内全屏也能盖住父容器 */
+  z-index: 1100;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+}
+
+.rte--fullscreen .rte__canvas {
+  max-height: none;
+  padding: 24px max(24px, calc((100vw - 900px) / 2));
+}
+
+.rte--fullscreen .rte__status {
+  padding-bottom: 10px;
+}
+
+/* 上传弹窗 */
+.rte-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 选择图片区域 */
+.rte-upload__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px;
+  border: 1px dashed #c9cdd4;
+  border-radius: 6px;
+  background: #fafbfc;
+  color: #4e5969;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.rte-upload__drop:hover {
+  border-color: #1677ff;
+  background: #f0f7ff;
+}
+
+.rte-upload__drop:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.rte-upload__icon {
+  color: #1677ff;
+  font-size: 24px;
+}
+
+.rte-upload__hint {
+  color: #86909c;
+  font-size: 12px;
+}
+
+/* 预览图 */
+.rte-upload__preview {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  border: 1px solid #ebedf0;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.rte-upload__preview img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 4px;
+}
+
+/* 上传进度 */
+.rte-upload__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #4e5969;
+  font-size: 12px;
+}
+
+/* 上传错误 / 链接校验提示 */
+.rte-upload__error {
+  color: #c9302c;
+  font-size: 12px;
+}
+
+/* 上传完成提示 */
+.rte-upload__done {
+  color: #389e0d;
+  font-size: 12px;
+}
+
+/* 链接弹窗中的移除按钮 */
+.rte__unlink {
+  margin-top: 12px;
+}

@@ -1,6 +1,6 @@
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { afterEach } from 'vitest';
-import { uploadMedia } from '@/api/files';
+import { uploadImage, uploadMedia } from '@/api/files';
 import { server } from '../msw/server';
 
 // 成功信封
@@ -90,5 +90,26 @@ describe('files api', () => {
 
     expect(path).toBe('/api/v1/admin/files/audio');
     expect(result.mimeType).toBe('audio/mpeg');
+  });
+
+  it('图片上传支持取消信号', async () => {
+    server.use(
+      http.post(/\/api\/v1\/files\/upload$/, async () => {
+        // 延迟响应，给取消留出时间
+        await delay(200);
+        return HttpResponse.json(
+          envelope({ key: 'image/2026/11/12/x.png', url: 'http://x.test/x.png' }),
+          { status: 201 },
+        );
+      }),
+    );
+    // 取消信号：在请求发出后立即取消
+    const controller = new AbortController();
+    const pending = uploadImage(
+      new File(['test'], 'a.png', { type: 'image/png' }),
+      { signal: controller.signal },
+    );
+    controller.abort();
+    await expect(pending).rejects.toThrow();
   });
 });

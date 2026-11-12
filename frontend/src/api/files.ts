@@ -21,12 +21,33 @@ export interface UploadMediaOptions {
   signal?: AbortSignal; // 取消信号
 }
 
+// 图片上传可选参数
+export interface UploadImageOptions {
+  onProgress?: (percent: number) => void; // 上传进度回调
+  signal?: AbortSignal; // 取消信号
+}
+
 // 图片上传：PNG/JPEG/WebP，单张 ≤2MB 由前端预检 + 后端复核
-export function uploadImage(file: File): Promise<UploadResult> {
+export function uploadImage(
+  file: File,
+  options: UploadImageOptions = {},
+): Promise<UploadResult> {
   // 上传走 multipart/form-data，交给浏览器生成 boundary
   const formData = new FormData();
   formData.append('file', file);
-  return request<UploadResult>({ url: '/files/upload', method: 'POST', data: formData });
+  return request<UploadResult>({
+    url: '/files/upload',
+    method: 'POST',
+    data: formData,
+    signal: options.signal,
+    onUploadProgress: (event) => {
+      // 无总长度或未提供回调时跳过
+      if (!options.onProgress || !event.total) return;
+      // 已上传字节占比
+      const percent = Math.round((event.loaded / event.total) * 100);
+      options.onProgress(Math.min(100, Math.max(0, percent)));
+    },
+  });
 }
 
 // 音视频上传：仅管理员，走 /admin/files/{kind}

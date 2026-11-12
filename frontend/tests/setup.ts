@@ -46,6 +46,16 @@ function installMatchMediaStub(): void {
   });
 }
 
+// jsdom 未实现 Blob URL；图片上传的本地预览依赖它
+function installObjectUrlStub(): void {
+  // 已有实现时不覆盖
+  if (typeof URL.createObjectURL === 'function') return;
+  // 递增序号保证每次地址不同
+  let counter = 0;
+  URL.createObjectURL = () => `blob:test/${++counter}`;
+  URL.revokeObjectURL = () => {};
+}
+
 // jsdom 未实现布局查询；tiptap/prosemirror 在输入后滚动选区会调用，返回零尺寸即可
 function installLayoutStubs(): void {
   // 零尺寸矩形
@@ -78,6 +88,7 @@ function installLayoutStubs(): void {
 // 测试生命周期：启动 MSW、逐例重置、结束后关闭
 beforeAll(() => {
   installMatchMediaStub();
+  installObjectUrlStub();
   installLayoutStubs();
   server.listen({ onUnhandledRequest: 'error' });
   installRequestSignalCompat();
