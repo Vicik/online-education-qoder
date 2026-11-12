@@ -35,7 +35,8 @@ export async function registerUniqueUser(
 
   await page.goto('/register');
   await page.getByLabel('邮箱').fill(email);
-  await page.getByLabel('密码').fill(password);
+  // 「密码」会子串匹配到「确认密码」，注册页需精确匹配
+  await page.getByLabel('密码', { exact: true }).fill(password);
   await page.getByLabel('确认密码').fill(password);
   await page.getByLabel('昵称').fill('E2E 学员');
   await page.getByRole('button', { name: REGISTER_BUTTON }).click();
