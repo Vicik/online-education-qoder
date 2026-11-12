@@ -93,6 +93,8 @@ describe('课程浏览（CI 集成，基于种子）', () => {
         type: 'rich',
         originalCents: 100,
         saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
         status: 'unpublished',
       },
     });

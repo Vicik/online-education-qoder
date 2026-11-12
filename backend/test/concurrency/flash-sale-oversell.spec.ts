@@ -61,6 +61,8 @@ describe('秒杀防超卖（CI 并发）', () => {
           type: 'rich',
           originalCents: 9900,
           saleCents: 9900,
+          instructor: '测试讲师',
+          coverUrl: '',
           status: 'published',
         },
       });

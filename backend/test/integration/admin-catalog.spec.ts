@@ -73,6 +73,7 @@ describe('课程管理端（CI 集成，基于种子）', () => {
         originalCents: 9900,
         saleCents: 4900,
         instructor: '王老师',
+        coverUrl: 'image/2026/11/12/00000000-0000-0000-0000-000000000001.png',
       })
       .expect(201);
     const courseId = created.body.data.id;
@@ -119,6 +120,8 @@ describe('课程管理端（CI 集成，基于种子）', () => {
         type: 'rich',
         originalCents: 1000,
         saleCents: 1000,
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/00000000-0000-0000-0000-000000000002.png',
       })
       .expect(201);
     const courseId = created.body.data.id;
@@ -134,6 +137,53 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .send({ version, intro: '旧版本覆盖' })
       .expect(409);
     expect(conflict.body.code).toBe(4004);
+  });
+
+  it('讲师与封面缺失或为空时创建/编辑返回 400（code=1001）', async () => {
+    const agent = await adminAgent();
+    const base = {
+      name: '必填校验课',
+      type: 'video',
+      originalCents: 1000,
+      saleCents: 900,
+    };
+
+    const noInstructor = await agent
+      .post('/api/v1/admin/courses')
+      .send({ ...base, coverUrl: 'image/2026/11/12/cover.png' })
+      .expect(400);
+    expect(noInstructor.body.code).toBe(1001);
+
+    const noCover = await agent
+      .post('/api/v1/admin/courses')
+      .send({ ...base, instructor: '王老师' })
+      .expect(400);
+    expect(noCover.body.code).toBe(1001);
+
+    const emptyInstructor = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        ...base,
+        instructor: '',
+        coverUrl: 'image/2026/11/12/cover.png',
+      })
+      .expect(400);
+    expect(emptyInstructor.body.code).toBe(1001);
+
+    const created = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        ...base,
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/cover.png',
+      })
+      .expect(201);
+
+    const emptyOnUpdate = await agent
+      .put(`/api/v1/admin/courses/${created.body.data.id}`)
+      .send({ version: created.body.data.version, coverUrl: '' })
+      .expect(400);
+    expect(emptyOnUpdate.body.code).toBe(1001);
   });
 
   it('每次管理端写操作产生审计记录', async () => {

@@ -68,6 +68,8 @@ describe('Worker 任务（CI 集成）', () => {
         type: 'rich',
         originalCents: 19900,
         saleCents: 9900,
+        instructor: '测试讲师',
+        coverUrl: '',
         status: 'published',
       },
     });

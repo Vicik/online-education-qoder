@@ -249,6 +249,8 @@ describe('订单与支付（CI 集成，基于种子）', () => {
         type: 'rich',
         originalCents: 0,
         saleCents: 0,
+        instructor: '测试讲师',
+        coverUrl: '',
         status: 'published',
       },
     });

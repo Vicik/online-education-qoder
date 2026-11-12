@@ -51,7 +51,7 @@ const DRAFT = {
   originalCents: 19900,
   saleCents: 9900,
   instructor: '王老师',
-  coverUrl: null,
+  coverUrl: '',
   intro: null,
   detailRich: null,
 };
@@ -71,6 +71,8 @@ describe('CourseAdminService.create', () => {
         type: 'video',
         originalCents: 1000,
         saleCents: 1000,
+        instructor: '王老师',
+        coverUrl: 'image/demo/cover.png',
       }),
     ).rejects.toMatchObject({ bizCode: 1001 });
 
@@ -80,6 +82,8 @@ describe('CourseAdminService.create', () => {
         type: 'video',
         originalCents: 1000,
         saleCents: 1001,
+        instructor: '王老师',
+        coverUrl: 'image/demo/cover.png',
       }),
     ).rejects.toMatchObject({ bizCode: 1001 });
   });
@@ -96,6 +100,7 @@ describe('CourseAdminService.create', () => {
           originalCents: 19900,
           saleCents: 9900,
           instructor: '王老师',
+          coverUrl: 'image/demo/cover.png',
         },
         CTX,
       ),
@@ -132,6 +137,8 @@ describe('CourseAdminService.create', () => {
       type: 'rich',
       originalCents: 1000,
       saleCents: 1000,
+      instructor: '王老师',
+      coverUrl: 'image/demo/cover.png',
       detailRich: '<p onclick="x()">a</p>',
     });
 

@@ -150,10 +150,10 @@ model Course {
   id            Int          @id @default(autoincrement())
   name          String // 应用层校验 ≤40 字符
   type          CourseType // 保存首个章节后锁定
-  coverUrl      String?
+  coverUrl      String // 封面 key（必填，接口层校验非空）
   intro         String?
   detailRich    String?      @db.Text // 服务端净化后的富文本 HTML
-  instructor    String?
+  instructor    String // 讲师名称（必填，接口层校验非空）
   originalCents Int
   saleCents     Int // 售价 ≤ 原价（应用层校验）
   status        CourseStatus @default(draft)

@@ -109,6 +109,7 @@ export async function seedDemoData(
       name: COURSE_TYPESCRIPT.name, // 课程名称
       type: COURSE_TYPESCRIPT.type, // video
       instructor: COURSE_TYPESCRIPT.instructor, // 讲师
+      coverUrl: COURSE_TYPESCRIPT.coverUrl, // 封面（空串=占位图）
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       saleCents: COURSE_TYPESCRIPT.saleCents, // 售价
       status: COURSE_TYPESCRIPT.status, // published
@@ -119,6 +120,7 @@ export async function seedDemoData(
       name: COURSE_TYPESCRIPT.name, // 课程名称
       type: COURSE_TYPESCRIPT.type, // video
       instructor: COURSE_TYPESCRIPT.instructor, // 讲师
+      coverUrl: COURSE_TYPESCRIPT.coverUrl, // 封面（空串=占位图）
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       saleCents: COURSE_TYPESCRIPT.saleCents, // 售价
       status: COURSE_TYPESCRIPT.status, // published
@@ -158,6 +160,7 @@ export async function seedDemoData(
       name: COURSE_WRITING.name, // 课程名称
       type: COURSE_WRITING.type, // rich
       instructor: COURSE_WRITING.instructor, // 讲师
+      coverUrl: COURSE_WRITING.coverUrl, // 封面（空串=占位图）
       originalCents: COURSE_WRITING.originalCents, // 原价
       saleCents: COURSE_WRITING.saleCents, // 售价
       status: COURSE_WRITING.status, // draft
@@ -166,6 +169,7 @@ export async function seedDemoData(
       name: COURSE_WRITING.name, // 课程名称
       type: COURSE_WRITING.type, // rich
       instructor: COURSE_WRITING.instructor, // 讲师
+      coverUrl: COURSE_WRITING.coverUrl, // 封面（空串=占位图）
       originalCents: COURSE_WRITING.originalCents, // 原价
       saleCents: COURSE_WRITING.saleCents, // 售价
       status: COURSE_WRITING.status, // draft

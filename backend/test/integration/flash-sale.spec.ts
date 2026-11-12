@@ -70,6 +70,8 @@ describe('秒杀（CI 集成，基于种子）', () => {
         type: 'rich',
         originalCents: 9900,
         saleCents: 9900,
+        instructor: '测试讲师',
+        coverUrl: '',
         status: 'published',
       },
     });

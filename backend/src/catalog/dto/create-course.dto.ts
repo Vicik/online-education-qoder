@@ -2,6 +2,7 @@ import { CourseType } from '@prisma/client';
 import {
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -29,15 +30,15 @@ export class CreateCourseDto {
   @Min(0)
   saleCents!: number;
 
-  // 讲师名称
-  @IsOptional()
+  // 讲师名称（必填）
   @IsString()
-  instructor?: string | null;
+  @IsNotEmpty()
+  instructor!: string;
 
-  // 封面地址
-  @IsOptional()
+  // 封面地址（必填）
   @IsString()
-  coverUrl?: string | null;
+  @IsNotEmpty()
+  coverUrl!: string;
 
   // 课程简介
   @IsOptional()

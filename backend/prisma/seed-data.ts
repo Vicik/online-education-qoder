@@ -34,6 +34,7 @@ export const COURSE_TYPESCRIPT = {
   originalCents: 19900, // 原价（分）
   saleCents: 9900, // 售价（分）
   status: 'published' as const, // 已发布
+  coverUrl: '', // 种子不指向不存在的文件，前端显示占位图
   intro: '从零掌握 TypeScript 类型系统与工程实践。', // 简介
   detailRich: '<p>课程详细介绍（净化后 HTML）</p>', // 详情富文本
   chapters: [
@@ -50,6 +51,7 @@ export const COURSE_WRITING = {
   type: 'rich' as const, // 课程类型：图文
   status: 'draft' as const, // 草稿
   instructor: '李老师', // 讲师
+  coverUrl: '', // 种子不指向不存在的文件，前端显示占位图
   originalCents: 29900, // 原价（分）
   saleCents: 19900, // 售价（分）
   chapters: [], // 草稿课暂无章节

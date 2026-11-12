@@ -2,10 +2,12 @@ import { CourseType } from '@prisma/client';
 import {
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 // 编辑课程请求：对应 openapi CourseUpdateRequest，version 必填，其余按状态矩阵生效
@@ -38,15 +40,17 @@ export class UpdateCourseDto {
   @Min(0)
   saleCents?: number;
 
-  // 讲师名称
-  @IsOptional()
+  // 讲师名称（可选；传入时不可为 null 或空串）
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
-  instructor?: string | null;
+  @IsNotEmpty()
+  instructor?: string;
 
-  // 封面地址
-  @IsOptional()
+  // 封面地址（可选；传入时不可为 null 或空串）
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
-  coverUrl?: string | null;
+  @IsNotEmpty()
+  coverUrl?: string;
 
   // 课程简介
   @IsOptional()
