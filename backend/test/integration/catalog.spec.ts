@@ -137,14 +137,18 @@ describe('课程浏览（CI 集成，基于种子）', () => {
       .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
       .expect(200);
     expect(res.body.data.title).toBe(COURSE_TYPESCRIPT.chapters[0].title);
-    expect(res.body.data.content).toBeTruthy();
+    // 种子章节不指向不存在的媒体文件，正文读取成功但内容为空
+    expect(res.body.data.content).toBeNull();
   });
 
   it('拼团待成团用户不可学习（code=3002）', async () => {
     const agent = request.agent(app.getHttpServer());
     await agent
       .post('/api/v1/auth/login')
-      .send({ email: DEMO_GROUPON_USER.email, password: DEMO_GROUPON_USER.password })
+      .send({
+        email: DEMO_GROUPON_USER.email,
+        password: DEMO_GROUPON_USER.password,
+      })
       .expect(200);
 
     // 独立拼团演示账号仅有待成团拼团订单，未成团不可学习

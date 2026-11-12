@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Next,
-  Query,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Next, Query, Res } from '@nestjs/common';
 import { NextFunction, Response } from 'express';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';

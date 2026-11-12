@@ -1,8 +1,8 @@
 // 幂等种子脚本：全部写操作使用 upsert，重复执行不产生重复数据。
 // prod 环境（SEED_DEMO_DATA=false 且 NODE_ENV=production）跳过，演示账号仅注入 dev/staging/CI。
-import { PrismaClient } from "@prisma/client";
-import * as bcrypt from "bcrypt";
-import { loadConfig } from "../src/config/configuration";
+import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { loadConfig } from '../src/config/configuration';
 import {
   COUPON_TEMPLATE,
   COURSE_TYPESCRIPT,
@@ -13,16 +13,16 @@ import {
   FLASH_SALE_ACTIVITY,
   GROUPON_ACTIVITY,
   GROUPON_GROUP_ONE_SHORT,
-} from "./seed-data";
+} from './seed-data';
 
 // 「仅差一人」演示团组订单的固定订单号（幂等 upsert 依据）
-const DEMO_GROUPON_ORDER_NO = "GRP-DEMO-0001";
+const DEMO_GROUPON_ORDER_NO = 'GRP-DEMO-0001';
 // 「仅差一人」演示团组订单的固定支付流水号
-const DEMO_GROUPON_TRANSACTION_NO = "MOCK-SEED-GRP-0001";
+const DEMO_GROUPON_TRANSACTION_NO = 'MOCK-SEED-GRP-0001';
 // 演示学员普通已购订单的固定订单号（幂等 upsert 依据）
-const DEMO_NORMAL_ORDER_NO = "ZX-DEMO-0001";
+const DEMO_NORMAL_ORDER_NO = 'ZX-DEMO-0001';
 // 演示学员普通已购订单的固定支付流水号
-const DEMO_NORMAL_TRANSACTION_NO = "MOCK-SEED-ZX-0001";
+const DEMO_NORMAL_TRANSACTION_NO = 'MOCK-SEED-ZX-0001';
 // 上海时区相对 UTC 的固定偏移（毫秒，无夏令时）
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 // 一小时毫秒数
@@ -70,7 +70,7 @@ export async function seedDemoData(
       passwordHash: adminPasswordHash, // 密码哈希
       nickname: DEMO_ADMIN.nickname, // 昵称
       role: DEMO_ADMIN.role, // admin
-      status: "active", // 启用
+      status: 'active', // 启用
     },
     update: {},
   });
@@ -83,7 +83,7 @@ export async function seedDemoData(
       passwordHash: userPasswordHash, // 密码哈希
       nickname: DEMO_USER.nickname, // 昵称
       role: DEMO_USER.role, // user
-      status: "active", // 启用
+      status: 'active', // 启用
     },
     update: {},
   });
@@ -96,7 +96,7 @@ export async function seedDemoData(
       passwordHash: grouponUserPasswordHash, // 密码哈希
       nickname: DEMO_GROUPON_USER.nickname, // 昵称
       role: DEMO_GROUPON_USER.role, // user
-      status: "active", // 启用
+      status: 'active', // 启用
     },
     update: {},
   });
@@ -139,13 +139,13 @@ export async function seedDemoData(
         courseId: COURSE_TYPESCRIPT.id, // 所属课程
         title: chapter.title, // 章节标题
         contentType: COURSE_TYPESCRIPT.type, // 与课程类型一致：video
-        content: chapter.content, // 对象存储 key
+        content: chapter.content, // 媒体 key
         sortOrder, // 章节序号
       },
       update: {
         title: chapter.title, // 章节标题
         contentType: COURSE_TYPESCRIPT.type, // 与课程类型一致：video
-        content: chapter.content, // 对象存储 key
+        content: chapter.content, // 媒体 key
       },
     });
   }
@@ -186,7 +186,7 @@ export async function seedDemoData(
       targetSize: GROUPON_ACTIVITY.targetSize, // 成团人数
       startAt: new Date(now.getTime() - HOUR_MS), // 一小时前开始
       endAt: grouponEndAt, // 三小时后结束
-      status: "ongoing", // 进行中
+      status: 'ongoing', // 进行中
     },
     update: {
       courseId: COURSE_TYPESCRIPT.id, // 关联已发布课程
@@ -195,7 +195,7 @@ export async function seedDemoData(
       targetSize: GROUPON_ACTIVITY.targetSize, // 成团人数
       startAt: new Date(now.getTime() - HOUR_MS), // 一小时前开始
       endAt: grouponEndAt, // 三小时后结束
-      status: "ongoing", // 进行中
+      status: 'ongoing', // 进行中
     },
   });
 
@@ -213,7 +213,7 @@ export async function seedDemoData(
       sold: FLASH_SALE_ACTIVITY.sold, // 已售
       startAt: flashStartAt, // 开始时间
       endAt: flashEndAt, // 结束时间
-      status: "not_started", // 未开始
+      status: 'not_started', // 未开始
     },
     update: {
       courseId: COURSE_TYPESCRIPT.id, // 关联已发布课程
@@ -222,7 +222,7 @@ export async function seedDemoData(
       stock: FLASH_SALE_ACTIVITY.stock, // 库存（不重置已售，避免覆盖并发扣减结果）
       startAt: flashStartAt, // 开始时间
       endAt: flashEndAt, // 结束时间
-      status: "not_started", // 未开始
+      status: 'not_started', // 未开始
     },
   });
 
@@ -237,7 +237,7 @@ export async function seedDemoData(
       endAt: new Date(now.getTime() + 30 * DAY_MS), // 三十天后失效
       totalQty: 1000, // 发放总量
       perUserLimit: 1, // 每人限领 1 张
-      status: "enabled", // 已启用
+      status: 'enabled', // 已启用
     },
     update: {
       name: COUPON_TEMPLATE.name, // 模板名称
@@ -246,7 +246,7 @@ export async function seedDemoData(
       endAt: new Date(now.getTime() + 30 * DAY_MS), // 三十天后失效
       totalQty: 1000, // 发放总量
       perUserLimit: 1, // 每人限领 1 张
-      status: "enabled", // 已启用（不重置 claimedCount）
+      status: 'enabled', // 已启用（不重置 claimedCount）
     },
   });
 
@@ -271,13 +271,13 @@ export async function seedDemoData(
     create: {
       id: GROUPON_GROUP_ONE_SHORT.id, // 固定团组 id
       activityId: GROUPON_ACTIVITY.id, // 所属活动
-      status: "pending", // 待成团
+      status: 'pending', // 待成团
       memberCount: 1, // 已有一人
       expiresAt: grouponEndAt, // 与活动 endAt 一致
     },
     update: {
       activityId: GROUPON_ACTIVITY.id, // 所属活动
-      status: "pending", // 待成团
+      status: 'pending', // 待成团
       memberCount: 1, // 已有一人
       formedAt: null, // 未成团
       expiresAt: grouponEndAt, // 与活动 endAt 一致
@@ -291,14 +291,14 @@ export async function seedDemoData(
       orderNo: DEMO_GROUPON_ORDER_NO, // 固定订单号
       userId: grouponUser.id, // 拼团演示账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
-      activityType: "groupon", // 拼团订单
+      activityType: 'groupon', // 拼团订单
       activityId: GROUPON_GROUP_ONE_SHORT.id, // 团组 id
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       currentCents: GROUPON_ACTIVITY.priceCents, // 拼团价
       discountCents: 0, // 未用券
       paidCents: GROUPON_ACTIVITY.priceCents, // 实付 = 拼团价
       couponClaimId: null, // 未核销券
-      status: "paid", // 已支付
+      status: 'paid', // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
       purchaseKey: `user:${grouponUser.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
@@ -307,14 +307,14 @@ export async function seedDemoData(
     update: {
       userId: grouponUser.id, // 拼团演示账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
-      activityType: "groupon", // 拼团订单
+      activityType: 'groupon', // 拼团订单
       activityId: GROUPON_GROUP_ONE_SHORT.id, // 团组 id
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       currentCents: GROUPON_ACTIVITY.priceCents, // 拼团价
       discountCents: 0, // 未用券
       paidCents: GROUPON_ACTIVITY.priceCents, // 实付 = 拼团价
       couponClaimId: null, // 未核销券
-      status: "paid", // 已支付
+      status: 'paid', // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
       purchaseKey: `user:${grouponUser.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
@@ -327,17 +327,17 @@ export async function seedDemoData(
     where: { transactionNo: DEMO_GROUPON_TRANSACTION_NO },
     create: {
       orderId: grouponOrder.id, // 所属订单
-      channel: "mock", // 模拟支付渠道
+      channel: 'mock', // 模拟支付渠道
       transactionNo: DEMO_GROUPON_TRANSACTION_NO, // 固定流水号
       amountCents: GROUPON_ACTIVITY.priceCents, // 支付金额
-      status: "success", // 支付成功
+      status: 'success', // 支付成功
       paidAt: now, // 支付时间
     },
     update: {
       orderId: grouponOrder.id, // 所属订单
-      channel: "mock", // 模拟支付渠道
+      channel: 'mock', // 模拟支付渠道
       amountCents: GROUPON_ACTIVITY.priceCents, // 支付金额
-      status: "success", // 支付成功
+      status: 'success', // 支付成功
       paidAt: now, // 支付时间
       refundedAt: null, // 种子订单不退款
     },
@@ -379,14 +379,14 @@ export async function seedDemoData(
       orderNo: DEMO_NORMAL_ORDER_NO, // 固定订单号
       userId: user.id, // 学员账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
-      activityType: "normal", // 普通购买
+      activityType: 'normal', // 普通购买
       activityId: null, // 无活动
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       currentCents: COURSE_TYPESCRIPT.saleCents, // 当前价 = 课程售价
       discountCents: 0, // 未用券
       paidCents: COURSE_TYPESCRIPT.saleCents, // 实付 = 课程售价
       couponClaimId: null, // 未核销券
-      status: "paid", // 已支付
+      status: 'paid', // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
       purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
@@ -395,14 +395,14 @@ export async function seedDemoData(
     update: {
       userId: user.id, // 学员账号
       courseId: COURSE_TYPESCRIPT.id, // 课程
-      activityType: "normal", // 普通购买
+      activityType: 'normal', // 普通购买
       activityId: null, // 无活动
       originalCents: COURSE_TYPESCRIPT.originalCents, // 原价
       currentCents: COURSE_TYPESCRIPT.saleCents, // 当前价 = 课程售价
       discountCents: 0, // 未用券
       paidCents: COURSE_TYPESCRIPT.saleCents, // 实付 = 课程售价
       couponClaimId: null, // 未核销券
-      status: "paid", // 已支付
+      status: 'paid', // 已支付
       paidAt: now, // 支付时间
       expiresAt: null, // 已支付订单无待支付超时
       purchaseKey: `user:${user.id}:course:${COURSE_TYPESCRIPT.id}`, // 防重复购买键
@@ -415,17 +415,17 @@ export async function seedDemoData(
     where: { transactionNo: DEMO_NORMAL_TRANSACTION_NO },
     create: {
       orderId: normalOrder.id, // 所属订单
-      channel: "mock", // 模拟支付渠道
+      channel: 'mock', // 模拟支付渠道
       transactionNo: DEMO_NORMAL_TRANSACTION_NO, // 固定流水号
       amountCents: COURSE_TYPESCRIPT.saleCents, // 支付金额
-      status: "success", // 支付成功
+      status: 'success', // 支付成功
       paidAt: now, // 支付时间
     },
     update: {
       orderId: normalOrder.id, // 所属订单
-      channel: "mock", // 模拟支付渠道
+      channel: 'mock', // 模拟支付渠道
       amountCents: COURSE_TYPESCRIPT.saleCents, // 支付金额
-      status: "success", // 支付成功
+      status: 'success', // 支付成功
       paidAt: now, // 支付时间
       refundedAt: null, // 种子订单不退款
     },
@@ -433,11 +433,11 @@ export async function seedDemoData(
 
   // 使用固定 id 播种的表：显式写入 id 不会推进自增序列，需在种子末尾手动对齐
   const explicitIdTables = [
-    "courses", // 课程（固定 id 1、2）
-    "groupon_activities", // 拼团活动（固定 id 1）
-    "flash_sale_activities", // 秒杀活动（固定 id 1）
-    "coupon_templates", // 券模板（固定 id 1）
-    "groupon_groups", // 团组（固定 id 1）
+    'courses', // 课程（固定 id 1、2）
+    'groupon_activities', // 拼团活动（固定 id 1）
+    'flash_sale_activities', // 秒杀活动（固定 id 1）
+    'coupon_templates', // 券模板（固定 id 1）
+    'groupon_groups', // 团组（固定 id 1）
   ];
   for (const table of explicitIdTables) {
     // 表名来自内置常量列表，不存在外部输入
@@ -469,8 +469,8 @@ export async function execSeed(prisma?: PrismaClient): Promise<void> {
 async function main(): Promise<void> {
   // 加载应用配置（需要 DATABASE_URL 等环境变量）
   const cfg = loadConfig();
-  if (!cfg.seedDemoData && process.env.NODE_ENV === "production") {
-    console.log("prod 环境不注入演示数据，跳过");
+  if (!cfg.seedDemoData && process.env.NODE_ENV === 'production') {
+    console.log('prod 环境不注入演示数据，跳过');
     return;
   }
   // 独立进程使用的 PrismaClient

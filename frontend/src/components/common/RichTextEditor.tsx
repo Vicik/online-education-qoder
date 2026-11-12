@@ -12,7 +12,7 @@ import { uploadImage, type UploadResult } from '@/api/files';
 import { isAllowedImage } from '@/lib/validators';
 import { sanitizeRichHtml, serializeRichHtmlForSave } from '@/lib/sanitize';
 
-// 带 data-key 的图片扩展：保存 key，展示签名 URL
+// 带 data-key 的图片扩展：保存 key，展示公开 URL
 const KeyedImage = Image.extend({
   addAttributes() {
     return {
@@ -70,7 +70,7 @@ export function RichTextEditor({
   useEffect(() => {
     // StrictMode 双挂载时会以已销毁实例重跑 effect，此时 schema 已被置空
     if (!editor || editor.isDestroyed) return;
-    // 比较序列化结果：避免父组件回写 key 化 HTML 时把签名 URL 覆盖掉
+    // 比较序列化结果：避免父组件回写 key 化 HTML 时把公开 URL 覆盖掉
     if (value !== undefined && serializeRichHtmlForSave(editor.getHTML()) !== value) {
       editor.commands.setContent(value, { emitUpdate: false });
     }

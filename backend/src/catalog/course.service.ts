@@ -22,8 +22,8 @@ export interface CourseBrief {
   id: number; // 课程 id
   name: string; // 课程名称
   type: CourseType; // 课程类型
-  coverKey: string | null; // 封面对象存储 key（历史 http 数据为 null）
-  coverUrl: string | null; // 封面展示地址（key 为签名 URL，历史 http 原样）
+  coverKey: string | null; // 封面图片 key（历史 http 数据为 null）
+  coverUrl: string | null; // 封面展示地址（key 为公开 URL，历史 http 原样）
   instructor: string | null; // 讲师
   originalCents: number; // 原价（分）
   saleCents: number; // 售价（分）
@@ -86,7 +86,7 @@ export interface ChapterContent {
   id: number; // 章节 id
   title: string; // 章节标题
   contentType: CourseType; // 内容类型
-  content: string | null; // 正文（rich HTML / 对象存储 key）
+  content: string | null; // 正文（rich HTML / 媒体 key）
   sortOrder: number; // 章节序号
 }
 
@@ -142,7 +142,7 @@ export async function toCourseBrief(
 // 课程服务：用户端课程浏览与学习权限判定
 @Injectable()
 export class CourseService {
-  // 构造函数：注入 Prisma 与对象存储签名服务
+  // 构造函数：注入 Prisma 与本地存储服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -262,7 +262,7 @@ export class CourseService {
       ...(await toCourseBrief(course, this.storage)),
       version: course.version,
       intro: course.intro,
-      // 富文本图片读取时重写为签名地址
+      // 富文本图片读取时重写为公开地址
       detailRich:
         course.detailRich === null
           ? null
@@ -343,7 +343,7 @@ export class CourseService {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
     }
 
-    // 正文按类型解析：富文本签名图片，视频/音频 key 换签名地址，历史 http 原样
+    // 正文按类型解析：富文本图片换公开地址，视频/音频 key 换签名地址，历史 http 原样
     const content =
       chapter.content === null
         ? null

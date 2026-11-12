@@ -84,7 +84,11 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     // 首个章节保存后类型锁定：改类型被拒
     await agent
       .post(`/api/v1/admin/courses/${courseId}/chapters`)
-      .send({ title: '第一节', contentType: 'video', content: 'videos/a.mp4' })
+      .send({
+        title: '第一节',
+        contentType: 'video',
+        content: 'video/2026/11/12/00000000-0000-0000-0000-000000000001.mp4',
+      })
       .expect(201);
     await agent
       .put(`/api/v1/admin/courses/${courseId}`)
@@ -110,7 +114,12 @@ describe('课程管理端（CI 集成，基于种子）', () => {
 
     const created = await agent
       .post('/api/v1/admin/courses')
-      .send({ name: '冲突课', type: 'rich', originalCents: 1000, saleCents: 1000 })
+      .send({
+        name: '冲突课',
+        type: 'rich',
+        originalCents: 1000,
+        saleCents: 1000,
+      })
       .expect(201);
     const courseId = created.body.data.id;
     const version = created.body.data.version;

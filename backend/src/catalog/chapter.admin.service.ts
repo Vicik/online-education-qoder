@@ -247,7 +247,7 @@ export class ChapterAdminService {
     courseType: CourseType,
     content: string | null | undefined,
   ): string | null {
-    // 非图文类型内容为对象存储 key，原样保存
+    // 非图文类型内容为媒体 key，原样保存（一期不校验文件是否存在）
     if (courseType !== 'rich') return content ?? null;
     // 图文类型净化 HTML；空值保持 null
     return content ? sanitizeRichHtml(content) : null;

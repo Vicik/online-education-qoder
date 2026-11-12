@@ -39,7 +39,11 @@ export class AdminFilesController {
   // 统一校验文件并交给存储服务（异步：缺失文件也走 rejected Promise）
   private async save(file: Express.Multer.File | undefined, kind: MediaKind) {
     if (!file) {
-      throw new BizException(ErrorCode.PARAM_INVALID, '请选择要上传的文件', 400);
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '请选择要上传的文件',
+        400,
+      );
     }
     return this.storage.saveMedia({ tempPath: file.path, kind });
   }

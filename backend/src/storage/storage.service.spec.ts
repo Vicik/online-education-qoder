@@ -1,5 +1,12 @@
 import { ConfigService } from '@nestjs/config';
-import { mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StorageService } from './storage.service';
@@ -141,8 +148,10 @@ describe('StorageService', () => {
   });
 
   it('resolveUrl：图片公开、媒体签名、http 原样、旧 key 返回 null', async () => {
-    const imageKey = 'image/2026/11/12/00000000-0000-0000-0000-000000000001.png';
-    const mediaKey = 'video/2026/11/12/00000000-0000-0000-0000-000000000002.mp4';
+    const imageKey =
+      'image/2026/11/12/00000000-0000-0000-0000-000000000001.png';
+    const mediaKey =
+      'video/2026/11/12/00000000-0000-0000-0000-000000000002.mp4';
 
     await expect(service.resolveUrl(imageKey)).resolves.toBe(
       `http://cdn.test/uploadFiles/${imageKey}`,
@@ -150,9 +159,9 @@ describe('StorageService', () => {
     const mediaUrl = await service.resolveUrl(mediaKey);
     expect(mediaUrl).toContain('http://cdn.test/api/v1/files/media?');
     expect(mediaUrl).toContain('sig=');
-    await expect(service.resolveUrl('https://cdn.test/legacy.png')).resolves.toBe(
-      'https://cdn.test/legacy.png',
-    );
+    await expect(
+      service.resolveUrl('https://cdn.test/legacy.png'),
+    ).resolves.toBe('https://cdn.test/legacy.png');
     await expect(service.resolveUrl('zhixu/2026/11/a.png')).resolves.toBeNull();
     await expect(service.resolveUrl('videos/a.mp4')).resolves.toBeNull();
     await expect(service.resolveUrl('')).resolves.toBeNull();
@@ -204,7 +213,9 @@ describe('StorageService', () => {
     expect(result.size).toBe(content.length);
     expect(result.url).toContain('/api/v1/files/media?');
     await expect(stat(temp)).rejects.toThrow();
-    const saved = await readFile(join(dir, 'protected', ...result.key.split('/')));
+    const saved = await readFile(
+      join(dir, 'protected', ...result.key.split('/')),
+    );
     expect(saved.equals(content)).toBe(true);
     await expect(service.mediaExists(result.key)).resolves.toBe(true);
   });
@@ -220,7 +231,9 @@ describe('StorageService', () => {
     );
     expect(result.mimeType).toBe('audio/mpeg');
     expect(result.size).toBe(content.length);
-    const saved = await readFile(join(dir, 'protected', ...result.key.split('/')));
+    const saved = await readFile(
+      join(dir, 'protected', ...result.key.split('/')),
+    );
     expect(saved.equals(content)).toBe(true);
   });
 

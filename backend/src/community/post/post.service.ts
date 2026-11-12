@@ -16,9 +16,9 @@ export interface PostBrief {
   id: number; // 帖子 id
   userId: number; // 作者 id
   nickname: string; // 作者昵称
-  avatarKey: string | null; // 作者头像对象存储 key（历史 http 数据为 null）
-  avatarUrl: string | null; // 作者头像展示地址（key 为签名 URL）
-  content: string; // 净化后的内容（图片已换签名地址）
+  avatarKey: string | null; // 作者头像图片 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 作者头像展示地址（key 为公开 URL）
+  content: string; // 净化后的内容（图片已换公开地址）
   likeCount: number; // 点赞数
   likedByMe?: boolean; // 当前登录用户是否已点赞（仅登录用户返回）
   commentCount: number; // 评论总数（一级 + 回复）

@@ -6,7 +6,7 @@ const MAX_KEY_LENGTH = 512;
 // 存储 key 允许的字符：字母数字开头，随后可含字母数字、点、下划线、斜杠、连字符
 const STORAGE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 
-// 判断字符串是否为对象存储 key（排除 http(s)、协议相对、绝对路径与各类 scheme）
+// 判断字符串是否为本地存储 key（排除 http(s)、协议相对、绝对路径与各类 scheme）
 export function isStorageKey(value: unknown): value is string {
   // 仅接受字符串
   if (typeof value !== 'string') return false;
@@ -48,7 +48,7 @@ export function collectImageKeys(html: string): string[] {
   return [...keys];
 }
 
-// 将富文本图片的 src 重写为签名地址：保留 data-key，历史 http(s) 地址原样保留
+// 将富文本图片的 src 重写为解析后的地址：保留 data-key，历史 http(s) 地址原样保留
 export function applyImageUrls(
   html: string,
   urls: ReadonlyMap<string, string>,
@@ -72,7 +72,7 @@ export function applyImageUrls(
       : isStorageKey(img.attribs.src)
         ? img.attribs.src
         : null;
-    // 未收集到签名地址时保持原状
+    // 未收集到解析地址时保持原状
     const signed = key === null ? undefined : urls.get(key);
     if (signed === undefined) continue;
     // 仅改写 src，data-key 保留给前端回写

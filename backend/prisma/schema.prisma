@@ -178,7 +178,7 @@ model Chapter {
   courseId    Int
   title       String // 应用层校验 ≤60 字符
   contentType CourseType // 必须与课程 type 一致（应用层校验）
-  content     String?    @db.Text // rich: 净化后 HTML；video/audio: 对象存储 key
+  content     String?    @db.Text // rich: 净化后 HTML；video/audio: 媒体 key（video|audio/YYYY/MM/DD/uuid.ext）
   sortOrder   Int
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

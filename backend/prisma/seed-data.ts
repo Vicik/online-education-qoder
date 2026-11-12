@@ -37,9 +37,9 @@ export const COURSE_TYPESCRIPT = {
   intro: '从零掌握 TypeScript 类型系统与工程实践。', // 简介
   detailRich: '<p>课程详细介绍（净化后 HTML）</p>', // 详情富文本
   chapters: [
-    // 章节列表：content 为对象存储 key（视频课）
-    { title: '第一章 类型基础', content: 'videos/ch1.mp4' },
-    { title: '第二章 泛型进阶', content: 'videos/ch2.mp4' },
+    // 章节正文由管理员上传媒体后写入；种子不指向不存在的文件
+    { title: '第一章 类型基础', content: null },
+    { title: '第二章 泛型进阶', content: null },
   ],
 };
 

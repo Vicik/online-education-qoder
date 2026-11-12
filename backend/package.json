@@ -2,7 +2,7 @@
   "name": "zhixu-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "知序课堂后端（NestJS + Prisma + PostgreSQL + Redis + MinIO）",
+  "description": "知序课堂后端（NestJS + Prisma + PostgreSQL + Redis + 本地文件存储）",
   "engines": {
     "node": ">=24"
   },
@@ -23,8 +23,6 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.700.0",
-    "@aws-sdk/s3-request-presigner": "^3.1164.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -52,8 +50,6 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
-    "@testcontainers/postgresql": "^10.13.0",
-    "@testcontainers/redis": "^10.13.0",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.0",
@@ -72,7 +68,6 @@
     "prisma": "^6.16.0",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "testcontainers": "^10.13.0",
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",

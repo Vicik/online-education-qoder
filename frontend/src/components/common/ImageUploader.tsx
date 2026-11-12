@@ -21,7 +21,7 @@ export function ImageUploader({
   disabled?: boolean;
 }) {
   const { message } = AntdApp.useApp();
-  // 预览地址：优先用上传返回的签名 URL，其次尝试 key 本身是否为 http(s)
+  // 预览地址：优先用上传返回的公开 URL，其次尝试 key 本身是否为 http(s)
   const previewUrl = value?.url ?? resolveImageUrl(value?.key, null);
 
   // 上传前预检并立刻上传；返回 false 阻止 AntD 默认上传

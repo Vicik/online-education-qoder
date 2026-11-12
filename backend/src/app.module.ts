@@ -36,7 +36,7 @@ import { StorageModule } from './storage/storage.module';
     TradeModule, // 订单与模拟支付
     ExamModule, // 题库与考试
     CommunityModule, // 学习社区（帖子/评论/点赞/屏蔽词）
-    StorageModule, // 文件上传与对象存储
+    StorageModule, // 本地文件上传与媒体签名
     JobsModule, // Worker 定时任务（仅 WORKER_MODE 下启动调度）
   ],
   providers: [

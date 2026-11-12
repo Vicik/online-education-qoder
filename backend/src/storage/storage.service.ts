@@ -1,15 +1,20 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { open, mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  open,
+  mkdir,
+  readdir,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { extname, dirname, join, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
-import {
-  applyImageUrls,
-  collectImageKeys,
-} from '../common/utils/media.util';
+import { applyImageUrls, collectImageKeys } from '../common/utils/media.util';
 import type { AppConfig } from '../config/configuration';
 import { detectImageType, type ImageType } from './image-validator.util';
 import { assertMediaContainer, type MediaKind } from './media-validator.util';
@@ -104,7 +109,11 @@ export class StorageService implements OnModuleInit {
     const type = detectImageType(file.buffer);
     // 声明的 MIME 必须与真实类型一致
     if (file.mimeType !== MIME_BY_TYPE[type]) {
-      throw new BizException(ErrorCode.PARAM_INVALID, '图片内容与类型不符', 422);
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '图片内容与类型不符',
+        422,
+      );
     }
 
     // 重编码：rotate() 按 EXIF 摆正，输出不携带元数据
@@ -187,7 +196,7 @@ export class StorageService implements OnModuleInit {
     if (IMAGE_KEY_PATTERN.test(value)) return this.imageUrl(value);
     // 媒体 key：短期签名地址
     if (MEDIA_KEY_PATTERN.test(value)) return this.mediaUrl(value);
-    // 旧 MinIO key 与非法值不再透传
+    // 旧对象存储 key 与非法值不再透传
     return null;
   }
 
@@ -220,12 +229,7 @@ export class StorageService implements OnModuleInit {
   // 校验媒体签名：key 必须符合白名单
   verifyMediaSignature(key: string, exp: number, sig: string): boolean {
     if (!MEDIA_KEY_PATTERN.test(key)) return false;
-    return isValidMediaSignature(
-      this.upload().signingSecret,
-      key,
-      exp,
-      sig,
-    );
+    return isValidMediaSignature(this.upload().signingSecret, key, exp, sig);
   }
 
   // 媒体 key 映射到 protected 下的绝对路径，并阻断路径穿越

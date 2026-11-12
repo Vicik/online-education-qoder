@@ -12,8 +12,8 @@ export interface ProfileData {
   id: number; // 用户 id
   email: string; // 邮箱（只读）
   nickname: string; // 昵称
-  avatarKey: string | null; // 头像对象存储 key（历史 http 数据为 null）
-  avatarUrl: string | null; // 头像展示地址（key 为签名 URL，历史 http 原样）
+  avatarKey: string | null; // 头像图片 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 头像展示地址（key 为公开 URL，历史 http 原样）
   gender: Gender; // 性别
 }
 

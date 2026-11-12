@@ -8,7 +8,7 @@ export class UpdateChapterDto {
   @MaxLength(60)
   title?: string;
 
-  // 章节正文：rich 为 HTML，video/audio 为对象存储 key
+  // 章节正文：rich 为 HTML，video/audio 为媒体 key
   @IsOptional()
   @IsString()
   content?: string | null;
