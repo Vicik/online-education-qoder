@@ -69,8 +69,9 @@ function toUpdatePayload(
   if (fields.type) payload.type = values.type;
   if (fields.originalCents) payload.originalCents = values.originalCents ?? 0;
   if (fields.saleCents) payload.saleCents = values.saleCents ?? 0;
-  if (fields.instructor) payload.instructor = values.instructor?.trim() || null;
-  if (fields.cover) payload.coverUrl = values.cover?.key ?? null;
+  // 讲师与封面为必填，表单 rules 已保证保存时存在（空串兜底仅为类型收窄）
+  if (fields.instructor) payload.instructor = values.instructor?.trim() ?? '';
+  if (fields.cover) payload.coverUrl = values.cover?.key ?? '';
   if (fields.intro) payload.intro = values.intro?.trim() || null;
   if (fields.detailRich) {
     payload.detailRich = values.detailRich

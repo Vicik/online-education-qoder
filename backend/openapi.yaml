@@ -279,14 +279,14 @@ components:
         sortOrder: { type: integer }
     CourseCreateRequest:
       type: object
-      required: [name, type, originalCents, saleCents]
+      required: [name, type, originalCents, saleCents, instructor, coverUrl]
       properties:
         name: { type: string, maxLength: 40 }
         type: { type: string, enum: [video, audio, rich] }
         originalCents: { type: integer, minimum: 0 }
         saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
-        instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） }
+        instructor: { type: string, minLength: 1, description: 讲师名称，必填 }
+        coverUrl: { type: string, minLength: 1, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL），必填 }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     CourseUpdateRequest:
@@ -299,8 +299,8 @@ components:
         type: { type: string, enum: [video, audio, rich] }
         originalCents: { type: integer }
         saleCents: { type: integer }
-        instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） }
+        instructor: { type: string, minLength: 1, description: 讲师名称；传入时不可为空 }
+        coverUrl: { type: string, minLength: 1, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL）；传入时不可为空 }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     ChapterCreateRequest:

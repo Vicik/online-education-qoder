@@ -69,7 +69,14 @@ describe('admin courses api', () => {
     );
 
     const created = await createCourse(
-      { name: '新课', type: 'video', originalCents: 1000, saleCents: 900 },
+      {
+        name: '新课',
+        type: 'video',
+        originalCents: 1000,
+        saleCents: 900,
+        instructor: '王老师',
+        coverUrl: 'image/demo/cover.png',
+      },
       'key-12345678',
     );
     expect(key).toBe('key-12345678');

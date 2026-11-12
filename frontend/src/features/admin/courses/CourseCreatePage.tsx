@@ -61,8 +61,9 @@ export default function CourseCreatePage() {
       type: values.type,
       originalCents: values.originalCents ?? 0,
       saleCents: values.saleCents ?? 0,
-      instructor: values.instructor?.trim() || null,
-      coverUrl: values.cover?.key ?? null,
+      // 讲师与封面为必填，表单 rules 已保证提交时存在（空串兜底仅为类型收窄）
+      instructor: values.instructor?.trim() ?? '',
+      coverUrl: values.cover?.key ?? '',
       intro: values.intro?.trim() || null,
       detailRich: values.detailRich ? serializeRichHtmlForSave(values.detailRich) : null,
     };

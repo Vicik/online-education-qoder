@@ -4143,9 +4143,10 @@ export interface components {
             originalCents: number;
             /** @description 不得高于原价 */
             saleCents: number;
-            instructor?: string | null;
-            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） */
-            coverUrl?: string | null;
+            /** @description 讲师名称，必填 */
+            instructor: string;
+            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL），必填 */
+            coverUrl: string;
             intro?: string | null;
             detailRich?: string | null;
         };
@@ -4158,9 +4159,10 @@ export interface components {
             type?: "video" | "audio" | "rich";
             originalCents?: number;
             saleCents?: number;
-            instructor?: string | null;
-            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） */
-            coverUrl?: string | null;
+            /** @description 讲师名称；传入时不可为空 */
+            instructor?: string;
+            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL）；传入时不可为空 */
+            coverUrl?: string;
             intro?: string | null;
             detailRich?: string | null;
         };
