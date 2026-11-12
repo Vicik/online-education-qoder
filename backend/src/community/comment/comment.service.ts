@@ -56,7 +56,7 @@ export class CommentService {
           id: created.id,
           userId: created.userId,
           nickname: created.user.nickname,
-          content: await this.storage.signRichHtml(created.content),
+          content: await this.storage.resolveRichHtml(created.content),
           createdAt: created.createdAt,
           replies: [],
         };
@@ -120,7 +120,7 @@ export class CommentService {
           userId: created.userId,
           nickname: created.user.nickname,
           replyToNickname,
-          content: await this.storage.signRichHtml(created.content),
+          content: await this.storage.resolveRichHtml(created.content),
           createdAt: created.createdAt,
         };
       },

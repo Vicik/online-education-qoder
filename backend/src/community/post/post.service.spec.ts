@@ -54,7 +54,7 @@ function setup() {
           ? value
           : `https://signed/${value}`,
     ),
-    signRichHtml: jest.fn(async (html: string) =>
+    resolveRichHtml: jest.fn(async (html: string) =>
       html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
     ),
   };

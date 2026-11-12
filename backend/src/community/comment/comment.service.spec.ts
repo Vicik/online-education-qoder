@@ -37,7 +37,7 @@ function setup() {
   };
   // 存储替身：富文本图片重写 src
   const storage = {
-    signRichHtml: jest.fn(async (html: string) =>
+    resolveRichHtml: jest.fn(async (html: string) =>
       html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
     ),
   };

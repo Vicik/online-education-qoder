@@ -266,7 +266,7 @@ export class CourseService {
       detailRich:
         course.detailRich === null
           ? null
-          : await this.storage.signRichHtml(course.detailRich),
+          : await this.storage.resolveRichHtml(course.detailRich),
       chapters,
       // 活动信息补充课程名称（前端直接展示）
       groupon: groupon
@@ -348,7 +348,7 @@ export class CourseService {
       chapter.content === null
         ? null
         : chapter.contentType === 'rich'
-          ? await this.storage.signRichHtml(chapter.content)
+          ? await this.storage.resolveRichHtml(chapter.content)
           : await this.storage.resolveUrl(chapter.content);
 
     return {

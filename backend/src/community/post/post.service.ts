@@ -110,7 +110,7 @@ async function toPostBrief(
     nickname: row.user.nickname,
     avatarKey: isStorageKey(row.user.avatarUrl) ? row.user.avatarUrl : null,
     avatarUrl: await storage.resolveUrl(row.user.avatarUrl),
-    content: await storage.signRichHtml(row.content),
+    content: await storage.resolveRichHtml(row.content),
     likeCount: row.likeCount,
     ...(likedByMe === undefined ? {} : { likedByMe }),
     commentCount,
@@ -207,7 +207,7 @@ export class PostService {
         id: comment.id,
         userId: comment.userId,
         nickname: comment.user.nickname,
-        content: await this.storage.signRichHtml(comment.content),
+        content: await this.storage.resolveRichHtml(comment.content),
         createdAt: comment.createdAt,
         replies: await Promise.all(
           comment.replies.map(async (reply) => ({
@@ -218,7 +218,7 @@ export class PostService {
               reply.replyToUserId === null
                 ? null
                 : (nicknameById.get(reply.replyToUserId) ?? null),
-            content: await this.storage.signRichHtml(reply.content),
+            content: await this.storage.resolveRichHtml(reply.content),
             createdAt: reply.createdAt,
           })),
         ),
