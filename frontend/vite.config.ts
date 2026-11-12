@@ -48,6 +48,8 @@ export default defineConfig({
     globals: true,
     testTimeout: 20_000,
     setupFiles: ['./tests/setup.ts'],
+    // 只收集单元/组件测试；e2e 目录由 Playwright 单独运行
+    include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
     css: true,
     coverage: { reporter: ['text', 'lcov'] },
   },
