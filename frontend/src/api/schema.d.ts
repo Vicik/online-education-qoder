@@ -3712,7 +3712,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 图片上传（PNG/JPEG/WebP，单张 ≤2MB；magic bytes 校验 + 重编码，存储至 MinIO 私有桶） */
+        /** 图片上传（PNG/JPEG/WebP，单张 ≤2MB；magic bytes 校验 + 重编码，存储至本地 public/image） */
         post: {
             parameters: {
                 query?: never;
@@ -3741,6 +3741,160 @@ export interface paths {
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 /** @description 类型不支持/超过 2MB */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                429: components["responses"]["Err429"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/files/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 媒体读取（签名授权，支持 Range/206；不要求登录） */
+        get: {
+            parameters: {
+                query: {
+                    key: string;
+                    exp: number;
+                    sig: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 媒体内容；带 Range 请求时可能返回 206 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/files/video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传视频（仅管理员，MP4/WebM，默认 ≤1GB，流式落盘） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description data: MediaUploadData */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                400: components["responses"]["Err400"];
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                /** @description 容器不支持/与接口不符/超过上限 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                429: components["responses"]["Err429"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/files/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传音频（仅管理员，MP3/M4A，默认 ≤100MB，流式落盘） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description data: MediaUploadData */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                400: components["responses"]["Err400"];
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                /** @description 容器不支持/与接口不符/超过上限 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -3839,7 +3993,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 就绪检查：PostgreSQL/Redis/MinIO 连通（根路径，非 /api/v1 前缀） */
+        /** 就绪检查：PostgreSQL/Redis 连通（根路径，非 /api/v1 前缀） */
         get: {
             parameters: {
                 query?: never;
@@ -3900,9 +4054,9 @@ export interface components {
             id?: number;
             email?: string;
             nickname?: string;
-            /** @description 头像对象存储 key；历史 http(s) 数据为 null */
+            /** @description 头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
             avatarKey?: string | null;
-            /** @description key 返回签名 URL，历史 http(s) 原样返回 */
+            /** @description key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
             avatarUrl?: string | null;
             /** @enum {string} */
             gender?: "male" | "female" | "secret";
@@ -3934,9 +4088,9 @@ export interface components {
             name?: string;
             /** @enum {string} */
             type?: "video" | "audio" | "rich";
-            /** @description 封面对象存储 key；历史 http(s) 数据为 null */
+            /** @description 封面图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
             coverKey?: string | null;
-            /** @description key 返回签名 URL，历史 http(s) 原样返回 */
+            /** @description key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
             coverUrl?: string | null;
             instructor?: string | null;
             originalCents?: number;
@@ -3964,7 +4118,7 @@ export interface components {
             /** @description 乐观锁版本；管理端编辑回传，用户端忽略 */
             version?: number;
             intro?: string | null;
-            /** @description 服务端净化后的富文本；图片 src 已重写为签名 URL，data-key 保留 */
+            /** @description 服务端净化后的富文本；图片 src 已重写为公开 URL，data-key 保留 */
             detailRich?: string | null;
             /** @description 未购买仅名称；正文需另行请求章节内容接口 */
             chapters?: components["schemas"]["ChapterBrief"][];
@@ -3978,8 +4132,8 @@ export interface components {
             title?: string;
             /** @enum {string} */
             contentType?: "video" | "audio" | "rich";
-            /** @description rich=净化后 HTML（img 的 src 已换签名 URL、保留 data-key）；video/audio=签名访问 URL */
-            content?: string;
+            /** @description rich=净化后 HTML（img 的 src 已换公开 URL、保留 data-key）；video/audio=短期签名播放 URL；旧 key 无法解析时为 null */
+            content?: string | null;
             sortOrder?: number;
         };
         CourseCreateRequest: {
@@ -3990,7 +4144,7 @@ export interface components {
             /** @description 不得高于原价 */
             saleCents: number;
             instructor?: string | null;
-            /** @description 提交对象存储 key（兼容历史 http(s) URL） */
+            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） */
             coverUrl?: string | null;
             intro?: string | null;
             detailRich?: string | null;
@@ -4005,7 +4159,7 @@ export interface components {
             originalCents?: number;
             saleCents?: number;
             instructor?: string | null;
-            /** @description 提交对象存储 key（兼容历史 http(s) URL） */
+            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） */
             coverUrl?: string | null;
             intro?: string | null;
             detailRich?: string | null;
@@ -4017,7 +4171,7 @@ export interface components {
              * @enum {string}
              */
             contentType: "video" | "audio" | "rich";
-            /** @description rich=HTML（图片建议带 data-key）；video/audio=对象存储 key */
+            /** @description rich=HTML（图片建议带 data-key）；video/audio=媒体上传接口返回的 key */
             content?: string | null;
         };
         ChapterUpdateRequest: {
@@ -4407,7 +4561,7 @@ export interface components {
             userId?: number;
             nickname?: string;
             replyToNickname?: string | null;
-            /** @description img 的 src 已换签名 URL，data-key 保留 */
+            /** @description img 的 src 已换公开 URL，data-key 保留 */
             content?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -4416,7 +4570,7 @@ export interface components {
             id?: number;
             userId?: number;
             nickname?: string;
-            /** @description img 的 src 已换签名 URL，data-key 保留 */
+            /** @description img 的 src 已换公开 URL，data-key 保留 */
             content?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -4426,11 +4580,11 @@ export interface components {
             id?: number;
             userId?: number;
             nickname?: string;
-            /** @description 作者头像对象存储 key；历史 http(s) 数据为 null */
+            /** @description 作者头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
             avatarKey?: string | null;
-            /** @description key 返回签名 URL，历史 http(s) 原样返回 */
+            /** @description key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
             avatarUrl?: string | null;
-            /** @description 净化后的富文本；img 的 src 已换签名 URL，data-key 保留 */
+            /** @description 净化后的富文本；img 的 src 已换公开 URL，data-key 保留 */
             content?: string;
             likeCount?: number;
             /** @description 仅登录用户返回 */
@@ -4471,26 +4625,37 @@ export interface components {
             /** @description 只读 */
             email?: string;
             nickname?: string;
-            /** @description 头像对象存储 key；历史 http(s) 数据为 null */
+            /** @description 头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
             avatarKey?: string | null;
-            /** @description key 返回签名 URL，历史 http(s) 原样返回 */
+            /** @description key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
             avatarUrl?: string | null;
             /** @enum {string} */
             gender?: "male" | "female" | "secret";
         };
         ProfileUpdateRequest: {
             nickname: string;
-            /** @description 提交对象存储 key（兼容历史 http(s) URL）；传 null 清空 */
+            /** @description 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL）；传 null 清空 */
             avatarUrl?: string | null;
             /** @enum {string} */
             gender: "male" | "female" | "secret";
         };
-        /** @description data 结构 */
+        /** @description data 结构：图片上传结果 */
         UploadData: {
-            /** @description 对象存储 key，前端应持久化该值 */
+            /** @description 图片 key（image/YYYY/MM/DD/uuid.ext），前端应持久化该值 */
             key?: string;
-            /** @description 签名访问 URL，仅用于即时预览（默认 1 小时，可由 MINIO_PRESIGN_TTL_SECONDS 配置） */
+            /** @description 公开访问 URL（PUBLIC_BASE_URL + /uploadFiles/ + key） */
             url?: string;
+        };
+        /** @description data 结构：音视频上传结果 */
+        MediaUploadData: {
+            /** @description 媒体 key（video|audio/YYYY/MM/DD/uuid.ext） */
+            key?: string;
+            /** @description 短期签名播放 URL，默认 4 小时 */
+            url?: string;
+            /** @description 服务端识别的标准 MIME */
+            mimeType?: string;
+            /** @description 文件字节数 */
+            size?: number;
         };
         /** @description data 结构：学习概览统计 */
         OverviewData: {

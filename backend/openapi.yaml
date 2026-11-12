@@ -202,8 +202,8 @@ components:
         id: { type: integer }
         email: { type: string }
         nickname: { type: string }
-        avatarKey: { type: string, nullable: true, description: 头像对象存储 key；历史 http(s) 数据为 null }
-        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
+        avatarKey: { type: string, nullable: true, description: 头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         gender: { type: string, enum: [male, female, secret] }
         role: { type: string, enum: [user, admin] }
         createdAt: { type: string, format: date-time }
@@ -235,8 +235,8 @@ components:
         id: { type: integer }
         name: { type: string }
         type: { type: string, enum: [video, audio, rich] }
-        coverKey: { type: string, nullable: true, description: 封面对象存储 key；历史 http(s) 数据为 null }
-        coverUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
+        coverKey: { type: string, nullable: true, description: 封面图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        coverUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         instructor: { type: string, nullable: true }
         originalCents: { type: integer }
         saleCents: { type: integer }
@@ -258,7 +258,7 @@ components:
           properties:
             version: { type: integer, description: 乐观锁版本；管理端编辑回传，用户端忽略 }
             intro: { type: string, nullable: true }
-            detailRich: { type: string, nullable: true, description: 服务端净化后的富文本；图片 src 已重写为签名 URL，data-key 保留 }
+            detailRich: { type: string, nullable: true, description: 服务端净化后的富文本；图片 src 已重写为公开 URL，data-key 保留 }
             chapters:
               type: array
               items: { $ref: '#/components/schemas/ChapterBrief' }
@@ -275,7 +275,7 @@ components:
         id: { type: integer }
         title: { type: string }
         contentType: { type: string, enum: [video, audio, rich] }
-        content: { type: string, description: rich=净化后 HTML（img 的 src 已换签名 URL、保留 data-key）；video/audio=签名访问 URL }
+        content: { type: string, nullable: true, description: rich=净化后 HTML（img 的 src 已换公开 URL、保留 data-key）；video/audio=短期签名播放 URL；旧 key 无法解析时为 null }
         sortOrder: { type: integer }
     CourseCreateRequest:
       type: object
@@ -286,7 +286,7 @@ components:
         originalCents: { type: integer, minimum: 0 }
         saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
         instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL） }
+        coverUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     CourseUpdateRequest:
@@ -300,7 +300,7 @@ components:
         originalCents: { type: integer }
         saleCents: { type: integer }
         instructor: { type: string, nullable: true }
-        coverUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL） }
+        coverUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL） }
         intro: { type: string, nullable: true }
         detailRich: { type: string, nullable: true }
     ChapterCreateRequest:
@@ -309,7 +309,7 @@ components:
       properties:
         title: { type: string, maxLength: 60 }
         contentType: { type: string, enum: [video, audio, rich], description: 须与课程类型一致 }
-        content: { type: string, nullable: true, description: rich=HTML（图片建议带 data-key）；video/audio=对象存储 key }
+        content: { type: string, nullable: true, description: rich=HTML（图片建议带 data-key）；video/audio=媒体上传接口返回的 key }
     ChapterUpdateRequest:
       type: object
       properties:
@@ -684,7 +684,7 @@ components:
         userId: { type: integer }
         nickname: { type: string }
         replyToNickname: { type: string, nullable: true }
-        content: { type: string, description: img 的 src 已换签名 URL，data-key 保留 }
+        content: { type: string, description: img 的 src 已换公开 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
     CommentView:
       type: object
@@ -692,7 +692,7 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
-        content: { type: string, description: img 的 src 已换签名 URL，data-key 保留 }
+        content: { type: string, description: img 的 src 已换公开 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
         replies:
           type: array
@@ -703,9 +703,9 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
-        avatarKey: { type: string, nullable: true, description: 作者头像对象存储 key；历史 http(s) 数据为 null }
-        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
-        content: { type: string, description: 净化后的富文本；img 的 src 已换签名 URL，data-key 保留 }
+        avatarKey: { type: string, nullable: true, description: 作者头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
+        content: { type: string, description: 净化后的富文本；img 的 src 已换公开 URL，data-key 保留 }
         likeCount: { type: integer }
         likedByMe: { type: boolean, description: 仅登录用户返回 }
         commentCount: { type: integer }
@@ -752,22 +752,30 @@ components:
         id: { type: integer }
         email: { type: string, description: 只读 }
         nickname: { type: string }
-        avatarKey: { type: string, nullable: true, description: 头像对象存储 key；历史 http(s) 数据为 null }
-        avatarUrl: { type: string, nullable: true, description: key 返回签名 URL，历史 http(s) 原样返回 }
+        avatarKey: { type: string, nullable: true, description: 头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         gender: { type: string, enum: [male, female, secret] }
     ProfileUpdateRequest:
       type: object
       required: [nickname, gender]
       properties:
         nickname: { type: string, maxLength: 30 }
-        avatarUrl: { type: string, nullable: true, description: 提交对象存储 key（兼容历史 http(s) URL）；传 null 清空 }
+        avatarUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL）；传 null 清空 }
         gender: { type: string, enum: [male, female, secret] }
     UploadData:
       type: object
-      description: data 结构
+      description: data 结构：图片上传结果
       properties:
-        key: { type: string, description: 对象存储 key，前端应持久化该值 }
-        url: { type: string, description: 签名访问 URL，仅用于即时预览（默认 1 小时，可由 MINIO_PRESIGN_TTL_SECONDS 配置） }
+        key: { type: string, description: 图片 key（image/YYYY/MM/DD/uuid.ext），前端应持久化该值 }
+        url: { type: string, description: 公开访问 URL（PUBLIC_BASE_URL + /uploadFiles/ + key） }
+    MediaUploadData:
+      type: object
+      description: data 结构：音视频上传结果
+      properties:
+        key: { type: string, description: 媒体 key（video|audio/YYYY/MM/DD/uuid.ext） }
+        url: { type: string, description: 短期签名播放 URL，默认 4 小时 }
+        mimeType: { type: string, description: 服务端识别的标准 MIME }
+        size: { type: integer, description: 文件字节数 }
     OverviewData:
       type: object
       description: data 结构：学习概览统计
@@ -2338,7 +2346,7 @@ paths:
   /files/upload:
     post:
       tags: [files]
-      summary: 图片上传（PNG/JPEG/WebP，单张 ≤2MB；magic bytes 校验 + 重编码，存储至 MinIO 私有桶）
+      summary: 图片上传（PNG/JPEG/WebP，单张 ≤2MB；magic bytes 校验 + 重编码，存储至本地 public/image）
       requestBody:
         required: true
         content:
@@ -2358,6 +2366,91 @@ paths:
         '401': { $ref: '#/components/responses/Err401' }
         '422':
           description: 类型不支持/超过 2MB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '429': { $ref: '#/components/responses/Err429' }
+
+  /files/media:
+    get:
+      tags: [files]
+      summary: 媒体读取（签名授权，支持 Range/206；不要求登录）
+      security: []
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema: { type: string }
+        - name: exp
+          in: query
+          required: true
+          schema: { type: integer, description: 过期时间（Unix 秒） }
+        - name: sig
+          in: query
+          required: true
+          schema: { type: string, description: base64url HMAC-SHA256 签名 }
+      responses:
+        '200':
+          description: 媒体内容；带 Range 请求时可能返回 206
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+
+  /admin/files/video:
+    post:
+      tags: [files]
+      summary: 上传视频（仅管理员，MP4/WebM，默认 ≤1GB，流式落盘）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: 'data: MediaUploadData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 容器不支持/与接口不符/超过上限
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '429': { $ref: '#/components/responses/Err429' }
+
+  /admin/files/audio:
+    post:
+      tags: [files]
+      summary: 上传音频（仅管理员，MP3/M4A，默认 ≤100MB，流式落盘）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: 'data: MediaUploadData'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '400': { $ref: '#/components/responses/Err400' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '422':
+          description: 容器不支持/与接口不符/超过上限
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
@@ -2390,7 +2483,7 @@ paths:
   /readyz:
     get:
       tags: [health]
-      summary: 就绪检查：PostgreSQL/Redis/MinIO 连通（根路径，非 /api/v1 前缀）
+      summary: 就绪检查：PostgreSQL/Redis 连通（根路径，非 /api/v1 前缀）
       security: []
       responses:
         '200':
