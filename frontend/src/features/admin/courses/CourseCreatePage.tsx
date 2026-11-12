@@ -150,6 +150,7 @@ export default function CourseCreatePage() {
             <Input.TextArea
               autoSize={{ minRows: 3, maxRows: 8 }}
               maxLength={200}
+              placeholder="请填写简介"
               style={{ resize: 'none' }}
             />
           </Form.Item>

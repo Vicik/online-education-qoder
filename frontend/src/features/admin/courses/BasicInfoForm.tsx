@@ -223,6 +223,7 @@ export function BasicInfoForm(props: {
           <Input.TextArea
             autoSize={{ minRows: 3, maxRows: 8 }}
             maxLength={200}
+            placeholder="请填写简介"
             disabled={!fields.intro}
             style={{ resize: 'none' }}
           />
