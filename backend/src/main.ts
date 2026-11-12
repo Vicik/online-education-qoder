@@ -1,7 +1,9 @@
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { NextFunction, Request, Response } from 'express';
+import { join } from 'node:path';
 import { pinoHttp } from 'pino-http';
 import { AppModule } from './app.module';
 import { loadConfig } from './config/configuration';
@@ -13,8 +15,18 @@ import { RedisService } from './redis/redis.service';
 async function bootstrap() {
   // 加载应用配置
   const config = loadConfig();
-  // 创建 NestJS 应用实例
-  const app = await NestFactory.create(AppModule);
+  // 创建 NestJS 应用实例：使用 Express 适配器以挂载静态目录
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 公开图片：/uploadFiles/ 指向 UPLOAD_DIR/public
+  app.useStaticAssets(join(config.upload.dir, 'public'), {
+    prefix: '/uploadFiles/',
+    index: false,
+    maxAge: '365d',
+    immutable: true,
+    setHeaders: (response) =>
+      response.setHeader('X-Content-Type-Options', 'nosniff'),
+  });
 
   // 复用 Redis 连接作为会话存储（客户端在模块初始化后就绪，中间件惰性获取）
   const redis = app.get(RedisService);
