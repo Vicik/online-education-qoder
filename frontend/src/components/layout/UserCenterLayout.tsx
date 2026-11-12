@@ -1,6 +1,7 @@
 import { Layout, Menu } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { USER_CENTER_NAV_ITEMS, getUserCenterSelectedKey } from '@/app/navigation';
+import { SkipLink } from './SkipLink';
 import { UserHeader } from './UserHeader';
 import './layout.css';
 
@@ -13,6 +14,7 @@ export default function UserCenterLayout() {
 
   return (
     <Layout className="user-center-page">
+      <SkipLink />
       <UserHeader />
       <Layout className="side-layout user-center-layout">
         <Sider width={220} className="side-sider">
@@ -28,7 +30,9 @@ export default function UserCenterLayout() {
           />
         </Sider>
         <Content className="side-content">
-          <Outlet />
+          <main id="main-content" tabIndex={-1}>
+            <Outlet />
+          </main>
         </Content>
       </Layout>
     </Layout>

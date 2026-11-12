@@ -1,3 +1,19 @@
+/* 默认移出视口，键盘聚焦后固定到左上角 */
+.skip-link {
+  position: fixed;
+  left: 8px;
+  top: -48px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #1677ff;
+  border-radius: 6px;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
 /* 用户端：顶部导航 64px，导航与内容均为 1200px 居中 */
 .user-header {
   position: sticky;
