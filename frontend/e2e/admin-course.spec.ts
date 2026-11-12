@@ -22,6 +22,16 @@ test('创建课程、双标签保存触发 409，刷新后可发布', async ({ b
   await pageA.getByPlaceholder('原价（元）').fill('100');
   await pageA.getByPlaceholder('售价（元）').fill('90');
   await pageA.getByLabel('讲师').fill('E2E 讲师');
+  // 封面必填：上传 1x1 PNG，等待上传完成后再提交
+  await pageA.locator('.ant-upload input[type="file"]').setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  });
+  await expect(pageA.getByRole('button', { name: '更换图片' })).toBeVisible();
   await pageA.getByRole('button', { name: '保存并维护章节' }).click();
   await pageA.getByRole('button', { name: '保存', exact: true }).click();
   await pageA.waitForURL(/\/admin\/courses\/\d+(\?.*)?$/);

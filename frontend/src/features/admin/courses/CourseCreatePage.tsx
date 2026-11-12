@@ -132,10 +132,18 @@ export default function CourseCreatePage() {
           >
             <MoneyInput placeholder="售价（元）" />
           </Form.Item>
-          <Form.Item name="instructor" label="讲师">
+          <Form.Item
+            name="instructor"
+            label="讲师"
+            rules={[{ required: true, message: '请输入讲师' }]}
+          >
             <Input placeholder="讲师姓名" />
           </Form.Item>
-          <Form.Item name="cover" label="封面">
+          <Form.Item
+            name="cover"
+            label="封面"
+            rules={[{ required: true, message: '请上传封面' }]}
+          >
             <ImageUploader />
           </Form.Item>
           <Form.Item name="intro" label="简介">

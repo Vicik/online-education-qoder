@@ -27,7 +27,41 @@ async function fillRequired(original: string, sale: string) {
   });
 }
 
+// 选择封面：走 ImageUploader 内部的 antd Upload 输入框，等待上传完成回填 key
+async function uploadCover() {
+  // antd Upload 的隐藏文件输入（页面内唯一的 antd Upload）
+  const input = document.querySelector<HTMLInputElement>(
+    '.ant-upload input[type="file"]',
+  );
+  // 合法 PNG：满足类型与大小预检
+  const file = new File(['cover'], 'cover.png', { type: 'image/png' });
+  fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
+  // 上传成功后按钮文案切换为「更换图片」
+  await screen.findByRole('button', { name: '更换图片' });
+}
+
 describe('CourseCreatePage', () => {
+  it('讲师与封面未填时提示必填且不发请求', async () => {
+    // 是否发出创建请求
+    let posted = false;
+    server.use(
+      http.post(/\/api\/v1\/admin\/courses$/, () => {
+        posted = true;
+        return HttpResponse.json(envelope({ id: 8, status: 'draft', version: 1 }), {
+          status: 201,
+        });
+      }),
+    );
+
+    renderWithProviders(routes, '/admin/courses/create');
+    await fillRequired('100', '90');
+    await userEvent.click(screen.getByRole('button', { name: '保存并维护章节' }));
+
+    expect(await screen.findByText('请输入讲师')).toBeInTheDocument();
+    expect(await screen.findByText('请上传封面')).toBeInTheDocument();
+    expect(posted).toBe(false);
+  });
+
   it('售价高于原价时提示且不发请求', async () => {
     // 是否发出创建请求
     let posted = false;
@@ -52,6 +86,11 @@ describe('CourseCreatePage', () => {
     // 捕获创建请求体
     let body: Record<string, unknown> | null = null;
     server.use(
+      http.post(/\/api\/v1\/files\/upload$/, () =>
+        HttpResponse.json(
+          envelope({ key: 'image/demo/cover.png', url: 'https://cdn.test/cover.png' }),
+        ),
+      ),
       http.post(/\/api\/v1\/admin\/courses$/, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(envelope({ id: 8, status: 'draft', version: 1 }), {
@@ -63,6 +102,7 @@ describe('CourseCreatePage', () => {
     const { router } = renderWithProviders(routes, '/admin/courses/create');
     await fillRequired('100', '90');
     await userEvent.type(screen.getByLabelText('讲师'), '王老师');
+    await uploadCover();
     await userEvent.click(screen.getByRole('button', { name: '保存并维护章节' }));
     await userEvent.click(await screen.findByRole('button', { name: '保存' }));
 
@@ -76,6 +116,8 @@ describe('CourseCreatePage', () => {
       originalCents: 10000,
       saleCents: 9000,
       instructor: '王老师',
+      coverUrl: 'image/demo/cover.png',
     });
-  });
+    // 富文本编辑器与封面上传在 jsdom 中较慢，单独放宽本用例超时
+  }, 60_000);
 });
