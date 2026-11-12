@@ -26,6 +26,8 @@ function CourseCover({
     <img
       src={url}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       style={{ width: '100%', height: 150, objectFit: 'cover' }}
       onError={() => {
         setFailed(true);

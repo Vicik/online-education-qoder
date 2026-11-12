@@ -3,3 +3,8 @@
 /node_modules/
 /package.json
 /package-lock.json
+
+# Playwright 产物（frontend/.gitignore 之外的兜底）
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
