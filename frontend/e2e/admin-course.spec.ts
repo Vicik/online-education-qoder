@@ -31,7 +31,7 @@ test('创建课程、双标签保存触发 409，刷新后可发布', async ({ b
       'base64',
     ),
   });
-  await expect(pageA.getByRole('button', { name: '更换图片' })).toBeVisible();
+  await expect(pageA.getByRole('button', { name: '更换封面图片' })).toBeVisible();
   await pageA.getByRole('button', { name: '保存并维护章节' }).click();
   await pageA.getByRole('button', { name: '保存', exact: true }).click();
   await pageA.waitForURL(/\/admin\/courses\/\d+(\?.*)?$/);

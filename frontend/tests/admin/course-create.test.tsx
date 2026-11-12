@@ -36,8 +36,8 @@ async function uploadCover() {
   // 合法 PNG：满足类型与大小预检
   const file = new File(['cover'], 'cover.png', { type: 'image/png' });
   fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
-  // 上传成功后按钮文案切换为「更换图片」
-  await screen.findByRole('button', { name: '更换图片' });
+  // 上传成功后上传入口的无障碍名称切换为「更换封面图片」
+  await screen.findByRole('button', { name: '更换封面图片' });
 }
 
 describe('CourseCreatePage', () => {
