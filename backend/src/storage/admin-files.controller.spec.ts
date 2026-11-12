@@ -10,7 +10,9 @@ describe('AdminFilesController', () => {
   });
 
   it('把临时路径与类型交给存储服务', async () => {
-    const storage = { saveMedia: jest.fn().mockResolvedValue({ key: 'video/x.mp4' }) };
+    const storage = {
+      saveMedia: jest.fn().mockResolvedValue({ key: 'video/x.mp4' }),
+    };
     const controller = new AdminFilesController(storage as never);
 
     await controller.uploadVideo({ path: 'D:/uploads/tmp/a.part' } as never);

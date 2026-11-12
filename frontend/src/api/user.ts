@@ -9,7 +9,7 @@ export function getProfile(): Promise<ProfileData> {
   });
 }
 
-// 修改资料：avatarUrl 传对象存储 key（兼容历史 http 地址），null 表示清空
+// 修改资料：avatarUrl 传图片 key（兼容历史 http 地址），null 表示清空
 export function updateProfile(payload: {
   nickname: string;
   avatarUrl: string | null;
