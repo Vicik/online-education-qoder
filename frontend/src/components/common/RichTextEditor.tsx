@@ -68,7 +68,8 @@ export function RichTextEditor({
   });
 
   useEffect(() => {
-    if (!editor) return;
+    // StrictMode 双挂载时会以已销毁实例重跑 effect，此时 schema 已被置空
+    if (!editor || editor.isDestroyed) return;
     // 比较序列化结果：避免父组件回写 key 化 HTML 时把签名 URL 覆盖掉
     if (value !== undefined && serializeRichHtmlForSave(editor.getHTML()) !== value) {
       editor.commands.setContent(value, { emitUpdate: false });
@@ -76,8 +77,10 @@ export function RichTextEditor({
   }, [editor, value]);
 
   useEffect(() => {
+    // 同上：跳过已销毁实例，避免在 schema 置空后调用命令
+    if (!editor || editor.isDestroyed) return;
     // 只读态切换：编辑器挂载后再同步可编辑状态
-    editor?.setEditable(!disabled);
+    editor.setEditable(!disabled);
   }, [editor, disabled]);
 
   // 选择图片：预检类型/大小后上传，插入带 key 的图片
