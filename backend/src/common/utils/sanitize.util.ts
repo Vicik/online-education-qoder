@@ -10,6 +10,43 @@ type HtmlNode = ReturnType<typeof parseDocument>['children'][number];
 // HTML 元素类型：包含子节点的元素类型
 type HtmlElement = Extract<HtmlNode, { children: HtmlNode[] }>;
 
+// 允许的内联样式：只保留编辑器工具栏能产生的排版属性
+const ALLOWED_STYLES: Record<string, RegExp[]> = {
+  // 对齐方式：编辑器只提供左/中/右
+  'text-align': [/^(left|center|right|justify)$/],
+  // 文字颜色：十六进制或 rgb(a)
+  color: [
+    /^#[0-9a-f]{3,8}$/i,
+    /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i,
+    /^rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)$/i,
+  ],
+  // 字号：仅 px
+  'font-size': [/^\d{1,2}(\.\d+)?px$/],
+  // 行距：无单位倍数
+  'line-height': [/^\d{1,2}(\.\d+)?$/],
+};
+
+// 允许携带内联样式的标签：段落、标题、文本片段与表格单元格
+const STYLE_TAGS = [
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'span',
+  'li',
+  'td',
+  'th',
+  'blockquote',
+];
+
+// 按标签展开样式白名单：sanitize-html 需要逐标签声明
+const ALLOWED_STYLES_BY_TAG = Object.fromEntries(
+  STYLE_TAGS.map((tag) => [tag, ALLOWED_STYLES]),
+);
+
 // HTML 净化配置选项：定义允许的标签、属性和协议
 const OPTIONS: sanitizeHtml.IOptions = {
   // 允许的 HTML 标签列表
@@ -21,6 +58,7 @@ const OPTIONS: sanitizeHtml.IOptions = {
     'h5',
     'h6',
     'p',
+    'span',
     'strong',
     'em',
     'u',
@@ -37,6 +75,7 @@ const OPTIONS: sanitizeHtml.IOptions = {
     'th',
     'td',
     'br',
+    'hr',
     'blockquote',
     'code',
     'pre',
@@ -45,7 +84,11 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     a: ['href', 'target', 'rel'], // 链接标签允许的属性
     img: ['src', 'alt', 'data-key'], // 图片标签允许的属性（data-key 用于读取时签名）
+    // 排版标签允许内联样式，具体属性再按 ALLOWED_STYLES 过滤
+    ...Object.fromEntries(STYLE_TAGS.map((tag) => [tag, ['style']])),
   },
+  // 内联样式白名单：仅允许排版相关属性
+  allowedStyles: ALLOWED_STYLES_BY_TAG,
   // 允许的 URL 协议
   allowedSchemes: ['http', 'https'],
   // 特定标签允许的 URL 协议

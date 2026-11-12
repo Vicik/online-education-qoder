@@ -140,6 +140,33 @@ describe('sanitizeRichHtml', () => {
     expect(countTags(out, 'tr')).toBe(63);
   });
 
+  it('保留文本对齐、颜色、字号与行距', () => {
+    const html =
+      '<h2 style="text-align: center; color: #0958d9">标题</h2>' +
+      '<p style="line-height: 1.75"><span style="font-size: 18px; color: rgb(9, 88, 217)">正文</span></p>';
+    const out = sanitizeRichHtml(html);
+    expect(out).toMatch(/text-align\s*:\s*center/);
+    expect(out).toMatch(/color\s*:\s*#0958d9/);
+    expect(out).toContain('<span');
+    expect(out).toMatch(/font-size\s*:\s*18px/);
+    expect(out).toMatch(/line-height\s*:\s*1\.75/);
+    expect(out).toMatch(/color\s*:\s*rgb\(9,\s*88,\s*217\)/);
+  });
+
+  it('剥离样式中的非白名单属性与外部资源', () => {
+    const out = sanitizeRichHtml(
+      '<p style="position: fixed; background-image: url(https://evil.test/x.png); text-align: right">a</p>',
+    );
+    expect(out).not.toContain('position');
+    expect(out).not.toContain('background');
+    expect(out).not.toContain('url(');
+    expect(out).toMatch(/text-align\s*:\s*right/);
+  });
+
+  it('保留分割线', () => {
+    expect(sanitizeRichHtml('<p>a</p><hr><p>b</p>')).toContain('<hr');
+  });
+
   it('空输入返回空串', () => {
     expect(sanitizeRichHtml('')).toBe('');
   });
