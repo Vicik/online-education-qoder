@@ -9,10 +9,10 @@ import {
 describe('navigation', () => {
   it('游客与普通用户顶部导航差异只在「考试」', () => {
     expect(getUserNavItems(null).map((item) => item.label)).toEqual([
-      '首页', '课程', '拼团', '秒杀', '学习社区',
+      '首页', '课程', '拼团', '秒杀', '社区',
     ]);
     expect(getUserNavItems('user').map((item) => item.label)).toEqual([
-      '首页', '课程', '拼团', '秒杀', '学习社区', '考试',
+      '首页', '课程', '拼团', '秒杀', '社区', '考试',
     ]);
   });
   it('用户中心 9 项与管理端 8 项', () => {

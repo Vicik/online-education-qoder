@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { listPosts } from '@/api/community';
 import { queryKeys } from '@/api/query-keys';
 import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 import { usePermission } from '@/hooks/usePermission';
 import { PostCard } from './PostCard';
@@ -49,26 +48,25 @@ export default function FeedPage() {
 
   return (
     <div>
-      <PageHeader
-        title="学习社区"
-        extra={
-          <Button type="primary" onClick={gotoNewPost}>
-            发布帖子
-          </Button>
-        }
-      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Button type="primary" onClick={gotoNewPost}>
+          发布帖子
+        </Button>
+      </div>
       {items.length === 0 && !query.isLoading ? (
         <EmptyState description="还没有帖子，来发第一帖吧" />
       ) : (
         items.map((item) => <PostCard key={item.id} post={item} />)
       )}
-      <Pagination
-        current={page}
-        pageSize={pageSize}
-        total={total}
-        onChange={onChange}
-        style={{ textAlign: 'right' }}
-      />
+      {total > 0 && (
+        <Pagination
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={onChange}
+          style={{ textAlign: 'right' }}
+        />
+      )}
     </div>
   );
 }

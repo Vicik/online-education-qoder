@@ -12,7 +12,7 @@ const USER_BASE_NAV_ITEMS: NavItem[] = [
   { path: '/courses', label: '课程' },
   { path: '/groupons', label: '拼团' },
   { path: '/flash-sales', label: '秒杀' },
-  { path: '/community', label: '学习社区' },
+  { path: '/community', label: '社区' },
 ];
 
 // 按角色返回顶部导航

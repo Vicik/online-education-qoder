@@ -147,7 +147,11 @@ export default function CourseCreatePage() {
             <ImageUploader />
           </Form.Item>
           <Form.Item name="intro" label="简介">
-            <Input.TextArea rows={3} maxLength={200} />
+            <Input.TextArea
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              maxLength={200}
+              style={{ resize: 'none' }}
+            />
           </Form.Item>
           <Form.Item name="detailRich" label="详细介绍">
             <RichTextEditor placeholder="支持标题、列表、图片与表格" />

@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { listGroupons } from '@/api/promotion';
 import { queryKeys } from '@/api/query-keys';
 import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 import { GrouponCard } from './GrouponCard';
 
@@ -39,7 +38,6 @@ export default function GrouponListPage() {
 
   return (
     <div>
-      <PageHeader title="拼团活动" />
       {items.length === 0 && !query.isLoading ? (
         <EmptyState description="暂无进行中的拼团活动" />
       ) : (
@@ -51,13 +49,15 @@ export default function GrouponListPage() {
           ))}
         </Row>
       )}
-      <Pagination
-        current={page}
-        pageSize={pageSize}
-        total={total}
-        onChange={onChange}
-        style={{ marginTop: 16, textAlign: 'right' }}
-      />
+      {total > 0 && (
+        <Pagination
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={onChange}
+          style={{ marginTop: 16, textAlign: 'right' }}
+        />
+      )}
     </div>
   );
 }

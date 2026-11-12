@@ -24,12 +24,9 @@ export default function HomePage() {
 
   return (
     <div>
-      <Typography.Title level={2} style={{ marginTop: 0 }}>
-        知序课堂
+      <Typography.Title level={4} style={{ marginTop: 0 }}>
+        推荐课程
       </Typography.Title>
-      <Typography.Paragraph type="secondary">结构化课程，按序学习。</Typography.Paragraph>
-
-      <Typography.Title level={4}>推荐课程</Typography.Title>
       {recommendations.isLoading ? (
         <CourseGridSkeleton />
       ) : recommendations.data && recommendations.data.length > 0 ? (
@@ -51,7 +48,9 @@ export default function HomePage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           最新课程
         </Typography.Title>
-        <Link to="/courses">查看全部</Link>
+        {latest.data && latest.data.items.length > 0 && (
+          <Link to="/courses">查看全部</Link>
+        )}
       </div>
       {latest.isLoading ? (
         <CourseGridSkeleton />

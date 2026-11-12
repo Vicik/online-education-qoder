@@ -220,7 +220,12 @@ export function BasicInfoForm(props: {
           <ImageUploader disabled={!fields.cover} />
         </Form.Item>
         <Form.Item name="intro" label="简介">
-          <Input.TextArea rows={3} maxLength={200} disabled={!fields.intro} />
+          <Input.TextArea
+            autoSize={{ minRows: 3, maxRows: 8 }}
+            maxLength={200}
+            disabled={!fields.intro}
+            style={{ resize: 'none' }}
+          />
         </Form.Item>
         <Form.Item name="detailRich" label="详细介绍">
           <RichTextEditor disabled={!fields.detailRich} />

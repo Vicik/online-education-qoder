@@ -33,7 +33,6 @@ export default function AdminLayout() {
       </Sider>
       <Content className="side-content">
         <div className="side-header">
-          <h2 style={{ margin: 0 }}>管理端</h2>
           <Button onClick={() => void logout()}>退出登录</Button>
         </div>
         <main id="main-content" tabIndex={-1}>

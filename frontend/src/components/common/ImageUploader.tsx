@@ -1,4 +1,4 @@
-import { App as AntdApp, Avatar, Button, Space, Upload } from 'antd';
+import { App as AntdApp, Button, Upload } from 'antd';
 import type { UploadProps } from 'antd';
 import { uploadImage } from '@/api/files';
 import { isAllowedImage } from '@/lib/validators';
@@ -10,7 +10,10 @@ export interface ImageValue {
   url?: string | null;
 }
 
-// 图片上传：预检类型/大小；表单只提交 key
+// 封面缩略图边长（px）
+const TILE_SIZE = 96;
+
+// 图片上传：缩略图即上传入口，仅保留一张，点击可更换；表单只提交 key
 export function ImageUploader({
   value,
   onChange,
@@ -31,7 +34,7 @@ export function ImageUploader({
       return Upload.LIST_IGNORE;
     }
     try {
-      // 上传成功：key 持久化，url 立即用于预览
+      // 上传成功：key 持久化，url 立即用于预览（重复上传即替换当前图片）
       const result = await uploadImage(file);
       onChange?.({ key: result.key, url: result.url });
     } catch (error) {
@@ -41,23 +44,65 @@ export function ImageUploader({
   };
 
   return (
-    <Space align="start">
-      <Avatar shape="square" size={96} src={previewUrl} />
-      <Space direction="vertical">
-        <Upload
-          accept="image/png,image/jpeg,image/webp"
-          showUploadList={false}
-          beforeUpload={beforeUpload}
+    <div>
+      <Upload
+        accept="image/png,image/jpeg,image/webp"
+        showUploadList={false}
+        beforeUpload={beforeUpload}
+        disabled={disabled}
+      >
+        <button
+          type="button"
           disabled={disabled}
+          aria-label={previewUrl ? '更换封面图片' : '上传封面图片'}
+          style={{
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+            padding: 0,
+            border: previewUrl ? 'none' : '1px dashed #d9d9d9',
+            borderRadius: 8,
+            background: previewUrl ? 'transparent' : '#fafafa',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            overflow: 'hidden',
+            display: 'block',
+            color: '#8c8c8c',
+            fontSize: 13,
+          }}
         >
-          <Button disabled={disabled}>{value?.key ? '更换图片' : '上传图片'}</Button>
-        </Upload>
-        {value?.key && (
-          <Button type="link" danger disabled={disabled} onClick={() => onChange?.(null)}>
+          {previewUrl ? (
+            <span style={{ position: 'relative', display: 'block', width: '100%', height: '100%' }}>
+              <img
+                src={previewUrl}
+                alt="封面预览"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  lineHeight: '20px',
+                  textAlign: 'center',
+                  color: '#fff',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                更换
+              </span>
+            </span>
+          ) : (
+            '上传图片'
+          )}
+        </button>
+      </Upload>
+      {value?.key && (
+        <div style={{ marginTop: 4 }}>
+          <Button type="link" size="small" danger disabled={disabled} onClick={() => onChange?.(null)}>
             清除
           </Button>
-        )}
-      </Space>
-    </Space>
+        </div>
+      )}
+    </div>
   );
 }

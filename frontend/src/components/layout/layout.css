@@ -113,7 +113,7 @@
 .side-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 16px;
 }
 /* 用户中心：导航下方整体 1200px 居中，侧栏与内容区各为一张白色卡片 */

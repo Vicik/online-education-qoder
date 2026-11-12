@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { listCourses } from '@/api/catalog';
 import { queryKeys } from '@/api/query-keys';
 import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 import { CourseGrid, CourseGridSkeleton } from './CourseGrid';
 
@@ -31,8 +30,6 @@ export default function CourseListPage() {
 
   return (
     <div>
-      <PageHeader title="课程" />
-
       {query.isError ? (
         <EmptyState
           description={query.error?.message ?? '加载失败'}
