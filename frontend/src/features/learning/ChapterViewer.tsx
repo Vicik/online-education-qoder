@@ -20,6 +20,7 @@ export function ChapterViewer({ content }: { content: ChapterContent }) {
       <video
         key={content.content}
         controls
+        preload="metadata"
         style={{ width: '100%', maxHeight: 480 }}
         src={content.content}
       />

@@ -26,6 +26,7 @@ import type {
   ChapterUpdateInput,
 } from '@/api/types';
 import { ConfirmAction } from '@/components/common/ConfirmAction';
+import { MediaUploader } from '@/components/common/MediaUploader';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { serializeRichHtmlForSave } from '@/lib/sanitize';
@@ -314,13 +315,13 @@ export function ChapterPanel(props: {
             extra={
               editing
                 ? '留空保持原正文不变，填写则整体替换'
-                : '可选；图文为富文本，视频/音频为对象存储 key'
+                : '可选；图文为富文本，视频/音频先上传再保存'
             }
           >
             {courseType === 'rich' ? (
               <RichTextEditor placeholder="留空保持原正文不变" />
             ) : (
-              <Input placeholder="对象存储 key，留空保持原正文不变" />
+              <MediaUploader kind={courseType} />
             )}
           </Form.Item>
         </Form>
