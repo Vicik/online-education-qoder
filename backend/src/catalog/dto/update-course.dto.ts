@@ -17,9 +17,10 @@ export class UpdateCourseDto {
   @Min(1)
   version!: number;
 
-  // 课程名称，最多 40 个字符（仅草稿可改）
-  @IsOptional()
+  // 课程名称，最多 40 个字符（仅草稿可改；传入时不可为 null 或空串）
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
   @MaxLength(40)
   name?: string;
 

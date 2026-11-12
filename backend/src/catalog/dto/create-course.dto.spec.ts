@@ -21,6 +21,10 @@ describe('CreateCourseDto', () => {
     await expect(validate(build())).resolves.toHaveLength(0);
   });
 
+  it('课程名称为空串被拒', async () => {
+    await expect(validate(build({ name: '' }))).resolves.not.toHaveLength(0);
+  });
+
   it('缺少讲师被拒', async () => {
     await expect(
       validate(

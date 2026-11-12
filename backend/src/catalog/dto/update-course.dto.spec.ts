@@ -26,6 +26,15 @@ describe('UpdateCourseDto', () => {
     ).resolves.toHaveLength(0);
   });
 
+  it('传入合法课程名称时校验通过', async () => {
+    await expect(validate(build({ name: '新名称' }))).resolves.toHaveLength(0);
+  });
+
+  it('课程名称为 null 或空串被拒', async () => {
+    await expect(validate(build({ name: null }))).resolves.not.toHaveLength(0);
+    await expect(validate(build({ name: '' }))).resolves.not.toHaveLength(0);
+  });
+
   it('讲师为 null 或空串被拒', async () => {
     await expect(validate(build({ instructor: null }))).resolves.not.toHaveLength(
       0,

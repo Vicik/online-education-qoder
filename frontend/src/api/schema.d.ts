@@ -4154,6 +4154,7 @@ export interface components {
         CourseUpdateRequest: {
             /** @description 乐观锁版本 */
             version: number;
+            /** @description 传入时不可为空 */
             name?: string;
             /** @enum {string} */
             type?: "video" | "audio" | "rich";
@@ -4177,6 +4178,7 @@ export interface components {
             content?: string | null;
         };
         ChapterUpdateRequest: {
+            /** @description 传入时不可为空 */
             title?: string;
             content?: string | null;
         };

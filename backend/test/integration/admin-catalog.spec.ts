@@ -170,6 +170,17 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .expect(400);
     expect(emptyInstructor.body.code).toBe(1001);
 
+    const emptyName = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        ...base,
+        name: '',
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/cover.png',
+      })
+      .expect(400);
+    expect(emptyName.body.code).toBe(1001);
+
     const created = await agent
       .post('/api/v1/admin/courses')
       .send({
@@ -178,6 +189,12 @@ describe('课程管理端（CI 集成，基于种子）', () => {
         coverUrl: 'image/2026/11/12/cover.png',
       })
       .expect(201);
+
+    const emptyTitle = await agent
+      .post(`/api/v1/admin/courses/${created.body.data.id}/chapters`)
+      .send({ title: '', contentType: 'video' })
+      .expect(400);
+    expect(emptyTitle.body.code).toBe(1001);
 
     const emptyOnUpdate = await agent
       .put(`/api/v1/admin/courses/${created.body.data.id}`)

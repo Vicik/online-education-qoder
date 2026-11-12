@@ -281,7 +281,7 @@ components:
       type: object
       required: [name, type, originalCents, saleCents, instructor, coverUrl]
       properties:
-        name: { type: string, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 40 }
         type: { type: string, enum: [video, audio, rich] }
         originalCents: { type: integer, minimum: 0 }
         saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
@@ -295,7 +295,7 @@ components:
       description: 可编辑字段按状态矩阵（设计文档 §3.3）；类型在首个章节保存后锁定
       properties:
         version: { type: integer, description: 乐观锁版本 }
-        name: { type: string, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 40, description: 传入时不可为空 }
         type: { type: string, enum: [video, audio, rich] }
         originalCents: { type: integer }
         saleCents: { type: integer }
@@ -307,13 +307,13 @@ components:
       type: object
       required: [title, contentType]
       properties:
-        title: { type: string, maxLength: 60 }
+        title: { type: string, minLength: 1, maxLength: 60 }
         contentType: { type: string, enum: [video, audio, rich], description: 须与课程类型一致 }
         content: { type: string, nullable: true, description: rich=HTML（图片建议带 data-key）；video/audio=媒体上传接口返回的 key }
     ChapterUpdateRequest:
       type: object
       properties:
-        title: { type: string, maxLength: 60 }
+        title: { type: string, minLength: 1, maxLength: 60, description: 传入时不可为空 }
         content: { type: string, nullable: true }
     ChapterReorderRequest:
       type: object

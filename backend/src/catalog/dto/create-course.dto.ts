@@ -13,6 +13,7 @@ import {
 export class CreateCourseDto {
   // 课程名称，最多 40 个字符
   @IsString()
+  @IsNotEmpty()
   @MaxLength(40)
   name!: string;
 
