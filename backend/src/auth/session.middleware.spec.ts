@@ -33,13 +33,14 @@ const config: AppConfig = {
   corsOrigins: [],
   bcryptCost: 12,
   seedDemoData: true,
-  minio: {
-    endpoint: '',
-    accessKey: '',
-    secretKey: '',
-    bucket: 'zhixu',
-    publicUrl: '',
-    presignTtlSec: 3600,
+  upload: {
+    dir: 'uploadFiles',
+    publicBaseUrl: 'http://localhost:3000',
+    signingSecret: 's3cret',
+    audioMaxBytes: 100 * 1024 * 1024,
+    videoMaxBytes: 1024 * 1024 * 1024,
+    mediaUrlTtlSec: 14400,
+    xAccelPrefix: '',
   },
 };
 

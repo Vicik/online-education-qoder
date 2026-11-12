@@ -16,8 +16,8 @@ describe('AppConfigModule', () => {
     process.env.REDIS_URL = 'redis://x';
     process.env.SESSION_SECRET = 's3cret';
     delete process.env.BCRYPT_COST;
-    delete process.env.MINIO_BUCKET;
-    delete process.env.MINIO_PRESIGN_TTL_SECONDS;
+    delete process.env.UPLOAD_DIR;
+    delete process.env.PUBLIC_BASE_URL;
   });
 
   afterEach(() => {
@@ -32,7 +32,9 @@ describe('AppConfigModule', () => {
     const config = moduleRef.get(ConfigService);
     expect(config.get('databaseUrl')).toBe('postgres://x');
     expect(config.get('bcryptCost')).toBe(12);
-    expect(config.get('minio')).toMatchObject({ bucket: 'zhixu' });
+    expect(config.get('upload')).toMatchObject({
+      publicBaseUrl: 'http://localhost:3000',
+    });
   });
 
   it('全局注册：未导入配置模块的模块也能注入 ConfigService', async () => {
