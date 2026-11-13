@@ -243,6 +243,7 @@ components:
         status: { type: string, enum: [draft, published, unpublished], description: 用户端仅返回 published }
         chapterCount: { type: integer, description: 仅管理端返回 }
         enrollmentCount: { type: integer, description: 仅管理端返回 }
+        isRecommended: { type: boolean, description: 仅管理端返回；管理员手动推荐标记 }
     ChapterBrief:
       type: object
       properties:
@@ -1136,6 +1137,48 @@ paths:
         '409': { $ref: '#/components/responses/Err409' }
         '422':
           description: 状态不允许（仅已发布可下架）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/courses/{courseId}/recommend:
+    post:
+      tags: [admin-courses]
+      summary: 设为首页推荐（任意状态可标记；首页仅展示已发布的推荐课程）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: CourseAdminWriteResult'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422':
+          description: 课程已在推荐位
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+  /admin/courses/{courseId}/unrecommend:
+    post:
+      tags: [admin-courses]
+      summary: 取消首页推荐
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: CourseAdminWriteResult'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+        '409': { $ref: '#/components/responses/Err409' }
+        '422':
+          description: 课程不在推荐位
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }

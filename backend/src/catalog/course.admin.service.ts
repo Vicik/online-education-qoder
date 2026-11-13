@@ -112,6 +112,7 @@ export class CourseAdminService {
         where,
         select: {
           ...COURSE_BRIEF_SELECT,
+          isRecommended: true,
           _count: { select: { chapters: true } },
         },
         skip: (pageNo - 1) * pageSize,
@@ -145,6 +146,7 @@ export class CourseAdminService {
     const items = await Promise.all(
       rows.map(async ({ _count, ...course }) => ({
         ...(await toCourseBrief(course, this.storage)),
+        isRecommended: course.isRecommended,
         chapterCount: _count.chapters,
         enrollmentCount: enrollmentByCourse.get(course.id) ?? 0,
       })),
@@ -385,6 +387,88 @@ export class CourseAdminService {
       targetId: courseId,
       before: { status: course.status },
       after: { status: 'unpublished' },
+    });
+
+    return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
+  }
+
+  // 设为首页推荐：重复标记返回 422
+  async recommend(courseId: number, context?: AuditContext): Promise<Course> {
+    // 当前课程：不存在统一按 404 处理
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (course.isRecommended) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '课程已在推荐位，无需重复操作',
+        422,
+      );
+    }
+
+    // 条件更新：并发下已被他人标记时按冲突处理
+    const { count } = await this.prisma.course.updateMany({
+      where: { id: courseId, isRecommended: false },
+      data: { isRecommended: true },
+    });
+    if (count === 0) {
+      throw new BizException(
+        ErrorCode.IDEMPOTENCY_CONFLICT,
+        VERSION_CONFLICT_MESSAGE,
+        409,
+      );
+    }
+
+    await recordAudit(this.audit, context, {
+      action: 'course.recommend',
+      targetType: 'course',
+      targetId: courseId,
+      before: { isRecommended: false },
+      after: { isRecommended: true },
+    });
+
+    return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
+  }
+
+  // 取消首页推荐：重复取消返回 422
+  async unrecommend(courseId: number, context?: AuditContext): Promise<Course> {
+    // 当前课程：不存在统一按 404 处理
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (!course.isRecommended) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '课程不在推荐位，无需重复操作',
+        422,
+      );
+    }
+
+    // 条件更新：并发下已被他人取消时按冲突处理
+    const { count } = await this.prisma.course.updateMany({
+      where: { id: courseId, isRecommended: true },
+      data: { isRecommended: false },
+    });
+    if (count === 0) {
+      throw new BizException(
+        ErrorCode.IDEMPOTENCY_CONFLICT,
+        VERSION_CONFLICT_MESSAGE,
+        409,
+      );
+    }
+
+    await recordAudit(this.audit, context, {
+      action: 'course.unrecommend',
+      targetType: 'course',
+      targetId: courseId,
+      before: { isRecommended: true },
+      after: { isRecommended: false },
     });
 
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });

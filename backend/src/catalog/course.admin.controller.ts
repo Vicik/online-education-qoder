@@ -97,6 +97,28 @@ export class CourseAdminController {
     );
   }
 
+  // 设为首页推荐
+  @Post(':courseId/recommend')
+  @HttpCode(HttpStatus.OK)
+  recommend(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Req() req: Request,
+  ) {
+    return this.courses.recommend(courseId, this.auditContext(user, req));
+  }
+
+  // 取消首页推荐
+  @Post(':courseId/unrecommend')
+  @HttpCode(HttpStatus.OK)
+  unrecommend(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Req() req: Request,
+  ) {
+    return this.courses.unrecommend(courseId, this.auditContext(user, req));
+  }
+
   // 新增章节（草稿/已下架）
   @Post(':courseId/chapters')
   addChapter(

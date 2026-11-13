@@ -78,13 +78,47 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     );
   });
 
-  it('首页推荐只返回已发布课程', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/home/recommendations')
-      .expect(200);
-    const names = res.body.data.courses.map((c: { name: string }) => c.name);
-    expect(names).toContain(COURSE_TYPESCRIPT.name);
-    expect(names).not.toContain(COURSE_WRITING.name);
+  it('首页推荐仅返回管理员手动推荐且已发布的课程', async () => {
+    // 未推荐课程
+    const normal = await prisma.course.create({
+      data: {
+        name: '集成测试未推荐课程',
+        type: 'rich',
+        originalCents: 100,
+        saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+        isRecommended: false,
+      },
+    });
+    // 已推荐课程
+    const recommended = await prisma.course.create({
+      data: {
+        name: '集成测试推荐课程',
+        type: 'rich',
+        originalCents: 100,
+        saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+        isRecommended: true,
+      },
+    });
+    try {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/home/recommendations')
+        .expect(200);
+      const names = res.body.data.courses.map((c: { name: string }) => c.name);
+      expect(names).toContain(recommended.name);
+      expect(names).not.toContain(normal.name);
+      // 种子课程已发布但未推荐，不出现在推荐位
+      expect(names).not.toContain(COURSE_TYPESCRIPT.name);
+    } finally {
+      await prisma.course.deleteMany({
+        where: { id: { in: [normal.id, recommended.id] } },
+      });
+    }
   });
 
   it('下架课程不出现在列表/推荐，详情按不存在处理', async () => {
@@ -97,6 +131,8 @@ describe('课程浏览（CI 集成，基于种子）', () => {
         instructor: '测试讲师',
         coverUrl: '',
         status: 'unpublished',
+        // 即使标记推荐，下架课程也不进入推荐位
+        isRecommended: true,
       },
     });
     try {

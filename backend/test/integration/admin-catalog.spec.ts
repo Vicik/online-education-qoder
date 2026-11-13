@@ -221,6 +221,75 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     expect(emptyOrder.body.code).toBe(1001);
   });
 
+  it('推荐/取消推荐：进入首页推荐，重复操作 422', async () => {
+    const agent = await adminAgent();
+
+    const created = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        name: '集成测试推荐课',
+        type: 'rich',
+        originalCents: 1000,
+        saleCents: 900,
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/00000000-0000-0000-0000-000000000003.png',
+      })
+      .expect(201);
+    const courseId = created.body.data.id;
+    // 发布后才会进入首页推荐
+    await agent.post(`/api/v1/admin/courses/${courseId}/publish`).expect(200);
+
+    try {
+      const recommended = await agent
+        .post(`/api/v1/admin/courses/${courseId}/recommend`)
+        .expect(200);
+      expect(recommended.body.data).toMatchObject({ isRecommended: true });
+
+      // 管理端列表带回推荐标记
+      const list = await agent
+        .get('/api/v1/admin/courses?pageSize=100')
+        .expect(200);
+      const item = list.body.data.items.find(
+        (row: { id: number }) => row.id === courseId,
+      );
+      expect(item).toMatchObject({ isRecommended: true });
+
+      // 已推荐后再推荐 422
+      await agent.post(`/api/v1/admin/courses/${courseId}/recommend`).expect(422);
+
+      // 首页推荐包含该课程
+      const homeAfterRecommend = await request(app.getHttpServer())
+        .get('/api/v1/home/recommendations')
+        .expect(200);
+      expect(
+        homeAfterRecommend.body.data.courses.map(
+          (c: { id: number }) => c.id,
+        ),
+      ).toContain(courseId);
+
+      const unrecommended = await agent
+        .post(`/api/v1/admin/courses/${courseId}/unrecommend`)
+        .expect(200);
+      expect(unrecommended.body.data).toMatchObject({ isRecommended: false });
+
+      // 未推荐后再取消 422
+      await agent
+        .post(`/api/v1/admin/courses/${courseId}/unrecommend`)
+        .expect(422);
+
+      const homeAfterUnrecommend = await request(app.getHttpServer())
+        .get('/api/v1/home/recommendations')
+        .expect(200);
+      expect(
+        homeAfterUnrecommend.body.data.courses.map(
+          (c: { id: number }) => c.id,
+        ),
+      ).not.toContain(courseId);
+    } finally {
+      await prisma.course.deleteMany({ where: { id: courseId } });
+    }
+  });
+
   it('每次管理端写操作产生审计记录', async () => {
     const count = await prisma.auditLog.count({
       where: { action: { startsWith: 'course.' } },

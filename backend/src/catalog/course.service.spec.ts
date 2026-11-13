@@ -212,14 +212,14 @@ describe('CourseService.getDetail', () => {
 });
 
 describe('CourseService.listRecommendations', () => {
-  it('listRecommendations 取最近 8 条已发布', async () => {
+  it('listRecommendations 仅取管理员推荐且已发布的最近 8 条', async () => {
     const { prisma, service } = setup();
     prisma.course.findMany.mockResolvedValue([courseRow]);
 
     await expect(service.listRecommendations()).resolves.toEqual([courseBrief]);
     expect(prisma.course.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'published' },
+        where: { status: 'published', isRecommended: true },
         take: 8,
         orderBy: { createdAt: 'desc' },
       }),

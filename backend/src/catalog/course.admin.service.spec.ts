@@ -47,6 +47,7 @@ const DRAFT = {
   name: '草稿课',
   type: 'video',
   status: 'draft',
+  isRecommended: false,
   version: 3,
   originalCents: 19900,
   saleCents: 9900,
@@ -389,6 +390,71 @@ describe('CourseAdminService.publish / unpublish', () => {
   });
 });
 
+describe('CourseAdminService.recommend / unrecommend', () => {
+  it('recommend 标记推荐位并写审计', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isRecommended: false });
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue({
+      ...PUBLISHED,
+      isRecommended: true,
+    });
+
+    await expect(service.recommend(1, CTX)).resolves.toMatchObject({
+      isRecommended: true,
+    });
+
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isRecommended: false },
+      data: { isRecommended: true },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'course.recommend', targetId: 1 }),
+    );
+  });
+
+  it('recommend 已推荐返回 422，课程不存在返回 404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isRecommended: true });
+    await expect(service.recommend(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue(null);
+    await expect(service.recommend(99)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('unrecommend 取消推荐并写审计', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isRecommended: true });
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue({
+      ...PUBLISHED,
+      isRecommended: false,
+    });
+
+    await expect(service.unrecommend(1, CTX)).resolves.toMatchObject({
+      isRecommended: false,
+    });
+
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isRecommended: true },
+      data: { isRecommended: false },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'course.unrecommend', targetId: 1 }),
+    );
+  });
+
+  it('unrecommend 未推荐返回 422，条件更新失败视为冲突 409', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isRecommended: false });
+    await expect(service.unrecommend(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isRecommended: true });
+    prisma.course.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.unrecommend(1)).rejects.toMatchObject({ status: 409 });
+  });
+});
+
 describe('CourseAdminService.listAll / getDetail', () => {
   it('listAll 含全部状态与报名人数/章节数，并支持状态筛选', async () => {
     const { prisma, service } = setup();
@@ -396,6 +462,7 @@ describe('CourseAdminService.listAll / getDetail', () => {
       {
         ...DRAFT,
         coverUrl: 'zhixu/2026/11/cover.png',
+        isRecommended: true,
         _count: { chapters: 2 },
       },
     ]);
@@ -416,6 +483,7 @@ describe('CourseAdminService.listAll / getDetail', () => {
           id: 1,
           coverKey: 'zhixu/2026/11/cover.png',
           coverUrl: 'https://signed/zhixu/2026/11/cover.png',
+          isRecommended: true,
           chapterCount: 2,
           enrollmentCount: 2,
         },
@@ -425,6 +493,7 @@ describe('CourseAdminService.listAll / getDetail', () => {
       expect.objectContaining({
         where: { status: 'draft' },
         select: expect.objectContaining({
+          isRecommended: true,
           _count: { select: { chapters: true } },
         }),
       }),

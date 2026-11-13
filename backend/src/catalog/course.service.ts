@@ -179,10 +179,10 @@ export class CourseService {
     };
   }
 
-  // 首页推荐：最近发布的已发布课程
+  // 首页推荐：管理员手动推荐且已发布的课程
   async listRecommendations(): Promise<CourseBrief[]> {
     const rows = await this.prisma.course.findMany({
-      where: { status: 'published' },
+      where: { status: 'published', isRecommended: true },
       select: COURSE_BRIEF_SELECT,
       take: RECOMMENDATION_LIMIT,
       orderBy: { createdAt: 'desc' },
