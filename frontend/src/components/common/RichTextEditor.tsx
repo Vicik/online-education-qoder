@@ -784,7 +784,7 @@ export function RichTextEditor({
       <div className="rte__status">
         <span>字数 {charCount}</span>
         <span>段落 {paragraphCount}</span>
-        <span>支持粘贴 Word 内容，图片单张 ≤2MB</span>
+        <span>Word 中的图片请用『插入图片』上传</span>
       </div>
 
       <Modal
