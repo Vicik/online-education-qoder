@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
+import { TrimmingValidationPipe } from './common/validation/trimming-validation.pipe';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { NextFunction, Request, Response } from 'express';
@@ -57,7 +57,7 @@ async function bootstrap() {
 
   // 配置全局验证管道
   app.useGlobalPipes(
-    new ValidationPipe({
+    new TrimmingValidationPipe({
       whitelist: true, // 白名单模式：自动剥离未声明的属性
       forbidNonWhitelisted: true, // 禁止非白名单属性：存在额外属性时抛出异常
       transform: true, // 自动转换：将请求参数转换为 DTO 类型

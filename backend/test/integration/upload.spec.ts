@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { TrimmingValidationPipe } from '../../src/common/validation/trimming-validation.pipe';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
@@ -68,7 +68,7 @@ describe('文件上传（CI 集成，本地磁盘）', () => {
       immutable: true,
     });
     app.useGlobalPipes(
-      new ValidationPipe({
+      new TrimmingValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,

@@ -1,4 +1,5 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
+import { TrimmingValidationPipe } from '../../src/common/validation/trimming-validation.pipe';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
@@ -40,7 +41,7 @@ describe('社区（CI 集成）', () => {
     // 与 main.ts 一致：路由注册前挂载会话中间件
     app.use(sessionMiddleware(config, () => redis.getClient()));
     app.useGlobalPipes(
-      new ValidationPipe({
+      new TrimmingValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,

@@ -1,4 +1,5 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
+import { TrimmingValidationPipe } from '../../src/common/validation/trimming-validation.pipe';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -38,7 +39,7 @@ describe('拼团成团竞态（CI 并发）', () => {
     const redis = app.get(RedisService);
     app.use(sessionMiddleware(config, () => redis.getClient()));
     app.useGlobalPipes(
-      new ValidationPipe({
+      new TrimmingValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
