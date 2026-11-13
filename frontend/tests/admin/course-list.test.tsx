@@ -47,6 +47,15 @@ describe('CourseListPage', () => {
       'href',
       '/admin/courses/1',
     );
+    // 预览：点击后在新标签页打开用户端详情页的预览模式
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    await userEvent.click(screen.getByRole('button', { name: '预览' }));
+    expect(openSpy).toHaveBeenCalledWith(
+      '/admin/courses/1/preview',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    openSpy.mockRestore();
   });
 
   it('仅已发布课程显示推荐与取消推荐', async () => {
@@ -132,6 +141,37 @@ describe('CourseListPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('已下架课程有章节时可重新发布', async () => {
+    // 发布请求次数
+    let publishCalls = 0;
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [{ ...row, status: 'unpublished', chapterCount: 2 }],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+      http.post(/\/api\/v1\/admin\/courses\/1\/publish$/, () => {
+        publishCalls += 1;
+        return HttpResponse.json(envelope({ id: 1, status: 'published', version: 3 }));
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '发布' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(publishCalls).toBe(1));
+  });
+
   it('无章节课程发布按钮禁用并提示', async () => {
     server.use(
       http.get(/\/api\/v1\/admin\/courses$/, () =>
@@ -152,10 +192,13 @@ describe('CourseListPage', () => {
     );
 
     const draftRow = (await screen.findByText('无章节课')).closest('tr') as HTMLElement;
-    // 发布按钮禁用，并提示先添加章节
+    // 发布按钮禁用，悬浮提示先添加章节
     const publishButton = within(draftRow).getByRole('button', { name: '发布' });
     expect(publishButton).toBeDisabled();
-    expect(publishButton).toHaveAttribute('title', '请先添加至少一个章节');
+    await userEvent.hover(publishButton.parentElement as HTMLElement);
+    expect(
+      await screen.findByText('请先添加至少一个章节，再发布课程'),
+    ).toBeInTheDocument();
   });
 
   it('状态筛选重新请求；空结果显示空态', async () => {

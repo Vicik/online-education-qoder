@@ -21,6 +21,14 @@ describe('resolveRedirect', () => {
     expect(resolveRedirect({ role: 'admin' } as never, publicRoute, '/')).toBe('/admin');
     expect(resolveRedirect({ role: 'admin' } as never, publicRoute, '/user/orders')).toBe('/admin');
   });
+  it('管理员可进入课程预览路由，旧预览地址回管理端', () => {
+    expect(
+      resolveRedirect({ role: 'admin' } as never, adminRoute, '/admin/courses/42/preview'),
+    ).toBeNull();
+    expect(
+      resolveRedirect({ role: 'admin' } as never, publicRoute, '/courses/42?preview=1'),
+    ).toBe('/admin');
+  });
   it('管理员可进入 /admin 路由', () => {
     expect(resolveRedirect({ role: 'admin' } as never, adminRoute, '/admin/courses')).toBeNull();
   });

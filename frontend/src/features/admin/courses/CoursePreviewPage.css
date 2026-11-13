@@ -1,0 +1,5 @@
+/* 预览页：简介紧随售价展示 */
+.course-preview-summary.ant-typography {
+  margin: 16px 0 0;
+  color: rgba(0, 0, 0, 0.75);
+}

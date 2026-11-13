@@ -289,10 +289,13 @@ describe('CourseWorkspacePage', () => {
 
     renderWithProviders(routes, '/admin/courses/1');
 
-    // 发布按钮禁用，并提示先添加章节
+    // 发布按钮禁用，悬浮提示先添加章节
     const publishButton = await screen.findByRole('button', { name: '发布' });
     expect(publishButton).toBeDisabled();
-    expect(publishButton).toHaveAttribute('title', '请先添加至少一个章节');
+    await userEvent.hover(publishButton.parentElement as HTMLElement);
+    expect(
+      await screen.findByText('请先添加至少一个章节，再发布课程'),
+    ).toBeInTheDocument();
   }, 30_000);
 
   it('发布需二次确认，确认后刷新详情', async () => {

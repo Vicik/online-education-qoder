@@ -21,6 +21,13 @@ export interface RouteMeta {
   lazy: LazyPage; // 页面懒加载入口
 }
 
+// 管理端课程预览路径：/admin/courses/:id/preview，使用用户端布局但不展示主导航
+export function isAdminPreviewPath(path: string): boolean {
+  // 去掉查询串后的路径
+  const [pathname] = path.split('?');
+  return /^\/admin\/courses\/\d+\/preview\/?$/.test(pathname);
+}
+
 // 按优先级判定跳转目标；返回 null 表示放行
 export function resolveRedirect(
   user: SessionUser | null,
@@ -28,7 +35,9 @@ export function resolveRedirect(
   path: string,
 ): string | null {
   // 1. 管理员隔离：非 /admin 路由一律回管理端
-  if (user?.role === 'admin' && !path.startsWith('/admin')) return '/admin';
+  if (user?.role === 'admin' && !path.startsWith('/admin')) {
+    return '/admin';
+  }
   // 2. 未登录访问受保护路由：带原地址去登录
   if (meta.requiresAuth && !user) return `/login?redirect=${encodeURIComponent(path)}`;
   // 3. 已登录但角色不匹配（role 缺省视为无权限）

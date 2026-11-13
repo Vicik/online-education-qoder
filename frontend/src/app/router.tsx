@@ -47,6 +47,8 @@ export const ROUTES: RouteMeta[] = [
   { path: '/admin', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/dashboard/DashboardPage') },
   { path: '/admin/courses', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseListPage') },
   { path: '/admin/courses/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseCreatePage') },
+  // 预览页使用用户端布局（无管理端侧栏），由顶部品牌与头像承载导航
+  { path: '/admin/courses/:id/preview', layout: 'user', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CoursePreviewPage') },
   { path: '/admin/courses/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/courses/CourseWorkspacePage') },
   { path: '/admin/groupons', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/groupons/GrouponListPage') },
   { path: '/admin/flash-sales', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/flash-sales/FlashSaleListPage') },

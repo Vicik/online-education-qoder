@@ -1,6 +1,7 @@
 import { Avatar, Button, Dropdown, Layout } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { isAdminPreviewPath } from '@/app/guards';
 import { getUserNavItems, getUserNavSelectedKey } from '@/app/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { useSessionStore } from '@/stores/session';
@@ -26,6 +27,10 @@ export function UserHeader() {
     location.pathname,
     location.search,
   );
+  // 管理员课程预览：仅隐藏主导航，保留品牌与账户入口
+  const adminPreview =
+    user?.role === 'admin' &&
+    isAdminPreviewPath(`${location.pathname}${location.search}`);
   // 已登录账户下拉项
   const accountItems = user
     ? [
@@ -44,19 +49,23 @@ export function UserHeader() {
         <Link to="/" className="user-brand">
           知序课堂
         </Link>
-        <nav className="user-nav" aria-label="主导航">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={
-                selectedKey === item.path ? 'user-nav-link user-nav-link-active' : 'user-nav-link'
-              }
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        {!adminPreview && (
+          <nav className="user-nav" aria-label="主导航">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={
+                  selectedKey === item.path
+                    ? 'user-nav-link user-nav-link-active'
+                    : 'user-nav-link'
+                }
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
         <div className="layout-account">
           {user ? (
             <Dropdown menu={{ items: accountItems }} placement="bottomRight">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App as AntdApp, Button, Card, Modal, Segmented, Space } from 'antd';
+import { App as AntdApp, Button, Card, Modal, Segmented, Space, Tooltip } from 'antd';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAdminCourse, publishCourse, unpublishCourse } from '@/api/admin/courses';
@@ -119,24 +119,29 @@ export default function CourseWorkspacePage() {
         title={course.name}
         extra={
           <Space>
-            {(course.status === 'draft' || course.status === 'unpublished') && (
-              <ConfirmAction
-                title="发布课程"
-                content="发布后课程对用户可见，确认发布？"
-                onConfirm={() =>
-                  confirmStatusChange(() => publishMutation.mutateAsync())
-                }
-              >
-                <Button
-                  type="primary"
-                  autoInsertSpace={false}
-                  disabled={publishDisabled}
-                  title={publishDisabled ? '请先添加至少一个章节' : undefined}
+            {(course.status === 'draft' || course.status === 'unpublished') &&
+              (publishDisabled ? (
+                // 无章节不可发布：禁用按钮并在悬浮时说明原因
+                <Tooltip title="请先添加至少一个章节，再发布课程">
+                  <span style={{ cursor: 'not-allowed' }}>
+                    <Button type="primary" autoInsertSpace={false} disabled>
+                      发布
+                    </Button>
+                  </span>
+                </Tooltip>
+              ) : (
+                <ConfirmAction
+                  title="发布课程"
+                  content="发布后课程对用户可见，确认发布？"
+                  onConfirm={() =>
+                    confirmStatusChange(() => publishMutation.mutateAsync())
+                  }
                 >
-                  发布
-                </Button>
-              </ConfirmAction>
-            )}
+                  <Button type="primary" autoInsertSpace={false}>
+                    发布
+                  </Button>
+                </ConfirmAction>
+              ))}
             {course.status === 'published' && (
               <ConfirmAction
                 title="下架课程"

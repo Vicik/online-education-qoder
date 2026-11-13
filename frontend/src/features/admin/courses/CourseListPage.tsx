@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App, Button, Select, Space } from 'antd';
+import { App, Button, Select, Space, Tooltip } from 'antd';
 import { Link, useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -68,6 +68,11 @@ export default function CourseListPage() {
     ]);
   }
 
+  // 预览：新标签页打开独立的管理端预览页
+  function openPreview(courseId: number) {
+    window.open(`/admin/courses/${courseId}/preview`, '_blank', 'noopener,noreferrer');
+  }
+
   // 同步后端总数
   useEffect(() => {
     if (query.data) setTotal(query.data.total);
@@ -113,6 +118,14 @@ export default function CourseListPage() {
         return (
         <Space size={4} wrap>
           <Link to={`/admin/courses/${courseId}`}>管理</Link>
+          <Button
+            type="link"
+            size="small"
+            autoInsertSpace={false}
+            onClick={() => openPreview(courseId)}
+          >
+            预览
+          </Button>
           {record.status === 'published' ? (
             <ConfirmAction
               title="下架课程"
@@ -126,6 +139,15 @@ export default function CourseListPage() {
                 下架
               </Button>
             </ConfirmAction>
+          ) : record.chapterCount === 0 ? (
+            // 无章节不可发布：禁用按钮并在悬浮时说明原因
+            <Tooltip title="请先添加至少一个章节，再发布课程">
+              <span style={{ cursor: 'not-allowed' }}>
+                <Button type="link" size="small" autoInsertSpace={false} disabled>
+                  发布
+                </Button>
+              </span>
+            </Tooltip>
           ) : (
             <ConfirmAction
               title="发布课程"
@@ -134,15 +156,7 @@ export default function CourseListPage() {
                 runCourseAction(courseId, () => publishCourse(courseId), '课程已发布')
               }
             >
-              <Button
-                type="link"
-                size="small"
-                autoInsertSpace={false}
-                disabled={record.chapterCount === 0}
-                title={
-                  record.chapterCount === 0 ? '请先添加至少一个章节' : undefined
-                }
-              >
+              <Button type="link" size="small" autoInsertSpace={false}>
                 发布
               </Button>
             </ConfirmAction>
