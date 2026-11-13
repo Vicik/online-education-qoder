@@ -300,7 +300,7 @@ export function ChapterPanel(props: {
             name="title"
             label="章节标题"
             rules={[
-              { required: true, message: '请输入章节标题' },
+              { required: true, whitespace: true, message: '请输入章节标题' },
               { max: 60, message: '最多 60 个字符' },
             ]}
           >

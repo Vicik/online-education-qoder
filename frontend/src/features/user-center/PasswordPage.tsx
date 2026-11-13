@@ -58,7 +58,7 @@ export default function PasswordPage() {
           <Form.Item
             name="currentPassword"
             label="当前密码"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            rules={[{ required: true, whitespace: true, message: '请输入当前密码' }]}
           >
             <Input.Password autoComplete="current-password" />
           </Form.Item>
@@ -66,7 +66,7 @@ export default function PasswordPage() {
             name="newPassword"
             label="新密码"
             rules={[
-              { required: true, message: '请输入新密码' },
+              { required: true, whitespace: true, message: '请输入新密码' },
               {
                 validator: (_, value: string) => {
                   // 复用统一密码规则
@@ -85,7 +85,7 @@ export default function PasswordPage() {
             label="确认新密码"
             dependencies={['newPassword']}
             rules={[
-              { required: true, message: '请再次输入新密码' },
+              { required: true, whitespace: true, message: '请再次输入新密码' },
               ({ getFieldValue }) => ({
                 validator: (_, value: string) =>
                   getFieldValue('newPassword') === value

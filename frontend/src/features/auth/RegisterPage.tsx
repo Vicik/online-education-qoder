@@ -56,7 +56,7 @@ export default function RegisterPage() {
           name="email"
           label="邮箱"
           rules={[
-            { required: true, message: '请输入邮箱' },
+            { required: true, whitespace: true, message: '请输入邮箱' },
             {
               validator: (_, value: string) => {
                 const message = validateEmail(value ?? '');
@@ -71,7 +71,7 @@ export default function RegisterPage() {
           name="password"
           label="密码"
           rules={[
-            { required: true, message: '请输入密码' },
+            { required: true, whitespace: true, message: '请输入密码' },
             {
               validator: (_, value: string) => {
                 const message = validatePassword(value ?? '');
@@ -87,7 +87,7 @@ export default function RegisterPage() {
           label="确认密码"
           dependencies={['password']}
           rules={[
-            { required: true, message: '请再次输入密码' },
+            { required: true, whitespace: true, message: '请再次输入密码' },
             ({ getFieldValue }) => ({
               validator: (_, value: string) => {
                 const message = validateConfirmPassword(getFieldValue('password') ?? '', value ?? '');
@@ -102,7 +102,7 @@ export default function RegisterPage() {
           name="nickname"
           label="昵称"
           rules={[
-            { required: true, message: '请输入昵称' },
+            { required: true, whitespace: true, message: '请输入昵称' },
             {
               validator: (_, value: string) => {
                 const message = validateNickname(value ?? '');

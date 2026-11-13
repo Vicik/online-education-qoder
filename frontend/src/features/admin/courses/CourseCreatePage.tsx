@@ -97,7 +97,7 @@ export default function CourseCreatePage() {
             name="name"
             label="课程名称"
             rules={[
-              { required: true, message: '请输入课程名称' },
+              { required: true, whitespace: true, message: '请输入课程名称' },
               { max: 40, message: '最多 40 个字符' },
             ]}
           >
@@ -136,7 +136,7 @@ export default function CourseCreatePage() {
           <Form.Item
             name="instructor"
             label="讲师"
-            rules={[{ required: true, message: '请输入讲师' }]}
+            rules={[{ required: true, whitespace: true, message: '请输入讲师' }]}
           >
             <Input placeholder="讲师姓名" />
           </Form.Item>

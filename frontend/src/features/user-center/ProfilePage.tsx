@@ -87,7 +87,10 @@ export default function ProfilePage() {
           <Form.Item
             name="nickname"
             label="昵称"
-            rules={[{ required: true, message: '请输入昵称' }, { max: 30, message: '昵称最多 30 个字符' }]}
+            rules={[
+              { required: true, whitespace: true, message: '请输入昵称' },
+              { max: 30, message: '昵称最多 30 个字符' },
+            ]}
           >
             <Input maxLength={30} showCount />
           </Form.Item>

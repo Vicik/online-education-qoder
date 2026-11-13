@@ -52,7 +52,7 @@ export function ExamForm(props: {
       <Form.Item
         name="title"
         label="考试名称"
-        rules={[{ required: true, message: '请输入考试名称' }]}
+        rules={[{ required: true, whitespace: true, message: '请输入考试名称' }]}
       >
         <Input disabled={readOnly} placeholder="例如：期中考试" />
       </Form.Item>

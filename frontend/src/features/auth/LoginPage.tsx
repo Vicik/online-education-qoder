@@ -70,7 +70,7 @@ export default function LoginPage() {
           name="email"
           label="邮箱"
           rules={[
-            { required: true, message: '请输入邮箱' },
+            { required: true, whitespace: true, message: '请输入邮箱' },
             {
               validator: (_, value: string) => {
                 const message = validateEmail(value ?? '');
@@ -85,7 +85,7 @@ export default function LoginPage() {
           name="password"
           label="密码"
           rules={[
-            { required: true, message: '请输入密码' },
+            { required: true, whitespace: true, message: '请输入密码' },
             {
               validator: (_, value: string) => {
                 const message = validatePassword(value ?? '');

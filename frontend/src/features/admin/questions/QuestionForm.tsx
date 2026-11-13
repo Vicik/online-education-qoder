@@ -98,7 +98,7 @@ export function QuestionForm(props: {
       <Form.Item
         name="stem"
         label="题干"
-        rules={[{ required: true, message: '请输入题干' }]}
+        rules={[{ required: true, whitespace: true, message: '请输入题干' }]}
       >
         <Input.TextArea rows={3} placeholder="输入题目内容" />
       </Form.Item>
@@ -121,7 +121,7 @@ export function QuestionForm(props: {
                   <Form.Item
                     name={[field.name, 'text']}
                     style={{ marginBottom: 0 }}
-                    rules={[{ required: true, message: '请输入选项内容' }]}
+                    rules={[{ required: true, whitespace: true, message: '请输入选项内容' }]}
                   >
                     <Input
                       placeholder={`选项 ${options[index]?.key ?? ''}`}
@@ -195,7 +195,7 @@ export function QuestionForm(props: {
       <Form.Item
         name="analysis"
         label="答案解析"
-        rules={[{ required: true, message: '请输入答案解析' }]}
+        rules={[{ required: true, whitespace: true, message: '请输入答案解析' }]}
       >
         <Input.TextArea rows={4} placeholder="交卷后向考生展示" />
       </Form.Item>

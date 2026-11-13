@@ -75,7 +75,7 @@ export function BlockedWordFormModal(props: {
           name="word"
           label="屏蔽词"
           rules={[
-            { required: true, message: '请输入屏蔽词' },
+            { required: true, whitespace: true, message: '请输入屏蔽词' },
             { max: 100, message: '最多 100 个字符' },
           ]}
         >
