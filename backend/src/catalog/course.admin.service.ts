@@ -225,8 +225,12 @@ export class CourseAdminService {
 
     // 当前状态允许编辑的字段
     const editable = EDITABLE_FIELDS[course.status];
-    // 请求中显式传入的字段（version 除外）
-    const changedKeys = Object.keys(dto).filter((key) => key !== 'version');
+    // DTO 实例字段视图：transform 后未传入的字段也存在于实例上（值为 undefined）
+    const submitted = dto as unknown as Record<string, unknown>;
+    // 请求中显式传入且非 undefined 的字段（version 除外）
+    const changedKeys = Object.keys(dto).filter(
+      (key) => key !== 'version' && submitted[key] !== undefined,
+    );
     for (const key of changedKeys) {
       // 非白名单字段按状态矩阵拒绝
       if (!editable.includes(key)) {

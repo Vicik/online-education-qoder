@@ -3,6 +3,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CourseAdminService } from './course.admin.service';
 import { CourseService } from './course.service';
+import { UpdateCourseDto } from './dto/update-course.dto';
 
 // 管理端写操作上下文（模拟已登录管理员）
 const CTX = { actorId: 9, ip: '127.0.0.1', requestId: 'req-1' };
@@ -262,6 +263,25 @@ describe('CourseAdminService.update（§3.3 状态矩阵）', () => {
         service.update(1, { version: 3, ...field }),
       ).rejects.toMatchObject({ bizCode: 1001 });
     }
+  });
+
+  it('DTO 实例未传入的字段不算修改：已下架只改详细介绍可保存', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(UNPUBLISHED);
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue(UNPUBLISHED);
+
+    // transform 后的 DTO：其余字段为 undefined 占位
+    const dto = Object.assign(new UpdateCourseDto(), {
+      version: 3,
+      detailRich: '<p>新详情</p>',
+    });
+
+    await expect(service.update(1, dto)).resolves.toBeDefined();
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, version: 3 },
+      data: expect.objectContaining({ detailRich: '<p>新详情</p>' }),
+    });
   });
 
   it('version 不匹配返回 409（code=4004）', async () => {
