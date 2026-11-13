@@ -25,4 +25,11 @@ describe('LoginDto', () => {
       validate(plainToInstance(LoginDto, { email: 'a@b.com' })),
     ).resolves.not.toHaveLength(0);
   });
+
+  it('邮箱或密码为空串被拒', async () => {
+    await expect(validate(build({ email: '' }))).resolves.not.toHaveLength(0);
+    await expect(validate(build({ password: '' }))).resolves.not.toHaveLength(
+      0,
+    );
+  });
 });

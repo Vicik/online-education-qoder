@@ -34,4 +34,13 @@ describe('ChangePasswordDto', () => {
       ),
     ).resolves.not.toHaveLength(0);
   });
+
+  it('必填字段为空串被拒', async () => {
+    await expect(
+      validate(build({ currentPassword: '' })),
+    ).resolves.not.toHaveLength(0);
+    await expect(
+      validate(build({ newPassword: '', confirmPassword: '' })),
+    ).resolves.not.toHaveLength(0);
+  });
 });

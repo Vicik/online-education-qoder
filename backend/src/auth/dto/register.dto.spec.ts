@@ -65,4 +65,15 @@ describe('RegisterDto', () => {
     const dto = build({ email: 'not-an-email' });
     await expect(validate(dto)).resolves.not.toHaveLength(0);
   });
+
+  it('必填字段为空串被拒', async () => {
+    for (const override of [
+      { email: '' },
+      { password: '', confirmPassword: '' },
+      { confirmPassword: '' },
+      { nickname: '' },
+    ]) {
+      await expect(validate(build(override))).resolves.not.toHaveLength(0);
+    }
+  });
 });
