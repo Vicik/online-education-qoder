@@ -9,7 +9,6 @@ import type { CourseWriteResult } from '@/api/types';
 import { ConfirmAction } from '@/components/common/ConfirmAction';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PageHeader } from '@/components/common/PageHeader';
-import { StatusTag } from '@/components/common/StatusTag';
 import { BasicInfoForm } from './BasicInfoForm';
 import { ChapterPanel } from './ChapterPanel';
 
@@ -116,7 +115,6 @@ export default function CourseWorkspacePage() {
         title={course.name}
         extra={
           <Space>
-            <StatusTag domain="course" status={course.status ?? 'draft'} />
             {(course.status === 'draft' || course.status === 'unpublished') && (
               <ConfirmAction
                 title="发布课程"

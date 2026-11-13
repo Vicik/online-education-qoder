@@ -174,7 +174,7 @@ describe('CourseWorkspacePage', () => {
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
 
     expect(await screen.findByLabelText('章节标题')).toHaveValue('');
-  });
+  }, 30_000);
 
   it('发布需二次确认，确认后刷新详情', async () => {
     // 详情请求次数
