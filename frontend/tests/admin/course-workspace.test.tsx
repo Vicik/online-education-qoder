@@ -136,6 +136,46 @@ describe('CourseWorkspacePage', () => {
     );
   });
 
+  it('取消新增后再次打开，标题与正文为空', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json(envelope(courseDetail({ type: 'rich' }))),
+      ),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
+
+    await userEvent.type(screen.getByLabelText('章节标题'), '残留标题');
+    const editor = document.querySelector('.ProseMirror') as HTMLElement;
+    await userEvent.click(editor);
+    await userEvent.keyboard('残留正文');
+    expect(editor.textContent).toContain('残留正文');
+
+    await userEvent.click(screen.getByRole('button', { name: '取消' }));
+    await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
+
+    expect(await screen.findByLabelText('章节标题')).toHaveValue('');
+    expect((document.querySelector('.ProseMirror') as HTMLElement).textContent).toBe('');
+  }, 30_000);
+
+  it('编辑章节后打开新增，标题为空', async () => {
+    server.use(
+      http.get(detailUrl, () => HttpResponse.json(envelope(courseDetail()))),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    await userEvent.click(screen.getAllByRole('button', { name: '编辑' })[0]);
+    expect(await screen.findByLabelText('章节标题')).toHaveValue('第一章');
+
+    await userEvent.click(screen.getByRole('button', { name: '取消' }));
+    await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
+
+    expect(await screen.findByLabelText('章节标题')).toHaveValue('');
+  });
+
   it('发布需二次确认，确认后刷新详情', async () => {
     // 详情请求次数
     let detailCalls = 0;

@@ -126,15 +126,17 @@ export function ChapterPanel(props: {
     onError: handleError,
   });
 
-  // 打开新增弹窗
+  // 打开新增弹窗：表单实例跨弹窗复用，需显式清空上次输入
   function openCreate() {
     setEditing(null);
+    form.setFieldsValue({ title: '', content: '' });
     setOpen(true);
   }
 
-  // 打开编辑弹窗：正文不回显，留空保持
+  // 打开编辑弹窗：标题回填，正文留空保持
   function openEdit(chapter: AdminChapter) {
     setEditing(chapter);
+    form.setFieldsValue({ title: chapter.title ?? '', content: '' });
     setOpen(true);
   }
 
