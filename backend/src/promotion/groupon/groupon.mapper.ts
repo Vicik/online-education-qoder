@@ -19,6 +19,8 @@ export interface GrouponActivityBrief {
   endAt: Date; // 结束时间
   status: GrouponActivityStatus; // 活动状态
   version: number; // 乐观锁版本号（管理端编辑时回传）
+  courseCoverUrl?: string | null; // 课程封面展示地址（用户端列表补充）
+  courseOriginalCents?: number; // 课程原价（分，用户端列表补充）
 }
 
 // 团组视图：与 openapi GrouponGroup 一致（targetSize 来自所属活动）
@@ -29,6 +31,7 @@ export interface GrouponGroupView {
   targetSize: number; // 成团人数
   expiresAt: Date; // 团组截止时间（= 活动 endAt）
   formedAt: Date | null; // 成团时间
+  leaderNickname?: string | null; // 团长昵称（公开详情补充）
 }
 
 // 拼团订单摘要：与 openapi Order 一致
@@ -57,9 +60,13 @@ export interface MyGrouponItem {
   status: GrouponGroupStatus; // 团组状态（列表主状态）
 }
 
-// 活动及其课程的联查结果
+// 活动及其课程的联查结果：用户端列表额外带封面与原价
 export type GrouponActivityWithCourse = GrouponActivity & {
-  course: { name: string }; // 课程名称（联查字段）
+  course: {
+    name: string; // 课程名称（联查字段）
+    coverUrl?: string | null; // 封面 key（用户端列表补齐）
+    originalCents?: number; // 课程原价（分，用户端列表补齐）
+  };
 };
 
 // 订单及其课程的联查结果
@@ -85,10 +92,11 @@ export function toActivityBrief(
   };
 }
 
-// 团组行转为接口视图：targetSize 冗余自所属活动
+// 团组行转为接口视图：targetSize 冗余自所属活动，团长昵称仅公开详情传入
 export function toGroupView(
   group: GrouponGroup,
   targetSize: number,
+  leaderNickname?: string | null,
 ): GrouponGroupView {
   return {
     id: group.id,
@@ -97,6 +105,7 @@ export function toGroupView(
     targetSize,
     expiresAt: group.expiresAt,
     formedAt: group.formedAt,
+    leaderNickname: leaderNickname ?? null,
   };
 }
 

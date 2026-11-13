@@ -22,7 +22,7 @@ export interface StudyRecord {
   lastChapterTitle: string | null; // 最近学习章节标题
   progressPercent: number; // 学习进度百分比
   completed: boolean; // 是否已学完
-  lastVisitedAt: Date; // 最后学习时间
+  lastVisitedAt: Date; // 最后学习时间（未观看的已购课程为支付时间）
 }
 
 // 学习服务：章节访问记录、学习进度与学习记录
@@ -78,7 +78,7 @@ export class LearningService {
     };
   }
 
-  // 学习记录分页：按课程聚合最近学习章节与进度
+  // 学习记录分页：已购课程 ∪ 已学习课程，按最近学习/购买时间倒序
   async getStudyRecords(
     userId: number,
     page: PageQuery,
@@ -87,19 +87,69 @@ export class LearningService {
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
 
-    // 按课程聚合：已访问章节数与最近访问时间（最近学习在前）
-    const groups = await this.prisma.learningRecord.groupBy({
-      by: ['courseId'],
-      where: { userId },
-      _max: { visitedAt: true },
-      _count: { _all: true },
-      orderBy: { _max: { visitedAt: 'desc' } },
-    });
+    const [paidGroups, learningGroups] = await Promise.all([
+      // 已购课程：已支付订单，拼团需已成团；取每门课最近支付时间
+      this.prisma.order.groupBy({
+        by: ['courseId'],
+        where: {
+          userId,
+          status: 'paid',
+          OR: [
+            // 普通/秒杀订单：支付即授予权限
+            { activityType: { not: 'groupon' } },
+            // 拼团订单：团组成功成团后才授予权限
+            { grouponMembers: { some: { group: { status: 'success' } } } },
+          ],
+        },
+        _max: { paidAt: true },
+      }),
+      // 学习记录：按课程聚合已访问章节数与最近访问时间
+      this.prisma.learningRecord.groupBy({
+        by: ['courseId'],
+        where: { userId },
+        _max: { visitedAt: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // 课程 id -> 已购时间 / 最近学习时间 / 已访问章节数
+    const merged = new Map<
+      number,
+      { paidAt: Date | null; visitedAt: Date | null; visitedCount: number }
+    >();
+    // 先放入已购课程：未观看时也出现在学习记录
+    for (const group of paidGroups) {
+      merged.set(group.courseId, {
+        paidAt: group._max.paidAt,
+        visitedAt: null,
+        visitedCount: 0,
+      });
+    }
+    // 再合并学习记录：覆盖访问时间与章节数
+    for (const group of learningGroups) {
+      const entry = merged.get(group.courseId) ?? {
+        paidAt: null,
+        visitedAt: null,
+        visitedCount: 0,
+      };
+      entry.visitedAt = group._max.visitedAt;
+      entry.visitedCount = group._count._all;
+      merged.set(group.courseId, entry);
+    }
+
+    // 最近活跃时间：已学习取最近学习时间，未观看取支付时间；按此倒序
+    const ordered = [...merged.entries()]
+      .map(([courseId, entry]) => ({
+        courseId,
+        ...entry,
+        lastActiveAt: entry.visitedAt ?? entry.paidAt ?? new Date(0),
+      }))
+      .sort((a, b) => b.lastActiveAt.getTime() - a.lastActiveAt.getTime());
 
     // 课程维度总条数
-    const total = groups.length;
+    const total = ordered.length;
     // 当前页课程分组
-    const pageGroups = groups.slice((pageNo - 1) * pageSize, pageNo * pageSize);
+    const pageGroups = ordered.slice((pageNo - 1) * pageSize, pageNo * pageSize);
     // 当前页无数据时无需后续查询
     if (pageGroups.length === 0) {
       return { items: [], total, page: pageNo, pageSize };
@@ -155,13 +205,13 @@ export class LearningService {
       });
     }
 
-    // 按分组顺序（最近学习在前）组装学习记录
+    // 按分组顺序（最近活跃在前）组装学习记录
     const items = pageGroups.map((group) => {
       // 课程总章节数
       const chapterCount = chapterCountByCourse.get(group.courseId) ?? 0;
-      // 已访问章节数
-      const visitedCount = group._count._all;
-      // 最近学习章节
+      // 已访问章节数；未观看的已购课程为 0
+      const visitedCount = group.visitedCount;
+      // 最近学习章节；未观看没有最近章节
       const latest = latestByCourse.get(group.courseId);
 
       return {
@@ -176,7 +226,7 @@ export class LearningService {
             ? Math.round((visitedCount / chapterCount) * 100)
             : 0,
         completed: chapterCount > 0 && visitedCount >= chapterCount,
-        lastVisitedAt: group._max.visitedAt ?? latest?.visitedAt ?? new Date(0),
+        lastVisitedAt: group.lastActiveAt,
       };
     });
 

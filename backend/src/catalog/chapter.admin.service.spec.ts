@@ -31,8 +31,6 @@ function setup() {
 const VIDEO_DRAFT = { id: 1, type: 'video', status: 'draft' };
 // 已发布视频课程
 const VIDEO_PUBLISHED = { ...VIDEO_DRAFT, status: 'published' };
-// 草稿图文章节
-const RICH_DRAFT = { id: 1, type: 'rich', status: 'draft' };
 
 describe('ChapterAdminService.addChapter', () => {
   it('章节类型必须与课程类型一致', async () => {
@@ -40,7 +38,7 @@ describe('ChapterAdminService.addChapter', () => {
     prisma.course.findUnique.mockResolvedValue(VIDEO_DRAFT);
 
     await expect(
-      service.addChapter(1, { title: 'x', contentType: 'rich', content: 'y' }),
+      service.addChapter(1, { title: 'x', contentType: 'audio', content: 'y' }),
     ).rejects.toMatchObject({ bizCode: 1001 });
     expect(prisma.chapter.create).not.toHaveBeenCalled();
   });
@@ -74,9 +72,9 @@ describe('ChapterAdminService.addChapter', () => {
     ).rejects.toMatchObject({ bizCode: 1001 });
   });
 
-  it('新章节 sortOrder = max+1，富文本内容净化后落库', async () => {
+  it('新章节 sortOrder = max+1，媒体内容原样落库', async () => {
     const { prisma, service } = setup();
-    prisma.course.findUnique.mockResolvedValue(RICH_DRAFT);
+    prisma.course.findUnique.mockResolvedValue(VIDEO_DRAFT);
     prisma.chapter.aggregate.mockResolvedValue({ _max: { sortOrder: 2 } });
     prisma.chapter.create.mockImplementation(({ data }) =>
       Promise.resolve(data),
@@ -84,16 +82,16 @@ describe('ChapterAdminService.addChapter', () => {
 
     const created = await service.addChapter(1, {
       title: '第一节',
-      contentType: 'rich',
-      content: '<p onclick="x()">a</p>',
+      contentType: 'video',
+      content: 'videos/2026/11/a.mp4',
     });
 
     expect(prisma.chapter.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         courseId: 1,
         title: '第一节',
-        contentType: 'rich',
-        content: '<p>a</p>',
+        contentType: 'video',
+        content: 'videos/2026/11/a.mp4',
         sortOrder: 3,
       }),
     });
@@ -146,22 +144,17 @@ describe('ChapterAdminService.updateChapter', () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
-  it('富文本章节内容净化并写审计', async () => {
+  it('章节媒体内容原样保存并写审计', async () => {
     const { prisma, audit, service } = setup();
-    prisma.course.findUnique.mockResolvedValue(RICH_DRAFT);
+    prisma.course.findUnique.mockResolvedValue(VIDEO_DRAFT);
     prisma.chapter.findFirst.mockResolvedValue({ id: 2, title: '旧标题' });
     prisma.chapter.update.mockResolvedValue({ id: 2, title: '新标题' });
 
-    await service.updateChapter(
-      1,
-      2,
-      { content: '<p onclick="x()">a</p>' },
-      CTX,
-    );
+    await service.updateChapter(1, 2, { content: 'videos/2026/11/b.mp4' }, CTX);
 
     expect(prisma.chapter.update).toHaveBeenCalledWith({
       where: { id: 2 },
-      data: { content: '<p>a</p>' },
+      data: { content: 'videos/2026/11/b.mp4' },
     });
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'chapter.update', targetId: 2 }),

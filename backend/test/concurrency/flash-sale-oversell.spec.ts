@@ -59,7 +59,7 @@ describe('秒杀防超卖（CI 并发）', () => {
       prisma.course.create({
         data: {
           name: `${label}-${SUFFIX}`,
-          type: 'rich',
+          type: 'audio',
           originalCents: 9900,
           saleCents: 9900,
           instructor: '测试讲师',

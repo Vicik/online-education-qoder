@@ -6,7 +6,6 @@ import { loadConfig } from '../src/config/configuration';
 import {
   COUPON_TEMPLATE,
   COURSE_TYPESCRIPT,
-  COURSE_WRITING,
   DEMO_ADMIN,
   DEMO_GROUPON_USER,
   DEMO_USER,
@@ -151,30 +150,6 @@ export async function seedDemoData(
       },
     });
   }
-
-  // 草稿图文课：按固定 id 幂等
-  await prisma.course.upsert({
-    where: { id: COURSE_WRITING.id },
-    create: {
-      id: COURSE_WRITING.id, // 固定课程 id
-      name: COURSE_WRITING.name, // 课程名称
-      type: COURSE_WRITING.type, // rich
-      instructor: COURSE_WRITING.instructor, // 讲师
-      coverUrl: COURSE_WRITING.coverUrl, // 封面（空串=占位图）
-      originalCents: COURSE_WRITING.originalCents, // 原价
-      saleCents: COURSE_WRITING.saleCents, // 售价
-      status: COURSE_WRITING.status, // draft
-    },
-    update: {
-      name: COURSE_WRITING.name, // 课程名称
-      type: COURSE_WRITING.type, // rich
-      instructor: COURSE_WRITING.instructor, // 讲师
-      coverUrl: COURSE_WRITING.coverUrl, // 封面（空串=占位图）
-      originalCents: COURSE_WRITING.originalCents, // 原价
-      saleCents: COURSE_WRITING.saleCents, // 售价
-      status: COURSE_WRITING.status, // draft
-    },
-  });
 
   // 拼团活动与演示团组共用的结束时间（团组 expiresAt = 活动 endAt）
   const grouponEndAt = new Date(now.getTime() + 3 * HOUR_MS);
@@ -437,7 +412,7 @@ export async function seedDemoData(
 
   // 使用固定 id 播种的表：显式写入 id 不会推进自增序列，需在种子末尾手动对齐
   const explicitIdTables = [
-    'courses', // 课程（固定 id 1、2）
+    'courses', // 课程（固定 id 1）
     'groupon_activities', // 拼团活动（固定 id 1）
     'flash_sale_activities', // 秒杀活动（固定 id 1）
     'coupon_templates', // 券模板（固定 id 1）

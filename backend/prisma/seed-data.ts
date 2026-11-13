@@ -44,19 +44,6 @@ export const COURSE_TYPESCRIPT = {
   ],
 };
 
-// 草稿状态的图文课（不出现在用户端）
-export const COURSE_WRITING = {
-  id: 2, // 固定课程 id
-  name: '结构化写作课', // 课程名称
-  type: 'rich' as const, // 课程类型：图文
-  status: 'draft' as const, // 草稿
-  instructor: '李老师', // 讲师
-  coverUrl: '', // 种子不指向不存在的文件，前端显示占位图
-  originalCents: 29900, // 原价（分）
-  saleCents: 19900, // 售价（分）
-  chapters: [], // 草稿课暂无章节
-};
-
 // 进行中的双人拼团活动
 export const GROUPON_ACTIVITY = {
   id: 1, // 固定活动 id

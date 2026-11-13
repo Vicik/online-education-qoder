@@ -3,7 +3,6 @@ import { execSeed } from '../../prisma/seed';
 import {
   COUPON_TEMPLATE,
   COURSE_TYPESCRIPT,
-  COURSE_WRITING,
   DEMO_ADMIN,
   DEMO_GROUPON_USER,
   DEMO_USER,
@@ -59,12 +58,6 @@ describe('迁移与种子冒烟（CI）', () => {
     expect(c?.status).toBe('published');
     expect(c?.type).toBe('video');
     expect(await prisma.chapter.count({ where: { courseId: c!.id } })).toBe(2);
-  });
-
-  it('course-writing 为草稿图文课，不出现在用户端', async () => {
-    const c = await prisma.course.findUnique({ where: { id: COURSE_WRITING.id } });
-    expect(c?.status).toBe('draft');
-    expect(c?.type).toBe('rich');
   });
 
   it('进行中双人拼团活动 + 仅差一人团组（含待成团订单）', async () => {

@@ -17,6 +17,12 @@ import { StorageService } from '../storage/storage.service';
 // 首页推荐课程数量
 const RECOMMENDATION_LIMIT = 8;
 
+// 视为「当前有效」的活动状态：未开始与进行中；已结束/已取消不再占用普通课程列表
+const ACTIVE_ACTIVITY_STATUSES: GrouponActivityStatus[] = [
+  'not_started',
+  'ongoing',
+];
+
 // 课程简要信息：与 openapi CourseBrief 一致
 export interface CourseBrief {
   id: number; // 课程 id
@@ -39,6 +45,8 @@ export interface ChapterBrief {
   title: string; // 章节标题
   contentType: CourseType; // 章节内容类型
   sortOrder: number; // 章节序号
+  visited?: boolean; // 是否已学完：仅已登录已购用户返回
+  content?: string | null; // 媒体 key：仅管理端详情返回，用于编辑回填
 }
 
 // 拼团活动简要信息：与 openapi GrouponActivityBrief 一致
@@ -86,7 +94,7 @@ export interface ChapterContent {
   id: number; // 章节 id
   title: string; // 章节标题
   contentType: CourseType; // 内容类型
-  content: string | null; // 正文（rich HTML / 媒体 key）
+  content: string | null; // 正文（媒体 key 签名后的播放地址）
   sortOrder: number; // 章节序号
 }
 
@@ -113,12 +121,18 @@ export const COURSE_BRIEF_SELECT = {
   status: true,
 } as const;
 
-// 章节目录查询字段：不查询正文 content
+// 章节目录查询字段：默认不查询正文 content
 const CHAPTER_BRIEF_SELECT = {
   id: true,
   title: true,
   contentType: true,
   sortOrder: true,
+} as const;
+
+// 管理端章节目录查询字段：附带正文 key，供编辑回填
+const CHAPTER_ADMIN_SELECT = {
+  ...CHAPTER_BRIEF_SELECT,
+  content: true,
 } as const;
 
 // 将查询结果映射为课程简要信息：coverKey 保留原始 key，coverUrl 读取时签名
@@ -148,13 +162,19 @@ export class CourseService {
     private readonly storage: StorageService,
   ) {}
 
-  // 已发布课程分页列表
+  // 已发布课程分页列表：只返回未参与有效拼团/秒杀活动的普通课程
   async listPublished(page: PageQuery): Promise<PageResult<CourseBrief>> {
     // 分页参数兜底（直接调用服务时可能未经过 ValidationPipe）
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
-    // 只看已发布课程
-    const where = { status: 'published' as const };
+    // 只看已发布，且没有任何未开始/进行中拼团或秒杀活动的课程
+    const where = {
+      status: 'published' as const,
+      grouponActivities: { none: { status: { in: ACTIVE_ACTIVITY_STATUSES } } },
+      flashSaleActivities: {
+        none: { status: { in: ACTIVE_ACTIVITY_STATUSES } },
+      },
+    };
 
     const [rows, total] = await Promise.all([
       // 当前页课程
@@ -190,10 +210,11 @@ export class CourseService {
     return Promise.all(rows.map((row) => toCourseBrief(row, this.storage)));
   }
 
-  // 课程详情：默认仅已发布课程；管理端传 includeUnpublished=true 可查看草稿/下架
+  // 课程详情：默认仅已发布课程；管理端传 includeUnpublished=true 可查看草稿/下架；userId 用于返回章节已学标记
   async getDetail(
     courseId: number,
     includeUnpublished = false,
+    userId?: number,
   ): Promise<CourseDetail> {
     // 课程基础信息（游客视角只允许已发布课程）
     const course = await this.prisma.course.findFirst({
@@ -209,54 +230,80 @@ export class CourseService {
 
     // 服务端当前时间：用于过滤进行中活动与有效期内的券
     const now = new Date();
+    // 是否返回章节已学标记：仅登录且已购用户
+    const canSeeVisited =
+      userId !== undefined && (await this.hasPaidAccess(userId, courseId));
+    // 可查询已学记录的用户 id：未登录或未购时为空
+    const visitedViewerId = canSeeVisited ? userId : undefined;
 
-    const [chapters, groupon, flashSale, coupons] = await Promise.all([
-      // 章节目录：仅名称与类型，不返回正文
-      this.prisma.chapter.findMany({
-        where: { courseId },
-        select: CHAPTER_BRIEF_SELECT,
-        orderBy: { sortOrder: 'asc' },
-      }),
-      // 进行中的拼团活动
-      this.prisma.grouponActivity.findFirst({
-        where: {
-          courseId,
-          status: 'ongoing',
-          endAt: { gt: now },
-        },
-        orderBy: { startAt: 'desc' },
-      }),
-      // 进行中的秒杀活动
-      this.prisma.flashSaleActivity.findFirst({
-        where: {
-          courseId,
-          status: 'ongoing',
-          endAt: { gt: now },
-        },
-        orderBy: { startAt: 'desc' },
-      }),
-      // 可领券：启用且在有效期内、适用于本课程的模板
-      this.prisma.couponTemplate.findMany({
-        where: {
-          status: 'enabled',
-          startAt: { lte: now },
-          endAt: { gte: now },
-          courses: { some: { courseId } },
-        },
-        select: {
-          id: true,
-          name: true,
-          discountCents: true,
-          startAt: true,
-          endAt: true,
-          totalQty: true,
-          claimedCount: true,
-          status: true,
-          courses: { select: { courseId: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    const [chapters, groupon, flashSale, coupons, visitedRecords] =
+      await Promise.all([
+        // 章节目录：用户端仅名称与类型；管理端附带正文 key 供编辑回填
+        this.prisma.chapter.findMany({
+          where: { courseId },
+          select: includeUnpublished ? CHAPTER_ADMIN_SELECT : CHAPTER_BRIEF_SELECT,
+          orderBy: { sortOrder: 'asc' },
+        }),
+        // 进行中的拼团活动
+        this.prisma.grouponActivity.findFirst({
+          where: {
+            courseId,
+            status: 'ongoing',
+            endAt: { gt: now },
+          },
+          orderBy: { startAt: 'desc' },
+        }),
+        // 进行中的秒杀活动
+        this.prisma.flashSaleActivity.findFirst({
+          where: {
+            courseId,
+            status: 'ongoing',
+            endAt: { gt: now },
+          },
+          orderBy: { startAt: 'desc' },
+        }),
+        // 可领券：启用且在有效期内、适用于本课程的模板
+        this.prisma.couponTemplate.findMany({
+          where: {
+            status: 'enabled',
+            startAt: { lte: now },
+            endAt: { gte: now },
+            courses: { some: { courseId } },
+          },
+          select: {
+            id: true,
+            name: true,
+            discountCents: true,
+            startAt: true,
+            endAt: true,
+            totalQty: true,
+            claimedCount: true,
+            status: true,
+            courses: { select: { courseId: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        // 已学章节记录：仅已登录且已购用户
+        visitedViewerId !== undefined
+          ? this.prisma.learningRecord.findMany({
+              where: { userId: visitedViewerId, courseId },
+              select: { chapterId: true },
+            })
+          : Promise.resolve([] as { chapterId: number }[]),
+      ]);
+
+    // 已学章节 id 集合
+    const visitedChapterIds = new Set(
+      visitedRecords.map((record) => record.chapterId),
+    );
+    // 章节目录：已购用户附带 visited，其余用户不返回该字段
+    const chapterList: ChapterBrief[] =
+      visitedViewerId !== undefined
+        ? chapters.map((chapter) => ({
+            ...chapter,
+            visited: visitedChapterIds.has(chapter.id),
+          }))
+        : chapters;
 
     return {
       ...(await toCourseBrief(course, this.storage)),
@@ -267,7 +314,7 @@ export class CourseService {
         course.detailRich === null
           ? null
           : await this.storage.resolveRichHtml(course.detailRich),
-      chapters,
+      chapters: chapterList,
       // 活动信息补充课程名称（前端直接展示）
       groupon: groupon
         ? {
@@ -343,13 +390,11 @@ export class CourseService {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
     }
 
-    // 正文按类型解析：富文本图片换公开地址，视频/音频 key 换签名地址，历史 http 原样
+    // 视频/音频 key 换签名地址，历史 http 原样
     const content =
       chapter.content === null
         ? null
-        : chapter.contentType === 'rich'
-          ? await this.storage.resolveRichHtml(chapter.content)
-          : await this.storage.resolveUrl(chapter.content);
+        : await this.storage.resolveUrl(chapter.content);
 
     return {
       id: chapter.id,

@@ -2,6 +2,7 @@ import { ErrorCode } from '../../common/constants/error-codes';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { OrderService } from '../../trade/order/order.service';
 import { PricingService } from '../../trade/pricing/pricing.service';
 import { FlashStockService } from './flash-stock.service';
@@ -71,6 +72,9 @@ function setup() {
     restore: jest.fn().mockResolvedValue(undefined),
     remaining: jest.fn(),
   };
+  const storage = {
+    resolveUrl: jest.fn().mockResolvedValue(null),
+  };
 
   const service = new FlashSaleUserService(
     prisma as unknown as PrismaService,
@@ -78,8 +82,18 @@ function setup() {
     pricing as unknown as PricingService,
     idempotency as unknown as IdempotencyService,
     stock as unknown as FlashStockService,
+    storage as unknown as StorageService,
   );
-  return { prisma, quote, orders, pricing, idempotency, stock, service };
+  return {
+    prisma,
+    quote,
+    orders,
+    pricing,
+    idempotency,
+    stock,
+    storage,
+    service,
+  };
 }
 
 describe('FlashSaleUserService.purchase', () => {
@@ -219,13 +233,21 @@ describe('FlashSaleUserService.purchase', () => {
 });
 
 describe('FlashSaleUserService 查询', () => {
-  it('活动列表含剩余库存（未开始/进行中）', async () => {
-    const { prisma, stock, service } = setup();
+  it('活动列表含剩余库存与课程封面/原价（仅进行中）', async () => {
+    const { prisma, stock, storage, service } = setup();
     prisma.flashSaleActivity.findMany.mockResolvedValue([
-      { ...ACTIVITY, course: { name: 'TypeScript 系统入门' } },
+      {
+        ...ACTIVITY,
+        course: {
+          name: 'TypeScript 系统入门',
+          coverUrl: 'image/2026/01/01/cover.png',
+          originalCents: 19900,
+        },
+      },
     ]);
     prisma.flashSaleActivity.count.mockResolvedValue(1);
     stock.remaining.mockResolvedValue(7);
+    storage.resolveUrl.mockResolvedValue('https://cdn.example.com/cover.png');
 
     const page = await service.listActivities({ page: 1, pageSize: 20 });
 
@@ -233,10 +255,12 @@ describe('FlashSaleUserService 查询', () => {
       id: 1,
       courseName: 'TypeScript 系统入门',
       remaining: 7,
+      courseCoverUrl: 'https://cdn.example.com/cover.png',
+      courseOriginalCents: 19900,
     });
     expect(prisma.flashSaleActivity.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: { in: ['not_started', 'ongoing'] } },
+        where: { status: 'ongoing', endAt: { gt: expect.any(Date) } },
       }),
     );
   });

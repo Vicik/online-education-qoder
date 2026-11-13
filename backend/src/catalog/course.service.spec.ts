@@ -11,6 +11,7 @@ function setup() {
     grouponActivity: { findFirst: jest.fn() },
     flashSaleActivity: { findFirst: jest.fn() },
     couponTemplate: { findMany: jest.fn() },
+    learningRecord: { findMany: jest.fn() },
   };
   const storage = {
     resolveUrl: jest.fn(async (value: string | null) =>
@@ -86,7 +87,7 @@ describe('CourseService.hasPaidAccess', () => {
 });
 
 describe('CourseService.listPublished', () => {
-  it('listPublished 只查 status=published 且分页', async () => {
+  it('listPublished 只查已发布且无有效拼团/秒杀的课程并分页', async () => {
     const { prisma, service } = setup();
     prisma.course.findMany.mockResolvedValue([courseRow]);
     prisma.course.count.mockResolvedValue(1);
@@ -101,7 +102,15 @@ describe('CourseService.listPublished', () => {
     });
     expect(prisma.course.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'published' },
+        where: {
+          status: 'published',
+          grouponActivities: {
+            none: { status: { in: ['not_started', 'ongoing'] } },
+          },
+          flashSaleActivities: {
+            none: { status: { in: ['not_started', 'ongoing'] } },
+          },
+        },
         skip: 0,
         take: 20,
         orderBy: { createdAt: 'desc' },
@@ -200,6 +209,40 @@ describe('CourseService.getDetail', () => {
     );
   });
 
+  it('管理端详情返回章节正文 key，用户端不返回', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findFirst.mockResolvedValue({ ...courseRow, detailRich: null });
+    prisma.chapter.findMany.mockResolvedValue([
+      {
+        id: 1,
+        title: '第一章',
+        contentType: 'video',
+        sortOrder: 1,
+        content: 'video/2026/11/12/a.mp4',
+      },
+    ]);
+    prisma.grouponActivity.findFirst.mockResolvedValue(null);
+    prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
+    prisma.couponTemplate.findMany.mockResolvedValue([]);
+
+    const detail = await service.getDetail(1, true);
+
+    expect(prisma.chapter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: {
+          id: true,
+          title: true,
+          contentType: true,
+          sortOrder: true,
+          content: true,
+        },
+      }),
+    );
+    expect(detail.chapters[0]).toMatchObject({
+      content: 'video/2026/11/12/a.mp4',
+    });
+  });
+
   it('getDetail 非已发布课程抛 3001/404（游客视角）', async () => {
     const { prisma, service } = setup();
     prisma.course.findFirst.mockResolvedValue(null);
@@ -208,6 +251,54 @@ describe('CourseService.getDetail', () => {
       bizCode: 3001,
       status: 404,
     });
+  });
+
+  it('已购用户详情返回章节已学标记，游客不返回', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findFirst.mockResolvedValue({ ...courseRow, detailRich: null });
+    prisma.chapter.findMany.mockResolvedValue([
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2 },
+    ]);
+    prisma.grouponActivity.findFirst.mockResolvedValue(null);
+    prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
+    prisma.couponTemplate.findMany.mockResolvedValue([]);
+    prisma.learningRecord.findMany.mockResolvedValue([{ chapterId: 2 }]);
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+
+    const detail = await service.getDetail(1, false, 9);
+
+    expect(prisma.learningRecord.findMany).toHaveBeenCalledWith({
+      where: { userId: 9, courseId: 1 },
+      select: { chapterId: true },
+    });
+    expect(detail.chapters).toEqual([
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, visited: false },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, visited: true },
+    ]);
+
+    // 游客视角不查询学习记录
+    prisma.learningRecord.findMany.mockClear();
+    const guestDetail = await service.getDetail(1);
+    expect(prisma.learningRecord.findMany).not.toHaveBeenCalled();
+    expect(guestDetail.chapters[0]).not.toHaveProperty('visited');
+  });
+
+  it('未购用户即使登录也不返回已学标记', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findFirst.mockResolvedValue({ ...courseRow, detailRich: null });
+    prisma.chapter.findMany.mockResolvedValue([
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
+    ]);
+    prisma.grouponActivity.findFirst.mockResolvedValue(null);
+    prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
+    prisma.couponTemplate.findMany.mockResolvedValue([]);
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(false);
+
+    const detail = await service.getDetail(1, false, 9);
+
+    expect(prisma.learningRecord.findMany).not.toHaveBeenCalled();
+    expect(detail.chapters[0]).not.toHaveProperty('visited');
   });
 });
 
@@ -261,24 +352,20 @@ describe('CourseService.getChapterContent', () => {
     });
   });
 
-  it('富文本章节读取时重写图片为签名地址', async () => {
+  it('章节内容为存储 key 时返回签名地址', async () => {
     const { prisma, service } = setup();
     jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
     prisma.chapter.findFirst.mockResolvedValue({
       id: 2,
-      title: '富文本章',
-      contentType: 'rich',
-      content:
-        '<p>正文</p><img data-key="zhixu/2026/11/r.png" src="zhixu/2026/11/r.png" />',
+      title: '音频章',
+      contentType: 'audio',
+      content: 'audios/2026/11/ch1.mp3',
       sortOrder: 2,
     });
 
-    const chapter = await service.getChapterContent(1, 1, 2);
-
-    expect(chapter.content).toContain('data-key="zhixu/2026/11/r.png"');
-    expect(chapter.content).toContain(
-      'src="https://signed/zhixu/2026/11/r.png"',
-    );
+    await expect(service.getChapterContent(1, 1, 2)).resolves.toMatchObject({
+      content: 'https://signed/audios/2026/11/ch1.mp3',
+    });
   });
 
   it('章节正文为空时返回 null', async () => {

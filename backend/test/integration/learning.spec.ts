@@ -144,4 +144,29 @@ describe('学习与收藏（CI 集成）', () => {
       pageSize: 20,
     });
   });
+
+  it('已购未观看课程进入学习记录（0%）', async () => {
+    // 原价下单并支付，不产生任何观看记录
+    const created = await agent
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', 'learning-order-0001')
+      .send({ courseId: COURSE_TYPESCRIPT.id })
+      .expect(201);
+    const paid = await agent
+      .post(`/api/v1/orders/${created.body.data.id}/pay`)
+      .expect(200);
+
+    const res = await agent.get('/api/v1/user/study-records').expect(200);
+    expect(res.body.data.items).toHaveLength(1);
+    expect(res.body.data.items[0]).toMatchObject({
+      courseId: COURSE_TYPESCRIPT.id,
+      courseName: COURSE_TYPESCRIPT.name,
+      visitedCount: 0,
+      lastChapterId: null,
+      lastChapterTitle: null,
+      progressPercent: 0,
+      completed: false,
+      lastVisitedAt: paid.body.data.paidAt,
+    });
+  });
 });

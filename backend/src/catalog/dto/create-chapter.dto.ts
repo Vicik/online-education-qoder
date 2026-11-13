@@ -1,5 +1,5 @@
 import { CourseType } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 // 新增章节请求：对应 openapi ChapterCreateRequest
 export class CreateChapterDto {
@@ -13,8 +13,8 @@ export class CreateChapterDto {
   @IsEnum(CourseType)
   contentType!: CourseType;
 
-  // 章节正文：rich 为 HTML，video/audio 为媒体 key
-  @IsOptional()
+  // 章节正文：视频/音频媒体 key，必填
   @IsString()
-  content?: string | null;
+  @IsNotEmpty()
+  content!: string;
 }

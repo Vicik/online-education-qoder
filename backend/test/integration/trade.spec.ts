@@ -27,6 +27,8 @@ describe('订单与支付（CI 集成，基于种子）', () => {
   const mainEmail = `trade-main-${SUFFIX}@test.com`;
   // 主流程学员会话
   let mainAgent: ReturnType<typeof request.agent>;
+  // 仅用于验证「草稿课程不可购买」的临时课程 id
+  let draftCourseId: number;
 
   // 启动应用（与 main.ts 保持一致的中间件与管道）
   beforeAll(async () => {
@@ -64,9 +66,25 @@ describe('订单与支付（CI 集成，基于种子）', () => {
       },
     });
     couponTemplateId = template.id;
+
+    // 临时草稿课程：种子已不再包含草稿课程
+    const draft = await prisma.course.create({
+      data: {
+        name: `草稿课程-${SUFFIX}`,
+        type: 'audio',
+        originalCents: 1000,
+        saleCents: 1000,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'draft',
+      },
+    });
+    draftCourseId = draft.id;
   });
 
   afterAll(async () => {
+    // 清理临时草稿课程
+    await prisma.course.deleteMany({ where: { id: draftCourseId } });
     await app.close();
     await prisma.$disconnect();
   });
@@ -247,7 +265,7 @@ describe('订单与支付（CI 集成，基于种子）', () => {
     const freeCourse = await prisma.course.create({
       data: {
         name: `0元课-${SUFFIX}`,
-        type: 'rich',
+        type: 'audio',
         originalCents: 0,
         saleCents: 0,
         instructor: '测试讲师',
@@ -292,7 +310,7 @@ describe('订单与支付（CI 集成，基于种子）', () => {
     expect(noKey.body.code).toBe(1001);
 
     // 草稿课程不可购买 422
-    await agent.get('/api/v1/checkout/2/preview').expect(422);
+    await agent.get(`/api/v1/checkout/${draftCourseId}/preview`).expect(422);
 
     // 不存在课程 404
     await agent.get('/api/v1/checkout/999999/preview').expect(404);

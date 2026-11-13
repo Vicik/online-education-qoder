@@ -17,7 +17,7 @@ export class CreateCourseDto {
   @MaxLength(40)
   name!: string;
 
-  // 课程类型：视频/音频/图文
+  // 课程类型：视频/音频
   @IsEnum(CourseType)
   type!: CourseType;
 

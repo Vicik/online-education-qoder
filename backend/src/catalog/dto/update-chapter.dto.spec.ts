@@ -20,4 +20,15 @@ describe('UpdateChapterDto', () => {
     await expect(validate(build({ title: null }))).resolves.not.toHaveLength(0);
     await expect(validate(build({ title: '' }))).resolves.not.toHaveLength(0);
   });
+
+  it('传入合法正文时校验通过', async () => {
+    await expect(
+      validate(build({ content: 'video/2026/11/12/b.mp4' })),
+    ).resolves.toHaveLength(0);
+  });
+
+  it('正文为 null 或空串被拒', async () => {
+    await expect(validate(build({ content: null }))).resolves.not.toHaveLength(0);
+    await expect(validate(build({ content: '' }))).resolves.not.toHaveLength(0);
+  });
 });

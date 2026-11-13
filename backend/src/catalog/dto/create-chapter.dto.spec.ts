@@ -8,6 +8,7 @@ function build(overrides: Record<string, unknown> = {}): CreateChapterDto {
   return plainToInstance(CreateChapterDto, {
     title: '第一节', // 章节标题
     contentType: CourseType.video, // 内容类型与课程一致
+    content: 'video/2026/11/12/a.mp4', // 章节正文媒体 key
     ...overrides,
   });
 }
@@ -25,6 +26,14 @@ describe('CreateChapterDto', () => {
 
   it('章节标题为空串被拒', async () => {
     await expect(validate(build({ title: '' }))).resolves.not.toHaveLength(0);
+  });
+
+  it('缺少或为空的正文被拒', async () => {
+    await expect(
+      validate(build({ content: undefined })),
+    ).resolves.not.toHaveLength(0);
+    await expect(validate(build({ content: '' }))).resolves.not.toHaveLength(0);
+    await expect(validate(build({ content: null }))).resolves.not.toHaveLength(0);
   });
 
   it('内容类型非法被拒', async () => {

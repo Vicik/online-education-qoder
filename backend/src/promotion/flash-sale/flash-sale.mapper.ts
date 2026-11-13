@@ -17,11 +17,17 @@ export interface FlashSaleActivityView {
   endAt: Date; // 结束时间（倒计时依据）
   status: FlashSaleActivityStatus; // 活动状态
   version: number; // 乐观锁版本号（管理端编辑时回传）
+  courseCoverUrl?: string | null; // 课程封面展示地址（用户端列表补充）
+  courseOriginalCents?: number; // 课程原价（分，用户端列表补充）
 }
 
-// 活动及其课程的联查结果
+// 活动及其课程的联查结果：用户端列表额外带封面与原价
 export type FlashSaleActivityWithCourse = FlashSaleActivity & {
-  course: { name: string }; // 课程名称（联查字段）
+  course: {
+    name: string; // 课程名称（联查字段）
+    coverUrl?: string | null; // 封面 key（用户端列表补齐）
+    originalCents?: number; // 课程原价（分，用户端列表补齐）
+  };
 };
 
 // 活动行转为接口视图

@@ -7,7 +7,6 @@ import {
 } from '../audit/audit.service';
 import { ErrorCode } from '../common/constants/error-codes';
 import { BizException } from '../common/exceptions/biz.exception';
-import { sanitizeRichHtml } from '../common/utils/sanitize.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { ReorderChaptersDto } from './dto/reorder-chapters.dto';
@@ -67,13 +66,13 @@ export class ChapterAdminService {
     // 新章节追加到末尾
     const sortOrder = (aggregate._max.sortOrder ?? 0) + 1;
 
-    // 落库新章节
+    // 落库新章节（正文必填）
     const created = await this.prisma.chapter.create({
       data: {
         courseId,
         title: dto.title,
         contentType: dto.contentType,
-        content: this.prepareContent(course.type, dto.content),
+        content: dto.content,
         sortOrder,
       },
     });
@@ -95,8 +94,8 @@ export class ChapterAdminService {
     dto: UpdateChapterDto,
     context?: AuditContext,
   ): Promise<Chapter> {
-    // 课程与目标章节
-    const course = await this.requireEditableCourse(courseId);
+    // 校验课程可编辑并取出目标章节
+    await this.requireEditableCourse(courseId);
     const chapter = await this.requireChapter(courseId, chapterId);
 
     if (dto.title !== undefined && dto.title.length > TITLE_MAX_LENGTH) {
@@ -112,9 +111,7 @@ export class ChapterAdminService {
       where: { id: chapterId },
       data: {
         ...(dto.title === undefined ? {} : { title: dto.title }),
-        ...(dto.content === undefined
-          ? {}
-          : { content: this.prepareContent(course.type, dto.content) }),
+        ...(dto.content === undefined ? {} : { content: dto.content }),
       },
     });
 
@@ -240,17 +237,6 @@ export class ChapterAdminService {
       throw new BizException(ErrorCode.RESOURCE_NOT_FOUND, '章节不存在', 404);
     }
     return chapter;
-  }
-
-  // 按课程类型准备章节正文：图文内容需净化
-  private prepareContent(
-    courseType: CourseType,
-    content: string | null | undefined,
-  ): string | null {
-    // 非图文类型内容为媒体 key，原样保存（一期不校验文件是否存在）
-    if (courseType !== 'rich') return content ?? null;
-    // 图文类型净化 HTML；空值保持 null
-    return content ? sanitizeRichHtml(content) : null;
   }
 
   // 查询章节目录（不含正文）

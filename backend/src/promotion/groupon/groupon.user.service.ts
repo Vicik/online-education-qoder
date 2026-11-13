@@ -6,6 +6,7 @@ import { PageResult } from '../../common/dto/page-result';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { OrderService, OrderView } from '../../trade/order/order.service';
 import {
   PAYMENT_GATEWAY,
@@ -14,6 +15,7 @@ import {
 import { PricingService } from '../../trade/pricing/pricing.service';
 import {
   GrouponActivityBrief,
+  GrouponActivityWithCourse,
   GrouponGroupView,
   MyGrouponItem,
   toActivityBrief,
@@ -49,6 +51,7 @@ export class GrouponUserService {
     private readonly pricing: PricingService, // 服务端计价
     private readonly idempotency: IdempotencyService, // 开团/参团幂等
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway, // 退款网关
+    private readonly storage: StorageService, // 课程封面地址解析
   ) {}
 
   // 进行中的活动列表（公开）
@@ -58,14 +61,21 @@ export class GrouponUserService {
     // 分页参数兜底
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
-    // 仅展示进行中的活动
-    const where: Prisma.GrouponActivityWhereInput = { status: 'ongoing' };
+    // 仅展示进行中且未结束的活动
+    const where: Prisma.GrouponActivityWhereInput = {
+      status: 'ongoing',
+      endAt: { gt: new Date() },
+    };
 
     const [rows, total] = await Promise.all([
-      // 当前页活动（带课程名称）
+      // 当前页活动（带课程名称、封面与原价，供卡片展示）
       this.prisma.grouponActivity.findMany({
         where,
-        include: { course: { select: { name: true } } },
+        include: {
+          course: {
+            select: { name: true, coverUrl: true, originalCents: true },
+          },
+        },
         skip: (pageNo - 1) * pageSize,
         take: pageSize,
         orderBy: { startAt: 'asc' },
@@ -74,22 +84,24 @@ export class GrouponUserService {
       this.prisma.grouponActivity.count({ where }),
     ]);
 
-    return {
-      items: rows.map(toActivityBrief),
-      total,
-      page: pageNo,
-      pageSize,
-    };
+    // 封面 key 异步解析为公开地址
+    const items = await Promise.all(rows.map((row) => this.toPublicBrief(row)));
+
+    return { items, total, page: pageNo, pageSize };
   }
 
   // 活动详情：附带待成团团组（公开）
   async getActivity(
     activityId: number,
   ): Promise<GrouponActivityBrief & { groups: GrouponGroupView[] }> {
-    // 活动必须存在
+    // 活动必须存在（带课程封面与原价，供详情页展示）
     const activity = await this.prisma.grouponActivity.findUnique({
       where: { id: activityId },
-      include: { course: { select: { name: true } } },
+      include: {
+        course: {
+          select: { name: true, coverUrl: true, originalCents: true },
+        },
+      },
     });
     if (!activity) {
       throw new BizException(
@@ -98,15 +110,39 @@ export class GrouponUserService {
         404,
       );
     }
-    // 仅展示待成团的团组，供用户选择加入
+    // 仅展示待成团的团组，供用户选择加入；团长取最早加入的成员
     const groups = await this.prisma.grouponGroup.findMany({
       where: { activityId, status: 'pending' },
       orderBy: { createdAt: 'asc' },
+      include: {
+        members: {
+          orderBy: { joinedAt: 'asc' },
+          take: 1,
+          select: { user: { select: { nickname: true } } },
+        },
+      },
     });
 
     return {
-      ...toActivityBrief(activity),
-      groups: groups.map((group) => toGroupView(group, activity.targetSize)),
+      ...(await this.toPublicBrief(activity)),
+      groups: groups.map((group) =>
+        toGroupView(
+          group,
+          activity.targetSize,
+          group.members[0]?.user.nickname ?? null,
+        ),
+      ),
+    };
+  }
+
+  // 活动摘要补充用户端展示字段：课程封面公开地址与课程原价
+  private async toPublicBrief(
+    row: GrouponActivityWithCourse,
+  ): Promise<GrouponActivityBrief> {
+    return {
+      ...toActivityBrief(row),
+      courseCoverUrl: await this.storage.resolveUrl(row.course.coverUrl),
+      courseOriginalCents: row.course.originalCents,
     };
   }
 

@@ -6,11 +6,13 @@ import { PageResult } from '../../common/dto/page-result';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { OrderService, OrderView } from '../../trade/order/order.service';
 import { PricingService } from '../../trade/pricing/pricing.service';
 import { FlashStockService } from './flash-stock.service';
 import {
   FlashSaleActivityView,
+  FlashSaleActivityWithCourse,
   toFlashSaleActivityView,
 } from './flash-sale.mapper';
 
@@ -59,25 +61,31 @@ export class FlashSaleUserService {
     private readonly pricing: PricingService, // 服务端计价
     private readonly idempotency: IdempotencyService, // 下单幂等
     private readonly stock: FlashStockService, // Redis 预占与剩余
+    private readonly storage: StorageService, // 课程封面地址解析
   ) {}
 
-  // 活动列表（公开）：未开始与进行中，带服务端剩余库存
+  // 活动列表（公开）：仅进行中且未结束，带服务端剩余库存
   async listActivities(
     page: PageQuery,
   ): Promise<PageResult<FlashSaleActivityView>> {
     // 分页参数兜底
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
-    // 公开列表展示未开始与进行中；已结束/已取消不再展示
+    // 公开列表仅展示进行中且未结束的活动
     const where: Prisma.FlashSaleActivityWhereInput = {
-      status: { in: ['not_started', 'ongoing'] },
+      status: 'ongoing',
+      endAt: { gt: new Date() },
     };
 
     const [rows, total] = await Promise.all([
-      // 当前页活动（带课程名称）
+      // 当前页活动（带课程名称、封面与原价，供卡片展示）
       this.prisma.flashSaleActivity.findMany({
         where,
-        include: { course: { select: { name: true } } },
+        include: {
+          course: {
+            select: { name: true, coverUrl: true, originalCents: true },
+          },
+        },
         skip: (pageNo - 1) * pageSize,
         take: pageSize,
         orderBy: { startAt: 'asc' },
@@ -86,22 +94,22 @@ export class FlashSaleUserService {
       this.prisma.flashSaleActivity.count({ where }),
     ]);
 
-    // 剩余库存以 Redis 预占计数为准（缺失回源 DB）
-    const items = await Promise.all(
-      rows.map(async (row) =>
-        toFlashSaleActivityView(row, await this.stock.remaining(row.id)),
-      ),
-    );
+    // 剩余库存以 Redis 预占计数为准（缺失回源 DB），封面 key 解析为公开地址
+    const items = await Promise.all(rows.map((row) => this.toPublicView(row)));
 
     return { items, total, page: pageNo, pageSize };
   }
 
   // 活动详情（公开）：总库存/已售/剩余库存与倒计时字段
   async getActivity(activityId: number): Promise<FlashSaleActivityView> {
-    // 活动必须存在
+    // 活动必须存在（带课程封面与原价，供详情页展示）
     const activity = await this.prisma.flashSaleActivity.findUnique({
       where: { id: activityId },
-      include: { course: { select: { name: true } } },
+      include: {
+        course: {
+          select: { name: true, coverUrl: true, originalCents: true },
+        },
+      },
     });
     if (!activity) {
       throw new BizException(
@@ -110,9 +118,19 @@ export class FlashSaleUserService {
         404,
       );
     }
-    // 剩余库存以 Redis 预占计数为准
-    const remaining = await this.stock.remaining(activityId);
-    return toFlashSaleActivityView(activity, remaining);
+    // 剩余库存取 Redis 预占后的值
+    return this.toPublicView(activity);
+  }
+
+  // 活动视图补充用户端展示字段：剩余库存、课程封面公开地址与原价
+  private async toPublicView(
+    row: FlashSaleActivityWithCourse,
+  ): Promise<FlashSaleActivityView> {
+    return {
+      ...toFlashSaleActivityView(row, await this.stock.remaining(row.id)),
+      courseCoverUrl: await this.storage.resolveUrl(row.course.coverUrl),
+      courseOriginalCents: row.course.originalCents,
+    };
   }
 
   // 秒杀下单：Redis 预扣成功后才建单；建单失败回补；限购冲突转 5003

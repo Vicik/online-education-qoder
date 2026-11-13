@@ -319,6 +319,18 @@ export class CourseAdminService {
       );
     }
 
+    // 无章节课程不可发布：学员无内容可学
+    const chapterCount = await this.prisma.chapter.count({
+      where: { courseId },
+    });
+    if (chapterCount === 0) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '课程至少需要 1 个章节才能发布',
+        422,
+      );
+    }
+
     // 条件更新计数
     const { count } = await this.prisma.course.updateMany({
       where: { id: courseId, status: { in: ['draft', 'unpublished'] } },

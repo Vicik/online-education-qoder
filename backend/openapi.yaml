@@ -234,7 +234,7 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
-        type: { type: string, enum: [video, audio, rich] }
+        type: { type: string, enum: [video, audio] }
         coverKey: { type: string, nullable: true, description: 封面图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
         coverUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         instructor: { type: string, nullable: true }
@@ -249,9 +249,10 @@ components:
       properties:
         id: { type: integer }
         title: { type: string }
-        contentType: { type: string, enum: [video, audio, rich] }
+        contentType: { type: string, enum: [video, audio] }
         sortOrder: { type: integer }
-        visited: { type: boolean, description: 仅已登录已购用户返回 }
+        visited: { type: boolean, description: 是否已播放完成；仅已登录已购用户返回 }
+        content: { type: string, nullable: true, description: 媒体 key；仅管理端详情返回，用于编辑回填 }
     CourseDetail:
       allOf:
         - $ref: '#/components/schemas/CourseBrief'
@@ -275,15 +276,15 @@ components:
       properties:
         id: { type: integer }
         title: { type: string }
-        contentType: { type: string, enum: [video, audio, rich] }
-        content: { type: string, nullable: true, description: rich=净化后 HTML（img 的 src 已换公开 URL、保留 data-key）；video/audio=短期签名播放 URL；旧 key 无法解析时为 null }
+        contentType: { type: string, enum: [video, audio] }
+        content: { type: string, nullable: true, description: video/audio=短期签名播放 URL；旧 key 无法解析时为 null }
         sortOrder: { type: integer }
     CourseCreateRequest:
       type: object
       required: [name, type, originalCents, saleCents, instructor, coverUrl]
       properties:
         name: { type: string, minLength: 1, maxLength: 40 }
-        type: { type: string, enum: [video, audio, rich] }
+        type: { type: string, enum: [video, audio] }
         originalCents: { type: integer, minimum: 0 }
         saleCents: { type: integer, minimum: 0, description: 不得高于原价 }
         instructor: { type: string, minLength: 1, description: 讲师名称，必填 }
@@ -297,7 +298,7 @@ components:
       properties:
         version: { type: integer, description: 乐观锁版本 }
         name: { type: string, minLength: 1, maxLength: 40, description: 传入时不可为空 }
-        type: { type: string, enum: [video, audio, rich] }
+        type: { type: string, enum: [video, audio] }
         originalCents: { type: integer }
         saleCents: { type: integer }
         instructor: { type: string, minLength: 1, description: 讲师名称；传入时不可为空 }
@@ -306,16 +307,16 @@ components:
         detailRich: { type: string, nullable: true }
     ChapterCreateRequest:
       type: object
-      required: [title, contentType]
+      required: [title, contentType, content]
       properties:
         title: { type: string, minLength: 1, maxLength: 60 }
-        contentType: { type: string, enum: [video, audio, rich], description: 须与课程类型一致 }
-        content: { type: string, nullable: true, description: rich=HTML（图片建议带 data-key）；video/audio=媒体上传接口返回的 key }
+        contentType: { type: string, enum: [video, audio], description: 须与课程类型一致 }
+        content: { type: string, minLength: 1, description: 必填；video/audio=媒体上传接口返回的 key }
     ChapterUpdateRequest:
       type: object
       properties:
         title: { type: string, minLength: 1, maxLength: 60, description: 传入时不可为空 }
-        content: { type: string, nullable: true }
+        content: { type: string, minLength: 1, description: 传入时不可为空；不传表示保持原正文 }
     ChapterReorderRequest:
       type: object
       required: [orderedChapterIds]
@@ -343,7 +344,7 @@ components:
         lastChapterTitle: { type: string, nullable: true }
         progressPercent: { type: integer, description: 已访问章节数/总章节数 }
         completed: { type: boolean, description: 全部章节至少访问一次自动标记 }
-        lastVisitedAt: { type: string, format: date-time }
+        lastVisitedAt: { type: string, format: date-time, description: 最后学习时间；已购未观看为支付时间 }
     FavoriteCreateRequest:
       type: object
       required: [courseId]
@@ -453,6 +454,8 @@ components:
         endAt: { type: string, format: date-time }
         status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
         version: { type: integer, description: 乐观锁版本号（管理端编辑回传） }
+        courseCoverUrl: { type: string, nullable: true, description: 课程封面展示地址（用户端列表/详情补充） }
+        courseOriginalCents: { type: integer, description: 课程原价（分，用户端列表/详情补充） }
     GrouponGroup:
       type: object
       properties:
@@ -462,6 +465,7 @@ components:
         targetSize: { type: integer }
         expiresAt: { type: string, format: date-time }
         formedAt: { type: string, format: date-time, nullable: true }
+        leaderNickname: { type: string, nullable: true, description: 团长昵称（公开详情补充） }
     GrouponCreateRequest:
       type: object
       required: [courseId, name, priceCents, targetSize, startAt, endAt]
@@ -499,6 +503,8 @@ components:
         endAt: { type: string, format: date-time }
         status: { type: string, enum: [not_started, ongoing, ended, cancelled] }
         version: { type: integer, description: 乐观锁版本号（管理端编辑回传） }
+        courseCoverUrl: { type: string, nullable: true, description: 课程封面展示地址（用户端列表/详情补充） }
+        courseOriginalCents: { type: integer, description: 课程原价（分，用户端列表/详情补充） }
     FlashSaleCreateRequest:
       type: object
       required: [courseId, name, priceCents, stock, startAt, endAt]
@@ -914,7 +920,7 @@ paths:
   /courses:
     get:
       tags: [catalog]
-      summary: 已发布课程列表
+      summary: 已发布课程列表（不含当前参与拼团/秒杀活动的课程）
       security: []
       parameters:
         - { $ref: '#/components/parameters/Page' }
@@ -1115,7 +1121,7 @@ paths:
         '404': { $ref: '#/components/responses/Err404' }
         '409': { $ref: '#/components/responses/Err409' }
         '422':
-          description: 状态不允许（仅草稿/已下架可发布）
+          description: 状态不允许（仅草稿/已下架可发布）；课程没有章节时也不可发布
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
@@ -1536,7 +1542,7 @@ paths:
   /groupons:
     get:
       tags: [groupons]
-      summary: 拼团活动列表（进行中）
+      summary: 拼团活动列表（仅进行中且未结束）
       security: []
       parameters:
         - { $ref: '#/components/parameters/Page' }
@@ -1690,7 +1696,7 @@ paths:
   /flash-sales:
     get:
       tags: [flash-sales]
-      summary: 秒杀活动列表
+      summary: 秒杀活动列表（仅进行中且未结束）
       security: []
       parameters:
         - { $ref: '#/components/parameters/Page' }

@@ -66,7 +66,7 @@ describe('Worker 任务（CI 集成）', () => {
     const course = await prisma.course.create({
       data: {
         name: `定时任务课程-${SUFFIX}`,
-        type: 'rich',
+        type: 'audio',
         originalCents: 19900,
         saleCents: 9900,
         instructor: '测试讲师',

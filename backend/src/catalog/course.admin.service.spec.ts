@@ -135,7 +135,7 @@ describe('CourseAdminService.create', () => {
 
     const created = await service.create({
       name: '新课',
-      type: 'rich',
+      type: 'audio',
       originalCents: 1000,
       saleCents: 1000,
       instructor: '王老师',
@@ -347,6 +347,18 @@ describe('CourseAdminService.publish / unpublish', () => {
 
     prisma.course.findUnique.mockResolvedValue(PUBLISHED);
     await expect(service.publish(1)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('publish 无章节被拒（422），不更新状态', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(DRAFT);
+    prisma.chapter.count.mockResolvedValue(0);
+
+    await expect(service.publish(1)).rejects.toMatchObject({
+      status: 422,
+      message: '课程至少需要 1 个章节才能发布',
+    });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
   });
 
   it('publish 自增版本并写审计', async () => {

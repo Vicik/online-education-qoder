@@ -33,6 +33,8 @@ describe('拼团（CI 集成，基于种子）', () => {
   let joinedOrderId: number;
   // 管理端创建的活动 id（用于后续编辑/取消）
   let createdActivityId: number;
+  // 仅用于验证「草稿课程不可建活动」的临时课程 id
+  let draftCourseId: number;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -77,9 +79,25 @@ describe('拼团（CI 集成，基于种子）', () => {
       .post('/api/v1/auth/login')
       .send({ email: DEMO_ADMIN.email, password: DEMO_ADMIN.password })
       .expect(200);
+
+    // 临时草稿课程：种子已不再包含草稿课程
+    const draft = await prisma.course.create({
+      data: {
+        name: `草稿课程-${SUFFIX}`,
+        type: 'audio',
+        originalCents: 1000,
+        saleCents: 1000,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'draft',
+      },
+    });
+    draftCourseId = draft.id;
   });
 
   afterAll(async () => {
+    // 清理临时草稿课程
+    await prisma.course.deleteMany({ where: { id: draftCourseId } });
     await app.close();
     await prisma.$disconnect();
   });
@@ -166,7 +184,7 @@ describe('拼团（CI 集成，基于种子）', () => {
     await admin
       .post('/api/v1/admin/groupons')
       .send({
-        courseId: 2,
+        courseId: draftCourseId,
         name: '草稿课拼团',
         priceCents: 1000,
         targetSize: 2,

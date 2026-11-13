@@ -118,7 +118,7 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .post('/api/v1/admin/courses')
       .send({
         name: '冲突课',
-        type: 'rich',
+        type: 'audio',
         originalCents: 1000,
         saleCents: 1000,
         instructor: '王老师',
@@ -197,6 +197,36 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .expect(400);
     expect(emptyTitle.body.code).toBe(1001);
 
+    // 正文必填：新增不传/传空、编辑传 null 均 400
+    const noContent = await agent
+      .post(`/api/v1/admin/courses/${created.body.data.id}/chapters`)
+      .send({ title: '缺正文', contentType: 'video' })
+      .expect(400);
+    expect(noContent.body.code).toBe(1001);
+
+    const emptyContent = await agent
+      .post(`/api/v1/admin/courses/${created.body.data.id}/chapters`)
+      .send({ title: '空正文', contentType: 'video', content: '' })
+      .expect(400);
+    expect(emptyContent.body.code).toBe(1001);
+
+    const chapter = await agent
+      .post(`/api/v1/admin/courses/${created.body.data.id}/chapters`)
+      .send({
+        title: '有正文',
+        contentType: 'video',
+        content: 'video/2026/11/12/required.mp4',
+      })
+      .expect(201);
+
+    const nullContent = await agent
+      .put(
+        `/api/v1/admin/courses/${created.body.data.id}/chapters/${chapter.body.data.id}`,
+      )
+      .send({ content: null })
+      .expect(400);
+    expect(nullContent.body.code).toBe(1001);
+
     const emptyOnUpdate = await agent
       .put(`/api/v1/admin/courses/${created.body.data.id}`)
       .send({ version: created.body.data.version, coverUrl: '' })
@@ -228,7 +258,7 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .post('/api/v1/admin/courses')
       .send({
         name: '集成测试推荐课',
-        type: 'rich',
+        type: 'audio',
         originalCents: 1000,
         saleCents: 900,
         instructor: '王老师',
@@ -241,7 +271,20 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     await agent
       .post(`/api/v1/admin/courses/${courseId}/unrecommend`)
       .expect(422);
-    // 发布后才会进入首页推荐
+    // 无章节不可发布
+    const noChapter = await agent
+      .post(`/api/v1/admin/courses/${courseId}/publish`)
+      .expect(422);
+    expect(noChapter.body.message).toContain('至少需要 1 个章节');
+    // 补一个章节后可发布，发布后才会进入首页推荐
+    await agent
+      .post(`/api/v1/admin/courses/${courseId}/chapters`)
+      .send({
+        title: '推荐课第一节',
+        contentType: 'audio',
+        content: 'audio/2026/11/12/00000000-0000-0000-0000-000000000003.mp3',
+      })
+      .expect(201);
     await agent.post(`/api/v1/admin/courses/${courseId}/publish`).expect(200);
 
     try {
@@ -260,16 +303,16 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       expect(item).toMatchObject({ isRecommended: true });
 
       // 已推荐后再推荐 422
-      await agent.post(`/api/v1/admin/courses/${courseId}/recommend`).expect(422);
+      await agent
+        .post(`/api/v1/admin/courses/${courseId}/recommend`)
+        .expect(422);
 
       // 首页推荐包含该课程
       const homeAfterRecommend = await request(app.getHttpServer())
         .get('/api/v1/home/recommendations')
         .expect(200);
       expect(
-        homeAfterRecommend.body.data.courses.map(
-          (c: { id: number }) => c.id,
-        ),
+        homeAfterRecommend.body.data.courses.map((c: { id: number }) => c.id),
       ).toContain(courseId);
 
       const unrecommended = await agent
@@ -286,9 +329,7 @@ describe('课程管理端（CI 集成，基于种子）', () => {
         .get('/api/v1/home/recommendations')
         .expect(200);
       expect(
-        homeAfterUnrecommend.body.data.courses.map(
-          (c: { id: number }) => c.id,
-        ),
+        homeAfterUnrecommend.body.data.courses.map((c: { id: number }) => c.id),
       ).not.toContain(courseId);
     } finally {
       await prisma.course.deleteMany({ where: { id: courseId } });

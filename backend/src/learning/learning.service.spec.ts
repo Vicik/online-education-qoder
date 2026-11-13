@@ -13,6 +13,8 @@ function setup() {
       findMany: jest.fn(),
     },
     course: { findMany: jest.fn() },
+    // 已购课程聚合：默认无已支付订单
+    order: { groupBy: jest.fn().mockResolvedValue([]) },
   };
   const courseService = { hasPaidAccess: jest.fn().mockResolvedValue(true) };
   const service = new LearningService(
@@ -125,7 +127,7 @@ describe('LearningService.getStudyRecords', () => {
     });
   });
 
-  it('无学习记录返回空分页', async () => {
+  it('无学习记录且无已购课程返回空分页', async () => {
     const { prisma, service } = setup();
     prisma.learningRecord.groupBy.mockResolvedValue([]);
 
@@ -137,5 +139,72 @@ describe('LearningService.getStudyRecords', () => {
       page: 1,
       pageSize: 20,
     });
+  });
+
+  it('已购未观看课程纳入学习记录：0% 且最近章节为空', async () => {
+    const { prisma, service } = setup();
+    const paidAt = new Date('2026-11-09T08:00:00Z');
+    prisma.order.groupBy.mockResolvedValue([
+      { courseId: 2, _max: { paidAt } },
+    ]);
+    prisma.learningRecord.groupBy.mockResolvedValue([]);
+    prisma.course.findMany.mockResolvedValue([
+      { id: 2, name: 'NestJS 实战' },
+    ]);
+    prisma.chapter.groupBy.mockResolvedValue([
+      { courseId: 2, _count: { _all: 4 } },
+    ]);
+    prisma.learningRecord.findMany.mockResolvedValue([]);
+
+    const page = await service.getStudyRecords(1, { page: 1, pageSize: 20 });
+
+    expect(page.items).toEqual([
+      {
+        courseId: 2,
+        courseName: 'NestJS 实战',
+        chapterCount: 4,
+        visitedCount: 0,
+        lastChapterId: null,
+        lastChapterTitle: null,
+        progressPercent: 0,
+        completed: false,
+        lastVisitedAt: paidAt,
+      },
+    ]);
+  });
+
+  it('已购与已学课程按最近活跃时间倒序合并', async () => {
+    const { prisma, service } = setup();
+    const paidAt = new Date('2026-11-09T08:00:00Z');
+    const visitedAt = new Date('2026-11-10T08:00:00Z');
+    prisma.order.groupBy.mockResolvedValue([
+      { courseId: 2, _max: { paidAt } },
+      { courseId: 1, _max: { paidAt: new Date('2026-11-01T08:00:00Z') } },
+    ]);
+    prisma.learningRecord.groupBy.mockResolvedValue([
+      { courseId: 1, _max: { visitedAt }, _count: { _all: 1 } },
+    ]);
+    prisma.course.findMany.mockResolvedValue([
+      { id: 1, name: 'TypeScript 系统入门' },
+      { id: 2, name: 'NestJS 实战' },
+    ]);
+    prisma.chapter.groupBy.mockResolvedValue([
+      { courseId: 1, _count: { _all: 2 } },
+      { courseId: 2, _count: { _all: 4 } },
+    ]);
+    prisma.learningRecord.findMany.mockResolvedValue([
+      {
+        courseId: 1,
+        chapterId: 1,
+        visitedAt,
+        chapter: { title: '第一章' },
+      },
+    ]);
+
+    const page = await service.getStudyRecords(1, { page: 1, pageSize: 20 });
+
+    expect(page.total).toBe(2);
+    expect(page.items.map((item) => item.courseId)).toEqual([1, 2]);
+    expect(page.items[1].lastVisitedAt).toEqual(paidAt);
   });
 });

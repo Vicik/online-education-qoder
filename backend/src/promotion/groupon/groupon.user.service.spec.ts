@@ -1,5 +1,6 @@
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../storage/storage.service';
 import { OrderService } from '../../trade/order/order.service';
 import { PaymentGateway } from '../../trade/payment/payment-gateway.interface';
 import { PricingService } from '../../trade/pricing/pricing.service';
@@ -97,6 +98,9 @@ function setup() {
   const gateway = {
     refund: jest.fn().mockResolvedValue({ transactionNo: 'MOCK-REF-1' }),
   };
+  const storage = {
+    resolveUrl: jest.fn().mockResolvedValue(null),
+  };
 
   const service = new GrouponUserService(
     prisma as unknown as PrismaService,
@@ -104,8 +108,9 @@ function setup() {
     pricing as unknown as PricingService,
     idempotency as unknown as IdempotencyService,
     gateway as unknown as PaymentGateway,
+    storage as unknown as StorageService,
   );
-  return { prisma, orders, pricing, idempotency, gateway, service };
+  return { prisma, orders, pricing, idempotency, gateway, storage, service };
 }
 
 describe('GrouponUserService.createGroup', () => {
@@ -315,18 +320,32 @@ describe('GrouponUserService 幂等', () => {
 });
 
 describe('GrouponUserService 查询', () => {
-  it('活动列表仅查询进行中状态', async () => {
-    const { prisma, service } = setup();
+  it('活动列表仅查询进行中且未结束的活动，并补充封面与原价', async () => {
+    const { prisma, storage, service } = setup();
     prisma.grouponActivity.findMany.mockResolvedValue([
-      { ...ACTIVITY, course: { name: 'TypeScript 系统入门' } },
+      {
+        ...ACTIVITY,
+        course: {
+          name: 'TypeScript 系统入门',
+          coverUrl: 'image/2026/01/01/cover.png',
+          originalCents: 19900,
+        },
+      },
     ]);
     prisma.grouponActivity.count.mockResolvedValue(1);
+    storage.resolveUrl.mockResolvedValue('https://cdn.example.com/cover.png');
 
     const page = await service.listActivities({ page: 1, pageSize: 20 });
 
     expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({
+      courseCoverUrl: 'https://cdn.example.com/cover.png',
+      courseOriginalCents: 19900,
+    });
     expect(prisma.grouponActivity.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'ongoing' } }),
+      expect.objectContaining({
+        where: { status: 'ongoing', endAt: { gt: expect.any(Date) } },
+      }),
     );
   });
 
@@ -342,10 +361,16 @@ describe('GrouponUserService 查询', () => {
       ...ACTIVITY,
       course: { name: 'TypeScript 系统入门' },
     });
-    prisma.grouponGroup.findMany.mockResolvedValue([GROUP]);
+    prisma.grouponGroup.findMany.mockResolvedValue([
+      { ...GROUP, members: [{ user: { nickname: '团长甲' } }] },
+    ]);
     const detail = await service.getActivity(1);
     expect(detail.groups).toHaveLength(1);
-    expect(detail.groups[0]).toMatchObject({ id: 20, targetSize: 2 });
+    expect(detail.groups[0]).toMatchObject({
+      id: 20,
+      targetSize: 2,
+      leaderNickname: '团长甲',
+    });
   });
 
   it('我的拼团返回活动/团组/订单', async () => {

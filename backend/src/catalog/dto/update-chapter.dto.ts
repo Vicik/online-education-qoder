@@ -1,6 +1,5 @@
 import {
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
   ValidateIf,
@@ -15,8 +14,9 @@ export class UpdateChapterDto {
   @MaxLength(60)
   title?: string;
 
-  // 章节正文：rich 为 HTML，video/audio 为媒体 key
-  @IsOptional()
+  // 章节正文：视频/音频媒体 key（不传表示保持原正文，传入时不可为空）
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
-  content?: string | null;
+  @IsNotEmpty()
+  content?: string;
 }

@@ -68,7 +68,7 @@ describe('秒杀（CI 集成，基于种子）', () => {
     const flashCourse = await prisma.course.create({
       data: {
         name: `秒杀课程-${SUFFIX}`,
-        type: 'rich',
+        type: 'audio',
         originalCents: 9900,
         saleCents: 9900,
         instructor: '测试讲师',
@@ -106,17 +106,17 @@ describe('秒杀（CI 集成，基于种子）', () => {
     await prisma.$disconnect();
   });
 
-  it('活动列表可见种子未开始秒杀；详情带总库存与剩余库存', async () => {
+  it('活动列表仅含进行中活动；详情带总库存与剩余库存', async () => {
     const list = await request(app.getHttpServer())
       .get('/api/v1/flash-sales?page=1&pageSize=100')
       .expect(200);
-    const seedItem = (
-      list.body.data.items as Array<{ id: number; status: string }>
-    ).find((item) => item.id === FLASH_SALE_ACTIVITY.id);
-    expect(seedItem).toMatchObject({
-      id: FLASH_SALE_ACTIVITY.id,
-      status: 'not_started',
-    });
+    const items = list.body.data.items as Array<{ id: number; status: string }>;
+    // 未开始的种子秒杀不进入列表
+    expect(items.some((item) => item.id === FLASH_SALE_ACTIVITY.id)).toBe(
+      false,
+    );
+    // 列表只返回进行中的活动
+    expect(items.every((item) => item.status === 'ongoing')).toBe(true);
 
     const detail = await request(app.getHttpServer())
       .get(`/api/v1/flash-sales/${FLASH_SALE_ACTIVITY.id}`)

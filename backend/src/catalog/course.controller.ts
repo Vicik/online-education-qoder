@@ -20,11 +20,14 @@ export class CourseController {
     return this.courses.listPublished(page);
   }
 
-  // 课程详情（公开；章节目录仅名称）
+  // 课程详情（公开；登录已购用户附带章节已学标记）
   @Public()
   @Get(':courseId')
-  detail(@Param('courseId', ParseIntPipe) courseId: number) {
-    return this.courses.getDetail(courseId);
+  detail(
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return this.courses.getDetail(courseId, false, user?.userId);
   }
 
   // 章节正文（登录 + 已购；未购 403）

@@ -10,11 +10,13 @@ import { RedisService } from '../../src/redis/redis.service';
 import {
   COUPON_TEMPLATE,
   COURSE_TYPESCRIPT,
-  COURSE_WRITING,
   DEMO_GROUPON_USER,
   DEMO_USER,
   GROUPON_ACTIVITY,
 } from '../../prisma/seed-data';
+
+// 一天毫秒数：用于构造已结束/未开始的活动时间窗
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe('课程浏览（CI 集成，基于种子）', () => {
   let app: INestApplication;
@@ -48,14 +50,88 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     await prisma.$disconnect();
   });
 
-  it('游客列表只见已发布课程（含 course-typescript，不含 course-writing）', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/courses')
-      .expect(200);
-    const names = res.body.data.items.map((c: { name: string }) => c.name);
-    expect(names).toContain(COURSE_TYPESCRIPT.name);
-    expect(names).not.toContain(COURSE_WRITING.name);
-    expect(res.body.data).toMatchObject({ page: 1, pageSize: 20 });
+  it('游客列表只返回已发布且无有效拼团/秒杀的课程', async () => {
+    // 普通课程：无任何活动，应出现在列表
+    const normal = await prisma.course.create({
+      data: {
+        name: '集成测试普通课程',
+        type: 'audio',
+        originalCents: 100,
+        saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+    // 活动已结束的课程：不应再从普通列表排除
+    const ended = await prisma.course.create({
+      data: {
+        name: '集成测试已结束拼团课程',
+        type: 'audio',
+        originalCents: 100,
+        saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+    await prisma.grouponActivity.create({
+      data: {
+        courseId: ended.id,
+        name: '已结束拼团',
+        priceCents: 100,
+        targetSize: 2,
+        startAt: new Date(Date.now() - 2 * DAY_MS),
+        endAt: new Date(Date.now() - DAY_MS),
+        status: 'ended',
+      },
+    });
+    // 秒杀未开始的课程：属于当前有效活动，应被排除
+    const upcoming = await prisma.course.create({
+      data: {
+        name: '集成测试未开始秒杀课程',
+        type: 'audio',
+        originalCents: 100,
+        saleCents: 100,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+    await prisma.flashSaleActivity.create({
+      data: {
+        courseId: upcoming.id,
+        name: '未开始秒杀',
+        priceCents: 100,
+        stock: 10,
+        startAt: new Date(Date.now() + DAY_MS),
+        endAt: new Date(Date.now() + 2 * DAY_MS),
+        status: 'not_started',
+      },
+    });
+
+    try {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/courses?pageSize=100')
+        .expect(200);
+      const names = res.body.data.items.map((c: { name: string }) => c.name);
+      expect(names).toContain(normal.name);
+      expect(names).toContain(ended.name);
+      expect(names).not.toContain(upcoming.name);
+      // 种子课程存在进行中拼团与未开始秒杀，不出现在普通课程列表
+      expect(names).not.toContain(COURSE_TYPESCRIPT.name);
+      expect(res.body.data).toMatchObject({ page: 1, pageSize: 100 });
+    } finally {
+      await prisma.flashSaleActivity.deleteMany({
+        where: { courseId: { in: [ended.id, upcoming.id] } },
+      });
+      await prisma.grouponActivity.deleteMany({
+        where: { courseId: { in: [ended.id, upcoming.id] } },
+      });
+      await prisma.course.deleteMany({
+        where: { id: { in: [normal.id, ended.id, upcoming.id] } },
+      });
+    }
   });
 
   it('详情包含章节目录（仅名称）与进行中拼团活动', async () => {
@@ -83,7 +159,7 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     const normal = await prisma.course.create({
       data: {
         name: '集成测试未推荐课程',
-        type: 'rich',
+        type: 'audio',
         originalCents: 100,
         saleCents: 100,
         instructor: '测试讲师',
@@ -96,7 +172,7 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     const recommended = await prisma.course.create({
       data: {
         name: '集成测试推荐课程',
-        type: 'rich',
+        type: 'audio',
         originalCents: 100,
         saleCents: 100,
         instructor: '测试讲师',
@@ -125,7 +201,7 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     const temp = await prisma.course.create({
       data: {
         name: '集成测试下架课程',
-        type: 'rich',
+        type: 'audio',
         originalCents: 100,
         saleCents: 100,
         instructor: '测试讲师',
@@ -178,6 +254,44 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     expect(res.body.data.title).toBe(COURSE_TYPESCRIPT.chapters[0].title);
     // 种子章节不指向不存在的媒体文件，正文读取成功但内容为空
     expect(res.body.data.content).toBeNull();
+  });
+
+  it('已购用户详情返回章节已学标记，访问后对应章节标记为已学', async () => {
+    const agent = request.agent(app.getHttpServer());
+    await agent
+      .post('/api/v1/auth/login')
+      .send({ email: DEMO_USER.email, password: DEMO_USER.password })
+      .expect(200);
+
+    // 已购用户：详情章节带 visited 字段
+    const before = await agent
+      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}`)
+      .expect(200);
+    expect(before.body.data.chapters).toHaveLength(2);
+    before.body.data.chapters.forEach((chapter: { visited?: boolean }) => {
+      expect(typeof chapter.visited).toBe('boolean');
+    });
+
+    // 上报本章访问后，详情对应章节 visited=true
+    await agent
+      .post(`/api/v1/learning/${COURSE_TYPESCRIPT.id}/chapters/1/visit`)
+      .expect(200);
+    const after = await agent
+      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}`)
+      .expect(200);
+    expect(
+      after.body.data.chapters.find((chapter: { id: number }) => chapter.id === 1)
+        .visited,
+    ).toBe(true);
+
+    // 清理本次访问记录，避免影响其他用例
+    await prisma.learningRecord.deleteMany({
+      where: {
+        courseId: COURSE_TYPESCRIPT.id,
+        chapterId: 1,
+        user: { email: DEMO_USER.email },
+      },
+    });
   });
 
   it('拼团待成团用户不可学习（code=3002）', async () => {
