@@ -202,6 +202,23 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       .send({ version: created.body.data.version, coverUrl: '' })
       .expect(400);
     expect(emptyOnUpdate.body.code).toBe(1001);
+
+    const blankName = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        ...base,
+        name: '   ',
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/cover.png',
+      })
+      .expect(400);
+    expect(blankName.body.code).toBe(1001);
+
+    const emptyOrder = await agent
+      .post(`/api/v1/admin/courses/${created.body.data.id}/chapters/reorder`)
+      .send({ orderedChapterIds: [] })
+      .expect(400);
+    expect(emptyOrder.body.code).toBe(1001);
   });
 
   it('每次管理端写操作产生审计记录', async () => {

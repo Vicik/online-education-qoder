@@ -64,7 +64,7 @@ describe("认证与账号（CI 集成）", () => {
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
         confirmPassword: TEST_PASSWORD,
-        nickname: "测试一",
+        nickname: "  测试一  ",
       })
       .expect(201);
 
@@ -168,6 +168,12 @@ describe("认证与账号（CI 集成）", () => {
       gender: "male",
     });
 
+    const blankNickname = await agent
+      .put("/api/v1/user/profile")
+      .send({ nickname: "   ", gender: "male" })
+      .expect(400);
+    expect(blankNickname.body.code).toBe(1001);
+
     const overview = await agent.get("/api/v1/user/overview").expect(200);
     expect(overview.body.data).toEqual({
       enrolledCount: 0,
@@ -184,5 +190,24 @@ describe("认证与账号（CI 集成）", () => {
       .send({ email: DEMO_ADMIN.email, password: ADMIN_PASSWORD })
       .expect(200);
     expect(login.body.data.role).toBe("admin");
+  });
+
+  it("必填字段为纯空格时返回 400（code=1001）", async () => {
+    const login = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({ email: `blank-${Date.now()}@test.com`, password: "   " })
+      .expect(400);
+    expect(login.body.code).toBe(1001);
+
+    const register = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({
+        email: `blank-${Date.now()}@test.com`,
+        password: "Passw0rd1",
+        confirmPassword: "Passw0rd1",
+        nickname: "   ",
+      })
+      .expect(400);
+    expect(register.body.code).toBe(1001);
   });
 });

@@ -263,4 +263,94 @@ describe('考试（CI 集成）', () => {
   it('未登录访问考试接口返回 401', async () => {
     await request(app.getHttpServer()).get('/api/v1/exams').expect(401);
   });
+
+  it('必填字段空白或空数组返回 400（code=1001）', async () => {
+    const blankTitle = await admin
+      .post('/api/v1/admin/exams')
+      .send({
+        title: '   ',
+        durationMin: 30,
+        passScore: 5,
+        questionIds: [singleQid],
+      })
+      .expect(400);
+    expect(blankTitle.body.code).toBe(1001);
+
+    const emptyPaper = await admin
+      .post('/api/v1/admin/exams')
+      .send({
+        title: `空卷 ${SUFFIX}`,
+        durationMin: 30,
+        passScore: 5,
+        questionIds: [],
+      })
+      .expect(400);
+    expect(emptyPaper.body.code).toBe(1001);
+
+    const blankAnalysis = await admin
+      .post('/api/v1/admin/questions')
+      .send({
+        type: 'single',
+        stem: `空白解析 ${SUFFIX}`,
+        options: [
+          { key: 'A', text: '1' },
+          { key: 'B', text: '2' },
+        ],
+        answer: ['A'],
+        analysis: '   ',
+        score: 5,
+      })
+      .expect(400);
+    expect(blankAnalysis.body.code).toBe(1001);
+
+    const blankAnswer = await admin
+      .post('/api/v1/admin/questions')
+      .send({
+        type: 'single',
+        stem: `空白答案 ${SUFFIX}`,
+        options: [
+          { key: 'A', text: '1' },
+          { key: 'B', text: '2' },
+        ],
+        answer: [''],
+        analysis: '解析',
+        score: 5,
+      })
+      .expect(400);
+    expect(blankAnswer.body.code).toBe(1001);
+
+    const draft = await admin
+      .post('/api/v1/admin/exams')
+      .send({
+        title: `待编辑 ${SUFFIX}`,
+        durationMin: 30,
+        passScore: 5,
+        questionIds: [singleQid],
+      })
+      .expect(201);
+
+    const blankUpdateTitle = await admin
+      .put(`/api/v1/admin/exams/${draft.body.data.id}`)
+      .send({ version: draft.body.data.version, title: '   ' })
+      .expect(400);
+    expect(blankUpdateTitle.body.code).toBe(1001);
+
+    const emptyUpdatePaper = await admin
+      .put(`/api/v1/admin/exams/${draft.body.data.id}`)
+      .send({ version: draft.body.data.version, questionIds: [] })
+      .expect(400);
+    expect(emptyUpdatePaper.body.code).toBe(1001);
+
+    const blankStem = await admin
+      .put(`/api/v1/admin/questions/${singleQid}`)
+      .send({ version: 1, stem: '   ' })
+      .expect(400);
+    expect(blankStem.body.code).toBe(1001);
+
+    const emptyUpdateAnswer = await admin
+      .put(`/api/v1/admin/questions/${singleQid}`)
+      .send({ version: 1, answer: [] })
+      .expect(400);
+    expect(emptyUpdateAnswer.body.code).toBe(1001);
+  });
 });
