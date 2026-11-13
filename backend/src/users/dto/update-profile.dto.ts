@@ -1,10 +1,17 @@
 import { Gender } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 // 修改资料请求 DTO：与 openapi ProfileUpdateRequest 一致
 export class UpdateProfileDto {
   // 昵称：最长 30 字符，必填
   @IsString({ message: '昵称必须是字符串' })
+  @IsNotEmpty()
   @MaxLength(30, { message: '昵称不能超过 30 个字符' })
   nickname!: string;
 
