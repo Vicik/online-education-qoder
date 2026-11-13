@@ -139,31 +139,32 @@ export default function CourseListPage() {
               </Button>
             </ConfirmAction>
           )}
-          {record.isRecommended ? (
-            <ConfirmAction
-              title="取消推荐"
-              content={`取消后《${record.name}》将不再出现在首页推荐位，确定取消？`}
-              onConfirm={() =>
-                runCourseAction(courseId, () => unrecommendCourse(courseId), '已取消推荐')
-              }
-            >
-              <Button type="link" size="small" autoInsertSpace={false}>
-                取消推荐
-              </Button>
-            </ConfirmAction>
-          ) : (
-            <ConfirmAction
-              title="设为推荐"
-              content={`推荐后《${record.name}》会出现在首页推荐位（需已发布），确定推荐？`}
-              onConfirm={() =>
-                runCourseAction(courseId, () => recommendCourse(courseId), '已设为推荐')
-              }
-            >
-              <Button type="link" size="small" autoInsertSpace={false}>
-                推荐
-              </Button>
-            </ConfirmAction>
-          )}
+          {record.status === 'published' &&
+            (record.isRecommended ? (
+              <ConfirmAction
+                title="取消推荐"
+                content={`取消后《${record.name}》将不再出现在首页推荐位，确定取消？`}
+                onConfirm={() =>
+                  runCourseAction(courseId, () => unrecommendCourse(courseId), '已取消推荐')
+                }
+              >
+                <Button type="link" size="small" autoInsertSpace={false}>
+                  取消推荐
+                </Button>
+              </ConfirmAction>
+            ) : (
+              <ConfirmAction
+                title="设为推荐"
+                content={`推荐后《${record.name}》会出现在首页推荐位，确定推荐？`}
+                onConfirm={() =>
+                  runCourseAction(courseId, () => recommendCourse(courseId), '已设为推荐')
+                }
+              >
+                <Button type="link" size="small" autoInsertSpace={false}>
+                  推荐
+                </Button>
+              </ConfirmAction>
+            ))}
         </Space>
         );
       },

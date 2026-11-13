@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CourseListPage from '@/features/admin/courses/CourseListPage';
 import { server } from '../msw/server';
@@ -47,6 +47,89 @@ describe('CourseListPage', () => {
       'href',
       '/admin/courses/1',
     );
+  });
+
+  it('仅已发布课程显示推荐与取消推荐', async () => {
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              { ...row, id: 1, name: '草稿课', status: 'draft' },
+              { ...row, id: 2, name: '下架课', status: 'unpublished' },
+              {
+                ...row,
+                id: 3,
+                name: '已发布课',
+                status: 'published',
+                isRecommended: false,
+              },
+              {
+                ...row,
+                id: 4,
+                name: '已推荐课',
+                status: 'published',
+                isRecommended: true,
+              },
+            ],
+            total: 4,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    // 草稿：只能发布，没有推荐入口
+    const draftRow = (await screen.findByText('草稿课')).closest('tr') as HTMLElement;
+    expect(within(draftRow).getByRole('button', { name: '发布' })).toBeInTheDocument();
+    expect(
+      within(draftRow).queryByRole('button', { name: '推荐' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(draftRow).queryByRole('button', { name: '取消推荐' }),
+    ).not.toBeInTheDocument();
+
+    // 已下架：只能重新发布，没有推荐入口
+    const unpublishedRow = (await screen.findByText('下架课')).closest(
+      'tr',
+    ) as HTMLElement;
+    expect(
+      within(unpublishedRow).getByRole('button', { name: '发布' }),
+    ).toBeInTheDocument();
+    expect(
+      within(unpublishedRow).queryByRole('button', { name: '推荐' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(unpublishedRow).queryByRole('button', { name: '取消推荐' }),
+    ).not.toBeInTheDocument();
+
+    // 已发布未推荐：可下架、可推荐
+    const publishedRow = (await screen.findByText('已发布课')).closest(
+      'tr',
+    ) as HTMLElement;
+    expect(
+      within(publishedRow).getByRole('button', { name: '下架' }),
+    ).toBeInTheDocument();
+    expect(
+      within(publishedRow).getByRole('button', { name: '推荐' }),
+    ).toBeInTheDocument();
+
+    // 已发布已推荐：可取消推荐
+    const recommendedRow = (await screen.findByText('已推荐课')).closest(
+      'tr',
+    ) as HTMLElement;
+    expect(
+      within(recommendedRow).getByRole('button', { name: '取消推荐' }),
+    ).toBeInTheDocument();
+    expect(
+      within(recommendedRow).queryByRole('button', { name: '推荐' }),
+    ).not.toBeInTheDocument();
   });
 
   it('状态筛选重新请求；空结果显示空态', async () => {
