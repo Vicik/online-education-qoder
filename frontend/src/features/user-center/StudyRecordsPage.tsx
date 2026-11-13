@@ -60,8 +60,14 @@ export default function StudyRecordsPage() {
             title: '状态',
             dataIndex: 'completed',
             width: 100,
-            render: (completed: boolean) =>
-              completed ? <Tag color="green">已学完</Tag> : <Tag>学习中</Tag>,
+            render: (completed: boolean, record: StudyRecord) =>
+              record.visitedCount === 0 ? (
+                <Tag>未开始</Tag>
+              ) : completed ? (
+                <Tag color="green">已学完</Tag>
+              ) : (
+                <Tag>学习中</Tag>
+              ),
           },
           {
             title: '最近章节',

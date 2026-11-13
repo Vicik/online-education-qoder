@@ -20,8 +20,8 @@ describe('learning api', () => {
           envelope({
             id: 11,
             title: '第一章',
-            contentType: 'rich',
-            content: '<p>正文</p>',
+            contentType: 'audio',
+            content: 'https://cdn.example.com/a11.mp3',
             sortOrder: 1,
           }),
         );
@@ -30,7 +30,7 @@ describe('learning api', () => {
 
     const content = await getChapterContent(1, 11);
     expect(path).toBe('/api/v1/courses/1/chapters/11/content');
-    expect(content.content).toBe('<p>正文</p>');
+    expect(content.content).toBe('https://cdn.example.com/a11.mp3');
   });
 
   it('上报访问返回进度', async () => {

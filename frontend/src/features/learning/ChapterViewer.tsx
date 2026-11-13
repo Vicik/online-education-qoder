@@ -1,17 +1,29 @@
 import { EmptyState } from '@/components/common/EmptyState';
-import { RichTextViewer } from '@/components/common/RichTextViewer';
 import type { ChapterContent } from '@/api/types';
+import { AudioPlayer } from './AudioPlayer';
 
-// 章节正文：图文用净化后的富文本；视频/音频用签名地址
-export function ChapterViewer({ content }: { content: ChapterContent }) {
+// 章节播放器：视频用原生播放器；音频用自定义窄条；播放结束回调
+export function ChapterViewer({
+  content,
+  courseName,
+  chapterTitle,
+  coverUrl,
+  onEnded,
+}: {
+  // 章节正文（签名地址）
+  content: ChapterContent;
+  // 课程名称：音频条主标题
+  courseName?: string;
+  // 当前章节名称：音频条副标题
+  chapterTitle?: string;
+  // 课程封面：音频条缩略图
+  coverUrl?: string | null;
+  // 播放到结尾时回调
+  onEnded?: () => void;
+}) {
   // 正文为空：可能是签名未生成或后台尚未上传
   if (!content.content) {
     return <EmptyState description="章节内容暂未上传" />;
-  }
-
-  // 图文：后端已净化，前端再走一次白名单
-  if (content.contentType === 'rich') {
-    return <RichTextViewer html={content.content} />;
   }
 
   // 视频：key 随地址变化，切换章节时强制重建播放器
@@ -19,14 +31,24 @@ export function ChapterViewer({ content }: { content: ChapterContent }) {
     return (
       <video
         key={content.content}
+        className="learning-video-player"
         controls
         preload="metadata"
-        style={{ width: '100%', maxHeight: 480 }}
         src={content.content}
+        onEnded={onEnded}
       />
     );
   }
 
-  // 音频：其余类型按音频处理
-  return <audio controls style={{ width: '100%' }} src={content.content} />;
+  // 音频：自定义窄条，隐藏 audio 元素驱动进度
+  return (
+    <AudioPlayer
+      key={content.content}
+      src={content.content}
+      coverUrl={coverUrl}
+      title={courseName ?? content.title ?? '音频课程'}
+      subtitle={chapterTitle}
+      onEnded={onEnded}
+    />
+  );
 }

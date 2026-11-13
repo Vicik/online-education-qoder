@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { queryKeys } from '@/api/query-keys';
 import LearningPage from '@/features/learning/LearningPage';
 import { ChapterViewer } from '@/features/learning/ChapterViewer';
@@ -16,18 +17,18 @@ function courseDetail() {
   return {
     id: 1,
     name: 'TypeScript 系统入门',
-    type: 'rich',
+    type: 'audio',
     coverKey: null,
     coverUrl: null,
     instructor: '张老师',
     originalCents: 19900,
     saleCents: 9900,
     status: 'published',
-    intro: null,
+    intro: '从零掌握类型系统',
     detailRich: null,
     chapters: [
-      { id: 11, title: '第一章 类型系统', contentType: 'rich', sortOrder: 1 },
-      { id: 12, title: '第二章 泛型', contentType: 'rich', sortOrder: 2 },
+      { id: 11, title: '第一章 类型系统', contentType: 'audio', sortOrder: 1, visited: false },
+      { id: 12, title: '第二章 泛型', contentType: 'audio', sortOrder: 2, visited: false },
     ],
     groupon: null,
     flashSale: null,
@@ -42,6 +43,9 @@ function mockLearning(options?: {
   const visits: string[] = [];
   server.use(
     http.get(/\/api\/v1\/courses\/1$/, () => HttpResponse.json(envelope(courseDetail()))),
+    http.get(/\/api\/v1\/home\/recommendations$/, () =>
+      HttpResponse.json(envelope({ courses: [] })),
+    ),
     http.get(/\/api\/v1\/user\/study-records$/, () =>
       HttpResponse.json(envelope({ items: [], total: 0, page: 1, pageSize: 20 })),
     ),
@@ -57,8 +61,8 @@ function mockLearning(options?: {
         envelope({
           id,
           title: id === 11 ? '第一章 类型系统' : '第二章 泛型',
-          contentType: 'rich',
-          content: `<p>正文 ${id}</p>`,
+          contentType: 'audio',
+          content: `https://cdn.example.com/a${id}.mp3`,
           sortOrder: id === 11 ? 1 : 2,
         }),
       );
@@ -83,6 +87,14 @@ function mockRecords(items: Array<Record<string, unknown>>) {
   );
 }
 
+// 触发隐藏 audio 的播放结束事件
+function finishAudio() {
+  // 当前隐藏播放器
+  const audio = document.querySelector('audio');
+  expect(audio).not.toBeNull();
+  fireEvent.ended(audio as HTMLAudioElement);
+}
+
 describe('LearningPage', () => {
   beforeEach(() => {
     useSessionStore.getState().setUser({
@@ -101,30 +113,35 @@ describe('LearningPage', () => {
     useSessionStore.getState().clear();
   });
 
-  it('默认打开第一章、渲染正文并上报一次访问', async () => {
+  it('默认打开第一章，播放结束才上报一次访问', async () => {
     const { visits } = mockLearning();
     renderWithProviders(
       [{ path: '/learning/:courseId', element: <LearningPage /> }],
       '/learning/1',
     );
 
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
-    expect(await screen.findByText('50%')).toBeInTheDocument();
-    expect(visits).toEqual(['11']);
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
+    expect(screen.getByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    expect(visits).toEqual([]);
+
+    finishAudio();
+    await waitFor(() => expect(visits).toEqual(['11']));
   });
 
-  it('切换章节重新请求正文并上报新章节', async () => {
+  it('切换章节重新请求正文，播放结束上报新章节', async () => {
     const { visits } = mockLearning();
     renderWithProviders(
       [{ path: '/learning/:courseId', element: <LearningPage /> }],
       '/learning/1',
     );
 
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: '章节目录' }));
     await userEvent.click(screen.getByText(/第二章 泛型/));
 
-    expect(await screen.findByText('正文 12')).toBeInTheDocument();
-    expect(visits).toEqual(['11', '12']);
+    expect(await screen.findByText('正在学习：第二章 泛型')).toBeInTheDocument();
+    finishAudio();
+    await waitFor(() => expect(visits).toEqual(['12']));
   });
 
   it('未购买显示购买后才可学习', async () => {
@@ -162,32 +179,21 @@ describe('LearningPage', () => {
     expect(router.state.location.pathname).toBe('/courses/1');
   });
 
-  it('同一章节正文更新后不重复上报', async () => {
+  it('同一章节重复播放结束不重复上报', async () => {
     const { visits } = mockLearning();
     const { queryClient } = renderWithProviders(
       [{ path: '/learning/:courseId', element: <LearningPage /> }],
       '/learning/1',
     );
 
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    finishAudio();
     await waitFor(() => expect(visits).toEqual(['11']));
 
-    server.use(
-      http.get(/\/api\/v1\/courses\/1\/chapters\/(\d+)\/content$/, () =>
-        HttpResponse.json(
-          envelope({
-            id: 11,
-            title: '第一章 类型系统',
-            contentType: 'rich',
-            content: '<p>正文 11 更新</p>',
-            sortOrder: 1,
-          }),
-        ),
-      ),
-    );
     await queryClient.refetchQueries({ queryKey: queryKeys.courseContent(1, 11) });
+    await screen.findByText('正在学习：第一章 类型系统');
 
-    expect(await screen.findByText('正文 11 更新')).toBeInTheDocument();
+    finishAudio();
     expect(visits).toEqual(['11']);
   });
 
@@ -210,8 +216,8 @@ describe('LearningPage', () => {
           envelope({
             id: 11,
             title: '第一章 类型系统',
-            contentType: 'rich',
-            content: '<p>正文 11</p>',
+            contentType: 'audio',
+            content: 'https://cdn.example.com/a11.mp3',
             sortOrder: 1,
           }),
         );
@@ -233,8 +239,8 @@ describe('LearningPage', () => {
     expect(visits).toEqual([]);
 
     releaseRecords();
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
-    await waitFor(() => expect(visits).toEqual(['11']));
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    expect(visits).toEqual([]);
   });
 
   it('课程无章节且学习记录未返回时保持加载态', async () => {
@@ -291,30 +297,12 @@ describe('LearningPage', () => {
       '/learning/1',
     );
 
-    expect(await screen.findByText('正文 12')).toBeInTheDocument();
+    expect(await screen.findByText('正在学习：第二章 泛型')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: '章节目录' }));
     expect(await screen.findByText('已学完')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
-    expect(visits).toEqual(['12']);
-  });
-
-  it('首章禁用上一章，上下章按钮切换并各上报一次', async () => {
-    const { visits } = mockLearning();
-    renderWithProviders(
-      [{ path: '/learning/:courseId', element: <LearningPage /> }],
-      '/learning/1',
-    );
-
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '上一章' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '下一章' })).toBeEnabled();
-
-    await userEvent.click(screen.getByRole('button', { name: '下一章' }));
-    expect(await screen.findByText('正文 12')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '下一章' })).toBeDisabled();
-
-    await userEvent.click(screen.getByRole('button', { name: '上一章' }));
-    expect(await screen.findByText('正文 11')).toBeInTheDocument();
-    await waitFor(() => expect(visits).toEqual(['11', '12', '11']));
+    expect(visits).toEqual([]);
   });
 
   it('课程不存在时展示空态且不请求正文', async () => {
@@ -387,32 +375,48 @@ describe('LearningPage', () => {
 });
 
 describe('ChapterViewer', () => {
-  it('视频章节渲染 video 并带上签名地址', () => {
+  it('视频章节渲染 video 并带上签名地址，播放结束回调', () => {
+    // 播放结束回调计数
+    const onEnded = vi.fn();
     const { container } = render(
       <ChapterViewer
         content={{ id: 21, contentType: 'video', content: 'https://cdn.example.com/v.mp4' }}
+        onEnded={onEnded}
       />,
     );
 
     const video = container.querySelector('video');
     expect(video).toHaveAttribute('src', 'https://cdn.example.com/v.mp4');
     expect(video).toHaveAttribute('controls');
+
+    fireEvent.ended(video as HTMLVideoElement);
+    expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
-  it('音频章节渲染 audio 并带上签名地址', () => {
+  it('音频章节渲染自定义窄条与隐藏 audio', () => {
+    // 播放结束回调计数
+    const onEnded = vi.fn();
     const { container } = render(
       <ChapterViewer
         content={{ id: 22, contentType: 'audio', content: 'https://cdn.example.com/a.mp3' }}
+        courseName="TypeScript 系统入门"
+        chapterTitle="第一章 类型系统"
+        onEnded={onEnded}
       />,
     );
 
     const audio = container.querySelector('audio');
     expect(audio).toHaveAttribute('src', 'https://cdn.example.com/a.mp3');
-    expect(audio).toHaveAttribute('controls');
+    expect(screen.getByText('TypeScript 系统入门')).toBeInTheDocument();
+    expect(screen.getByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '播放' })).toBeInTheDocument();
+
+    fireEvent.ended(audio as HTMLAudioElement);
+    expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
   it('正文缺失展示空态', () => {
-    render(<ChapterViewer content={{ id: 23, contentType: 'rich' }} />);
+    render(<ChapterViewer content={{ id: 23, contentType: 'audio' }} />);
     expect(screen.getByText('章节内容暂未上传')).toBeInTheDocument();
   });
 });

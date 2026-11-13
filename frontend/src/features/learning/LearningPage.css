@@ -1,0 +1,110 @@
+/* 学习页：顶部播放器 + 两栏正文，视觉对齐参考图 */
+.learning-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* 播放器卡片：音频为窄条，视频为通栏播放器 */
+.learning-player-card {
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+.learning-player-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.learning-player-course {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.learning-player-chapter {
+  overflow: hidden;
+  font-size: 13px;
+  color: #8c8c8c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 视频：16:9 黑底，画面完整显示 */
+.learning-video-player {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 4px;
+  object-fit: contain;
+}
+/* 正文两栏：左内容卡 + 右精品推荐 */
+.learning-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.learning-main {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 24px 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+.learning-tabs .ant-tabs-tab {
+  font-size: 15px;
+}
+.learning-section-title {
+  margin: 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.learning-detail {
+  color: rgba(0, 0, 0, 0.75);
+}
+/* 章节页签：进度 + 目录 + 上下章 */
+.learning-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.learning-progress-label {
+  flex: none;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+.learning-progress-bar {
+  flex: 1;
+  max-width: 320px;
+  margin: 0;
+}
+/* 精品推荐侧栏 */
+.learning-side {
+  flex: 0 0 300px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+.learning-side-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.learning-side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* 窄屏：正文与侧栏上下堆叠 */
+@media (max-width: 900px) {
+  .learning-body {
+    flex-direction: column;
+  }
+  .learning-side {
+    flex-basis: auto;
+    width: 100%;
+  }
+}

@@ -55,6 +55,8 @@ export default function OrderPayPage() {
       // 详情页据此切换「去学习」
       queryClient.invalidateQueries({ queryKey: queryKeys.myOrdersAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+      // 学习记录包含已购课程：支付成功后立即出现
+      queryClient.invalidateQueries({ queryKey: queryKeys.studyRecordsRoot });
       queryClient.invalidateQueries({ queryKey: queryKeys.myCoupons('unused', 1) });
       setPaid(true);
     },
