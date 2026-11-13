@@ -178,12 +178,20 @@ describe('admin courses api', () => {
       ),
     );
 
-    await addChapter(1, { title: '第一章', contentType: 'video' }, 'key-abcdefgh');
+    await addChapter(
+      1,
+      { title: '第一章', contentType: 'video', content: 'video/2026/11/12/a.mp4' },
+      'key-abcdefgh',
+    );
     await reorderChapters(1, [2, 1]);
     await deleteChapter(1, 2);
 
     expect(chapterKey).toBe('key-abcdefgh');
-    expect(chapterBody).toEqual({ title: '第一章', contentType: 'video' });
+    expect(chapterBody).toEqual({
+      title: '第一章',
+      contentType: 'video',
+      content: 'video/2026/11/12/a.mp4',
+    });
     expect(reorderBody).toEqual({ orderedChapterIds: [2, 1] });
   });
 });

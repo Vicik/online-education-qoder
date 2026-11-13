@@ -2,7 +2,6 @@
 const COURSE_TYPE_LABELS: Record<string, string> = {
   video: '视频',
   audio: '音频',
-  rich: '图文',
 };
 
 // 取课程类型中文名：未知类型返回 undefined

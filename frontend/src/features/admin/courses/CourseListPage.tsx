@@ -134,7 +134,15 @@ export default function CourseListPage() {
                 runCourseAction(courseId, () => publishCourse(courseId), '课程已发布')
               }
             >
-              <Button type="link" size="small" autoInsertSpace={false}>
+              <Button
+                type="link"
+                size="small"
+                autoInsertSpace={false}
+                disabled={record.chapterCount === 0}
+                title={
+                  record.chapterCount === 0 ? '请先添加至少一个章节' : undefined
+                }
+              >
                 发布
               </Button>
             </ConfirmAction>

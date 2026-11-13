@@ -27,21 +27,18 @@ import type {
 } from '@/api/types';
 import { ConfirmAction } from '@/components/common/ConfirmAction';
 import { MediaUploader } from '@/components/common/MediaUploader';
-import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
-import { serializeRichHtmlForSave } from '@/lib/sanitize';
 
 // 章节弹窗表单值
 interface ChapterFormValues {
   title: string;
-  content?: string;
+  content: string;
 }
 
 // 课程类型到章节类型文案
-const CONTENT_TYPE_LABEL: Record<'video' | 'audio' | 'rich', string> = {
+const CONTENT_TYPE_LABEL: Record<'video' | 'audio', string> = {
   video: '视频',
   audio: '音频',
-  rich: '图文',
 };
 
 // 章节维护：增删改与上下移动排序，已发布课程只读
@@ -133,38 +130,29 @@ export function ChapterPanel(props: {
     setOpen(true);
   }
 
-  // 打开编辑弹窗：标题回填，正文留空保持
+  // 打开编辑弹窗：标题与正文都回填，正文沿用已保存的媒体 key
   function openEdit(chapter: AdminChapter) {
     setEditing(chapter);
-    form.setFieldsValue({ title: chapter.title ?? '', content: '' });
+    form.setFieldsValue({
+      title: chapter.title ?? '',
+      content: chapter.content ?? '',
+    });
     setOpen(true);
   }
 
-  // 提交弹窗：新增带 contentType；编辑仅在填写正文时提交 content
+  // 提交弹窗：新增带 contentType；正文必填，编辑时原样带回或替换
   async function handleSubmit() {
-    // 表单值
-    const values = await form.validateFields();
+    // 表单值：校验失败时错误已展示在表单上，直接结束
+    const values = await form.validateFields().catch(() => null);
+    if (!values) return;
     // 去除首尾空白的标题
     const title = values.title.trim();
-    // 去除首尾空白的正文
-    const rawContent = values.content?.trim();
-    // 空正文：空字符串与富文本空段落都视为「未填写」
-    const content =
-      rawContent && rawContent !== '<p></p>' ? rawContent : undefined;
+    // 去除首尾空白的正文（媒体 key）
+    const content = values.content.trim();
     try {
       if (editing) {
-        // 编辑载荷：正文留空则不带 content
-        const input: ChapterUpdateInput = {
-          title,
-          ...(content
-            ? {
-                content:
-                  courseType === 'rich'
-                    ? serializeRichHtmlForSave(content)
-                    : content,
-              }
-            : {}),
-        };
+        // 编辑载荷：正文始终提交，未更换时即原 key
+        const input: ChapterUpdateInput = { title, content };
         await updateMutation.mutateAsync({ chapterId: editing.id ?? 0, input });
         return;
       }
@@ -172,14 +160,7 @@ export function ChapterPanel(props: {
       const input: ChapterCreateInput = {
         title,
         contentType: courseType,
-        ...(content
-          ? {
-              content:
-                courseType === 'rich'
-                  ? serializeRichHtmlForSave(content)
-                  : content,
-            }
-          : {}),
+        content,
       };
       await addMutation.mutateAsync(input);
     } catch (error) {
@@ -296,7 +277,7 @@ export function ChapterPanel(props: {
           key={editing ? `edit-${editing.id}` : 'create'}
           form={form}
           layout="vertical"
-          initialValues={{ title: editing?.title ?? '', content: '' }}
+          initialValues={{ title: editing?.title ?? '', content: editing?.content ?? '' }}
         >
           <Form.Item
             name="title"
@@ -314,17 +295,14 @@ export function ChapterPanel(props: {
           <Form.Item
             name="content"
             label="正文"
+            rules={[{ required: true, message: '请上传章节正文（视频/音频）' }]}
             extra={
               editing
-                ? '留空保持原正文不变，填写则整体替换'
-                : '可选；图文为富文本，视频/音频先上传再保存'
+                ? '已回填原正文；重新上传将整体替换'
+                : '必填；先上传视频/音频再保存'
             }
           >
-            {courseType === 'rich' ? (
-              <RichTextEditor placeholder="留空保持原正文不变" />
-            ) : (
-              <MediaUploader kind={courseType} />
-            )}
+            <MediaUploader kind={courseType} />
           </Form.Item>
         </Form>
       </Modal>

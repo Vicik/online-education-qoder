@@ -132,6 +132,32 @@ describe('CourseListPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('无章节课程发布按钮禁用并提示', async () => {
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [{ ...row, name: '无章节课', chapterCount: 0 }],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    const draftRow = (await screen.findByText('无章节课')).closest('tr') as HTMLElement;
+    // 发布按钮禁用，并提示先添加章节
+    const publishButton = within(draftRow).getByRole('button', { name: '发布' });
+    expect(publishButton).toBeDisabled();
+    expect(publishButton).toHaveAttribute('title', '请先添加至少一个章节');
+  });
+
   it('状态筛选重新请求；空结果显示空态', async () => {
     // 捕获状态参数
     let status = '';

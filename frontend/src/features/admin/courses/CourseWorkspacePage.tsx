@@ -108,6 +108,10 @@ export default function CourseWorkspacePage() {
 
   // 当前课程详情
   const course = query.data;
+  // 章节数：章节数组优先，兼容仅返回计数的接口
+  const chapterCount = course.chapters?.length ?? course.chapterCount ?? 0;
+  // 无章节课程不可发布：按钮禁用并提示先加章节
+  const publishDisabled = chapterCount === 0;
 
   return (
     <div>
@@ -123,7 +127,12 @@ export default function CourseWorkspacePage() {
                   confirmStatusChange(() => publishMutation.mutateAsync())
                 }
               >
-                <Button type="primary" autoInsertSpace={false}>
+                <Button
+                  type="primary"
+                  autoInsertSpace={false}
+                  disabled={publishDisabled}
+                  title={publishDisabled ? '请先添加至少一个章节' : undefined}
+                >
                   发布
                 </Button>
               </ConfirmAction>

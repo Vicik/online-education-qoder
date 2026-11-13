@@ -13,7 +13,7 @@ import { serializeRichHtmlForSave } from '@/lib/sanitize';
 // 创建表单值：封面为 key + 预览 url，富文本为编辑器输出
 interface CourseFormValues {
   name: string;
-  type: 'video' | 'audio' | 'rich';
+  type: 'video' | 'audio';
   originalCents: number | null;
   saleCents: number | null;
   instructor?: string;
@@ -26,7 +26,6 @@ interface CourseFormValues {
 const TYPE_OPTIONS = [
   { value: 'video', label: '视频' },
   { value: 'audio', label: '音频' },
-  { value: 'rich', label: '图文' },
 ];
 
 // 创建课程：保存草稿后进入工作区章节维护

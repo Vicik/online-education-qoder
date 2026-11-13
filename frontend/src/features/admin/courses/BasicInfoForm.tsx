@@ -15,7 +15,7 @@ import { serializeRichHtmlForSave } from '@/lib/sanitize';
 // 基本信息表单值
 interface BasicFormValues {
   name: string;
-  type: 'video' | 'audio' | 'rich';
+  type: 'video' | 'audio';
   originalCents: number | null;
   saleCents: number | null;
   instructor?: string;
@@ -28,7 +28,6 @@ interface BasicFormValues {
 const TYPE_OPTIONS = [
   { value: 'video', label: '视频' },
   { value: 'audio', label: '音频' },
-  { value: 'rich', label: '图文' },
 ];
 
 // 封面回显：优先 coverKey；历史 http 地址原样作为回写值

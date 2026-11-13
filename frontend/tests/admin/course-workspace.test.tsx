@@ -2,8 +2,14 @@ import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CourseWorkspacePage from '@/features/admin/courses/CourseWorkspacePage';
+import { probeVideoDecodable } from '@/lib/media-probe';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../utils/render';
+
+// 视频探测：jsdom 无媒体解码能力，统一桩为可解码
+vi.mock('@/lib/media-probe', () => ({
+  probeVideoDecodable: vi.fn(),
+}));
 
 // 成功信封
 function envelope<T>(data: T) {
@@ -26,8 +32,8 @@ function courseDetail(overrides: Record<string, unknown> = {}) {
     intro: '课程简介',
     detailRich: null,
     chapters: [
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
-      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2 },
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, content: 'video/2026/11/12/keep.mp4' },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, content: 'video/2026/11/12/keep2.mp4' },
     ],
     groupon: null,
     flashSale: null,
@@ -48,6 +54,14 @@ const detailUrl = /\/api\/v1\/admin\/courses\/1$/;
 const reorderUrl = /\/api\/v1\/admin\/courses\/1\/chapters\/reorder$/;
 
 describe('CourseWorkspacePage', () => {
+  beforeEach(() => {
+    vi.mocked(probeVideoDecodable).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.mocked(probeVideoDecodable).mockReset();
+  });
+
   it('已发布课程只读并提示先下架', async () => {
     server.use(
       http.get(detailUrl, () =>
@@ -116,16 +130,35 @@ describe('CourseWorkspacePage', () => {
         reorderBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(envelope([]));
       }),
+      http.post(/\/api\/v1\/admin\/files\/video$/, () =>
+        HttpResponse.json(
+          envelope({
+            key: 'video/2026/11/12/new.mp4',
+            url: 'https://cdn.test/new.mp4',
+            mimeType: 'video/mp4',
+            size: 4,
+          }),
+          { status: 201 },
+        ),
+      ),
     );
 
     renderWithProviders(routes, '/admin/courses/1');
     await userEvent.click(await screen.findByText('章节维护'));
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
     await userEvent.type(screen.getByLabelText('章节标题'), '第三章');
+    // 正文必填：先上传视频写入 key
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['video'], 'new.mp4', { type: 'video/mp4' }));
+    await screen.findByRole('button', { name: '更换视频' });
     await userEvent.click(screen.getByRole('button', { name: '确定' }));
 
     await waitFor(() =>
-      expect(chapterBody).toEqual({ title: '第三章', contentType: 'video' }),
+      expect(chapterBody).toEqual({
+        title: '第三章',
+        contentType: 'video',
+        content: 'video/2026/11/12/new.mp4',
+      }),
     );
     expect(chapterKey).not.toBeNull();
 
@@ -136,10 +169,78 @@ describe('CourseWorkspacePage', () => {
     );
   });
 
-  it('取消新增后再次打开，标题与正文为空', async () => {
+  it('新增章节未上传正文时提示必填且不提交', async () => {
+    // 记录新增接口是否被调用
+    let called = false;
+    server.use(
+      http.get(detailUrl, () => HttpResponse.json(envelope(courseDetail()))),
+      http.post(/\/api\/v1\/admin\/courses\/1\/chapters$/, () => {
+        called = true;
+        return HttpResponse.json(envelope({ id: 3 }), { status: 201 });
+      }),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
+    await userEvent.type(screen.getByLabelText('章节标题'), '未上传正文');
+    await userEvent.click(screen.getByRole('button', { name: '确定' }));
+
+    expect(
+      await screen.findByText('请上传章节正文（视频/音频）'),
+    ).toBeInTheDocument();
+    expect(called).toBe(false);
+  }, 30_000);
+
+  it('编辑章节回填原正文，只改标题时原样提交', async () => {
+    // 捕获编辑请求体
+    let updateBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get(detailUrl, () => HttpResponse.json(envelope(courseDetail()))),
+      http.put(/\/api\/v1\/admin\/courses\/1\/chapters\/1$/, async ({ request }) => {
+        updateBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          envelope({ id: 1, title: '第一章改名', contentType: 'video', sortOrder: 1 }),
+        );
+      }),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    await userEvent.click(screen.getAllByRole('button', { name: '编辑' })[0]);
+
+    // 正文回填为已保存的媒体 key，无需重新上传
+    expect(
+      await screen.findByText('已选择视频；编辑模式不加载旧媒体预览'),
+    ).toBeInTheDocument();
+    const titleInput = await screen.findByLabelText('章节标题');
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, '第一章改名');
+    await userEvent.click(screen.getByRole('button', { name: '确定' }));
+
+    await waitFor(() =>
+      expect(updateBody).toEqual({
+        title: '第一章改名',
+        content: 'video/2026/11/12/keep.mp4',
+      }),
+    );
+  }, 30_000);
+
+  it('取消新增后再次打开，标题与媒体为空', async () => {
     server.use(
       http.get(detailUrl, () =>
-        HttpResponse.json(envelope(courseDetail({ type: 'rich' }))),
+        HttpResponse.json(envelope(courseDetail({ type: 'audio' }))),
+      ),
+      http.post(/\/api\/v1\/admin\/files\/audio$/, () =>
+        HttpResponse.json(
+          envelope({
+            key: 'audios/2026/11/a.mp3',
+            url: 'https://cdn.test/a.mp3',
+            mimeType: 'audio/mpeg',
+            size: 10,
+          }),
+          { status: 201 },
+        ),
       ),
     );
 
@@ -148,16 +249,17 @@ describe('CourseWorkspacePage', () => {
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
 
     await userEvent.type(screen.getByLabelText('章节标题'), '残留标题');
-    const editor = document.querySelector('.ProseMirror') as HTMLElement;
-    await userEvent.click(editor);
-    await userEvent.keyboard('残留正文');
-    expect(editor.textContent).toContain('残留正文');
+    // 隐藏文件输入：上传一个音频，表单正文被写入 key
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['audio'], 'a.mp3', { type: 'audio/mpeg' }));
+    expect(await screen.findByRole('button', { name: '更换音频' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '取消' }));
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
 
     expect(await screen.findByLabelText('章节标题')).toHaveValue('');
-    expect((document.querySelector('.ProseMirror') as HTMLElement).textContent).toBe('');
+    expect(screen.getByText('尚未上传音频')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '更换音频' })).not.toBeInTheDocument();
   }, 30_000);
 
   it('编辑章节后打开新增，标题为空', async () => {
@@ -174,6 +276,23 @@ describe('CourseWorkspacePage', () => {
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
 
     expect(await screen.findByLabelText('章节标题')).toHaveValue('');
+  }, 30_000);
+
+  it('无章节时发布按钮禁用并提示', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json(
+          envelope(courseDetail({ chapters: [], chapterCount: 0 })),
+        ),
+      ),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+
+    // 发布按钮禁用，并提示先添加章节
+    const publishButton = await screen.findByRole('button', { name: '发布' });
+    expect(publishButton).toBeDisabled();
+    expect(publishButton).toHaveAttribute('title', '请先添加至少一个章节');
   }, 30_000);
 
   it('发布需二次确认，确认后刷新详情', async () => {

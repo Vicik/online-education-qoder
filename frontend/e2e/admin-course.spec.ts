@@ -11,13 +11,10 @@ test('创建课程、双标签保存触发 409，刷新后可发布', async ({ b
   // 本次唯一课程名
   const courseName = `E2E 课程 ${uniqueSuffix()}`;
 
-  // 创建草稿：图文课避免视频 key
+  // 创建草稿视频课（默认类型即视频）
   await pageA.goto('/admin/courses/create');
   await expect(pageA.getByLabel('课程名称')).toBeVisible();
   await pageA.getByLabel('课程名称').fill(courseName);
-  // 点击 Select 当前选中项打开下拉；AntD v5 的可见选项无 option 角色，按文本点击
-  await pageA.getByText('视频', { exact: true }).click();
-  await pageA.getByText('图文', { exact: true }).click();
   // InputNumber 的可访问名是占位符，而非 Form.Item 标签
   await pageA.getByPlaceholder('原价（元）').fill('100');
   await pageA.getByPlaceholder('售价（元）').fill('90');
@@ -40,9 +37,41 @@ test('创建课程、双标签保存触发 409，刷新后可发布', async ({ b
   const courseId = Number(new URL(pageA.url()).pathname.split('/').pop());
   expect(courseId).toBeGreaterThan(0);
 
-  // 新增章节，满足完整工作区路径
+  // 新增章节：正文必填，用 MediaRecorder 现场生成可解码 WebM 后上传
   await pageA.getByRole('button', { name: '新增章节' }).click();
   await pageA.getByLabel('章节标题').fill('E2E 第一章');
+  // 浏览器内录制 0.8 秒画布视频，避免仓库内放置二进制媒体
+  const webmBase64 = await pageA.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 90;
+    const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(10);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size) chunks.push(e.data);
+    };
+    const stopped = new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+    });
+    recorder.start();
+    const timer = setInterval(() => {
+      ctx?.fillRect(0, 0, 160, 90);
+    }, 50);
+    await new Promise((r) => setTimeout(r, 800));
+    clearInterval(timer);
+    recorder.stop();
+    await stopped;
+    const buffer = await new Blob(chunks, { type: 'video/webm' }).arrayBuffer();
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  });
+  await pageA.locator('.ant-modal input[type="file"]').setInputFiles({
+    name: 'chapter.webm',
+    mimeType: 'video/webm',
+    buffer: Buffer.from(webmBase64, 'base64'),
+  });
+  await expect(pageA.getByRole('button', { name: '更换视频' })).toBeVisible();
   await pageA.getByRole('button', { name: '确定' }).click();
   await expect(pageA.getByText('E2E 第一章')).toBeVisible();
 
