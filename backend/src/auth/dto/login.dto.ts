@@ -1,4 +1,4 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 // 登录请求 DTO：与 openapi LoginRequest 一致
 export class LoginDto {
@@ -8,5 +8,6 @@ export class LoginDto {
 
   // 登录密码（登录时不重复校验强度）
   @IsString({ message: '密码必须是字符串' })
+  @IsNotEmpty()
   password!: string;
 }
