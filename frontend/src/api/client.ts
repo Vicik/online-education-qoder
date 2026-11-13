@@ -11,6 +11,7 @@ import {
   normalizeAxiosError,
   type Envelope,
 } from './errors';
+import { isPlainObject, trimDeep } from './trim';
 
 // 扩展请求配置：/auth/me 等探测请求不触发全局跳登录
 declare module 'axios' {
@@ -26,8 +27,14 @@ export const apiClient: AxiosInstance = axios.create({
   headers: { Accept: 'application/json' },
 });
 
-// 请求开始：累加全局加载计数（响应拦截器中释放）
+// 请求开始：纯对象/数组载荷先 trim，再累加全局加载计数
 apiClient.interceptors.request.use((config) => {
+  if (Array.isArray(config.data) || isPlainObject(config.data)) {
+    config.data = trimDeep(config.data);
+  }
+  if (isPlainObject(config.params)) {
+    config.params = trimDeep(config.params);
+  }
   useRequestActivityStore.getState().startRequest();
   return config;
 });

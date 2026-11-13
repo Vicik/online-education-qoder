@@ -95,4 +95,30 @@ describe('api client', () => {
     await expect(request({ url: '/fail' })).rejects.toMatchObject({ code: 1001 });
     expect(pendingCount()).toBe(0);
   });
+  it('请求体与查询参数在发送前被 trim', async () => {
+    // 服务端实际收到的查询串
+    let seenUrl = '';
+    // 服务端实际收到的 JSON
+    let seenBody: unknown = null;
+    server.use(
+      http.post(/\/api\/v1\/echo$/, async ({ request: req }) => {
+        seenUrl = req.url;
+        seenBody = await req.json();
+        return HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: null,
+          requestId: 'r8',
+        });
+      }),
+    );
+    await request({
+      url: '/echo',
+      method: 'post',
+      params: { q: '  hi  ' },
+      data: { name: ' 张三 ', nested: [' a '] },
+    });
+    expect(seenUrl).toContain('q=hi');
+    expect(seenBody).toEqual({ name: '张三', nested: ['a'] });
+  });
 });
