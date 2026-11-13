@@ -211,23 +211,23 @@ components:
       type: object
       required: [email, password, confirmPassword, nickname]
       properties:
-        email: { type: string, format: email }
+        email: { type: string, format: email, minLength: 1 }
         password: { type: string, minLength: 8, maxLength: 64, description: D6 已决：8–64 位，鼓励混合字符 }
-        confirmPassword: { type: string }
-        nickname: { type: string, maxLength: 30 }
+        confirmPassword: { type: string, minLength: 1 }
+        nickname: { type: string, minLength: 1, maxLength: 30 }
     LoginRequest:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string }
+        email: { type: string, format: email, minLength: 1 }
+        password: { type: string, minLength: 1 }
     ChangePasswordRequest:
       type: object
       required: [currentPassword, newPassword, confirmPassword]
       properties:
-        currentPassword: { type: string }
+        currentPassword: { type: string, minLength: 1 }
         newPassword: { type: string, minLength: 8, maxLength: 64 }
-        confirmPassword: { type: string }
+        confirmPassword: { type: string, minLength: 1 }
 
     CourseBrief:
       type: object
@@ -321,6 +321,7 @@ components:
       properties:
         orderedChapterIds:
           type: array
+          minItems: 1
           items: { type: integer }
           description: 全部章节 id 的新顺序；保存后从 1 连续编号
     CourseAdminWriteResult:
@@ -550,10 +551,10 @@ components:
       required: [type, stem, options, answer, analysis, score]
       properties:
         type: { type: string, enum: [single, multiple] }
-        stem: { type: string }
-        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string }, text: { type: string } } } }
-        answer: { type: array, minItems: 1, items: { type: string } }
-        analysis: { type: string }
+        stem: { type: string, minLength: 1 }
+        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string, minLength: 1 }, text: { type: string, minLength: 1 } } } }
+        answer: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        analysis: { type: string, minLength: 1 }
         score: { type: integer, minimum: 1, description: 分值仅创建时确定，之后不可改 }
     QuestionUpdateRequest:
       type: object
@@ -562,10 +563,10 @@ components:
       properties:
         version: { type: integer }
         type: { type: string, enum: [single, multiple] }
-        stem: { type: string }
-        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string }, text: { type: string } } } }
-        answer: { type: array, items: { type: string } }
-        analysis: { type: string }
+        stem: { type: string, minLength: 1, description: 传入时不可为空 }
+        options: { type: array, minItems: 2, maxItems: 6, items: { type: object, properties: { key: { type: string, minLength: 1 }, text: { type: string, minLength: 1 } } } }
+        answer: { type: array, minItems: 1, items: { type: string, minLength: 1 }, description: 传入时不可为空 }
+        analysis: { type: string, minLength: 1, description: 传入时不可为空 }
 
     ExamBrief:
       type: object
@@ -593,22 +594,22 @@ components:
       type: object
       required: [title, durationMin, passScore, questionIds]
       properties:
-        title: { type: string }
+        title: { type: string, minLength: 1 }
         description: { type: string, default: '' }
         durationMin: { type: integer, minimum: 1 }
         passScore: { type: integer, minimum: 1, description: 大于 0 且不超过总分 }
-        questionIds: { type: array, items: { type: integer }, description: 选题并定序；组卷不改分值，总分=分值之和 }
+        questionIds: { type: array, minItems: 1, items: { type: integer }, description: 选题并定序；组卷不改分值，总分=分值之和 }
     ExamUpdateRequest:
       type: object
       required: [version]
       description: 仅草稿可编辑
       properties:
         version: { type: integer }
-        title: { type: string }
+        title: { type: string, minLength: 1, description: 传入时不可为空 }
         description: { type: string }
         durationMin: { type: integer }
         passScore: { type: integer }
-        questionIds: { type: array, items: { type: integer } }
+        questionIds: { type: array, minItems: 1, items: { type: integer }, description: 传入时不可为空；按新顺序重写草稿快照 }
     AttemptStartData:
       type: object
       description: data 结构：开始考试；题目不含答案；deadlineAt 为服务端权威时间
@@ -759,7 +760,7 @@ components:
       type: object
       required: [nickname, gender]
       properties:
-        nickname: { type: string, maxLength: 30 }
+        nickname: { type: string, minLength: 1, maxLength: 30 }
         avatarUrl: { type: string, nullable: true, description: 提交图片 key（image/YYYY/MM/DD/uuid.ext，兼容历史 http(s) URL）；传 null 清空 }
         gender: { type: string, enum: [male, female, secret] }
     UploadData:

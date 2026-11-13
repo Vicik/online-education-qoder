@@ -4458,12 +4458,15 @@ export interface components {
             version: number;
             /** @enum {string} */
             type?: "single" | "multiple";
+            /** @description 传入时不可为空 */
             stem?: string;
             options?: {
                 key?: string;
                 text?: string;
             }[];
+            /** @description 传入时不可为空 */
             answer?: string[];
+            /** @description 传入时不可为空 */
             analysis?: string;
         };
         ExamBrief: {
@@ -4498,10 +4501,12 @@ export interface components {
         /** @description 仅草稿可编辑 */
         ExamUpdateRequest: {
             version: number;
+            /** @description 传入时不可为空 */
             title?: string;
             description?: string;
             durationMin?: number;
             passScore?: number;
+            /** @description 传入时不可为空；按新顺序重写草稿快照 */
             questionIds?: number[];
         };
         /** @description data 结构：开始考试；题目不含答案；deadlineAt 为服务端权威时间 */
