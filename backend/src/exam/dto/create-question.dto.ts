@@ -50,10 +50,12 @@ export class CreateQuestionDto {
   @ArrayMinSize(1)
   @ArrayUnique()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   answer!: string[];
 
   // 答案解析（仅交卷后返回）
   @IsString()
+  @IsNotEmpty()
   analysis!: string;
 
   // 题目分值：仅创建时确定，之后不可修改

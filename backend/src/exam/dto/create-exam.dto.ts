@@ -1,4 +1,5 @@
 import {
+  ArrayNotEmpty,
   IsArray,
   IsInt,
   IsNotEmpty,
@@ -31,6 +32,7 @@ export class CreateExamDto {
 
   // 组卷题目 id（按顺序出题；分值不可在组卷时修改）
   @IsArray()
+  @ArrayNotEmpty()
   @IsInt({ each: true })
   questionIds!: number[];
 }

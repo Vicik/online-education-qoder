@@ -3,13 +3,16 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { QuestionOptionDto } from './create-question.dto';
@@ -26,9 +29,10 @@ export class UpdateQuestionDto {
   @IsEnum(QuestionType)
   type?: QuestionType;
 
-  // 题干
-  @IsOptional()
+  // 题干：不传表示不改，传入时不可为 null 或空串
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
   stem?: string;
 
   // 选项：2~6 个，key 不可重复
@@ -40,16 +44,19 @@ export class UpdateQuestionDto {
   @Type(() => QuestionOptionDto)
   options?: QuestionOptionDto[];
 
-  // 正确答案：改动后仍需满足题型规则
-  @IsOptional()
+  // 正确答案：不传表示不改，传入时不可为空数组或空串元素
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsArray()
+  @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   answer?: string[];
 
-  // 答案解析
-  @IsOptional()
+  // 答案解析：不传表示不改，传入时不可为 null 或空串
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
   analysis?: string;
 
   // 分值不可改：兼容客户端误传，服务端忽略该字段

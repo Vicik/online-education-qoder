@@ -1,4 +1,13 @@
-import { IsArray, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 // 编辑考试请求：对应 openapi ExamUpdateRequest，仅草稿可编辑
 export class UpdateExamDto {
@@ -7,9 +16,10 @@ export class UpdateExamDto {
   @Min(1)
   version!: number;
 
-  // 考试名称
-  @IsOptional()
+  // 考试名称：不传表示不改，传入时不可为 null 或空串
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
   title?: string;
 
   // 考试说明
@@ -29,9 +39,10 @@ export class UpdateExamDto {
   @Min(1)
   passScore?: number;
 
-  // 重新组卷：按新顺序重写草稿快照
-  @IsOptional()
+  // 重新组卷：不传表示不改，传入时不可为空数组
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsArray()
+  @ArrayNotEmpty()
   @IsInt({ each: true })
   questionIds?: number[];
 }
