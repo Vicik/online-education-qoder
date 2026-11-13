@@ -3,13 +3,7 @@ import type { CourseBrief } from '@/api/types';
 import { CourseCard } from './CourseCard';
 
 // 课程网格：自适应 3–4 列（≥240px 一列）
-export function CourseGrid({
-  courses,
-  onCoverError,
-}: {
-  courses: CourseBrief[];
-  onCoverError?: () => void;
-}) {
+export function CourseGrid({ courses }: { courses: CourseBrief[] }) {
   return (
     <div
       style={{
@@ -19,7 +13,7 @@ export function CourseGrid({
       }}
     >
       {courses.map((course) => (
-        <CourseCard key={course.id} course={course} onCoverError={onCoverError} />
+        <CourseCard key={course.id} course={course} />
       ))}
     </div>
   );

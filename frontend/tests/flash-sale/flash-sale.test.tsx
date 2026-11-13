@@ -17,6 +17,8 @@ const sale = {
   id: 6,
   courseId: 1,
   courseName: 'TypeScript 系统入门',
+  // 课程原价：用于划线原价展示
+  courseOriginalCents: 19900,
   name: '限时秒杀',
   priceCents: 4900,
   stock: 100,
@@ -29,7 +31,7 @@ const sale = {
 };
 
 describe('FlashSaleListPage', () => {
-  it('展示秒杀价、剩余库存与倒计时', async () => {
+  it('展示课程卡片、秒杀价状态与倒计时', async () => {
     server.use(
       http.get(/\/api\/v1\/flash-sales$/, () =>
         HttpResponse.json(envelope({ items: [sale], total: 1, page: 1, pageSize: 12 })),
@@ -38,10 +40,34 @@ describe('FlashSaleListPage', () => {
 
     renderWithProviders([{ path: '/flash-sales', element: <FlashSaleListPage /> }], '/flash-sales');
 
-    expect(await screen.findByRole('link', { name: '限时秒杀' })).toBeInTheDocument();
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
     expect(screen.getByText('¥49.00')).toBeInTheDocument();
-    expect(screen.getByText(/剩余 2 件/)).toBeInTheDocument();
-    expect(screen.getByText(/距结束/)).toBeInTheDocument();
+    expect(screen.getByText('秒杀中')).toBeInTheDocument();
+    expect(screen.getByText('倒计时')).toBeInTheDocument();
+    // 整卡跳课程详情页
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/courses/1?from=flash');
+  });
+
+  it('页脚为参考图橙色，划线原价下移 5px', async () => {
+    server.use(
+      http.get(/\/api\/v1\/flash-sales$/, () =>
+        HttpResponse.json(envelope({ items: [sale], total: 1, page: 1, pageSize: 12 })),
+      ),
+    );
+
+    renderWithProviders([{ path: '/flash-sales', element: <FlashSaleListPage /> }], '/flash-sales');
+
+    // 页脚：与拼团、参考图一致的橙色
+    const footer = (await screen.findByText('秒杀中')).closest('.activity-card-footer');
+    expect(footer).not.toBeNull();
+    expect(footer).toHaveStyle({ backgroundColor: 'rgb(250, 140, 22)' });
+
+    // 原价：相对活动价下移 5px，与课程卡片一致
+    const original = document.querySelector('.activity-card-price .money-text-original');
+    expect(original).not.toBeNull();
+    const style = getComputedStyle(original as Element);
+    expect(style.position).toBe('relative');
+    expect(style.top).toBe('5px');
   });
 
   it('售罄活动显示已售罄', async () => {

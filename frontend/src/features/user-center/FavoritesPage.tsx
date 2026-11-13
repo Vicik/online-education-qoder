@@ -56,7 +56,6 @@ export default function FavoritesPage() {
               <CourseCard
                 key={course.id}
                 course={course}
-                onCoverError={() => query.refetch()}
                 footer={
                   <ConfirmAction
                     title="取消收藏该课程？"

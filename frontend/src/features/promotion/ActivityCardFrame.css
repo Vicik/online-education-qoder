@@ -1,0 +1,90 @@
+/* 活动卡片：封面上置、标题与活动价、彩色页脚，样式对齐参考图 */
+.activity-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease;
+}
+.activity-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+/* 封面：固定高度，加载失败显示占位底色 */
+.activity-card-cover,
+.activity-card-cover-placeholder {
+  height: 160px;
+  background: #f0f2f5;
+}
+.activity-card-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 正文：标题最多两行，高度对齐 */
+.activity-card-body {
+  flex: 1;
+  padding: 14px 16px;
+}
+.activity-card-title {
+  display: -webkit-box;
+  min-height: 42px;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.88);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.activity-card-price {
+  margin-top: 8px;
+}
+/* 原价位置对齐课程卡片：划线原价相对活动价下移 5px */
+.activity-card-price .money-text-original {
+  position: relative;
+  top: 5px;
+}
+/* 页脚：左侧状态，右侧白框倒计时 */
+.activity-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #fff;
+}
+.activity-card-status {
+  flex: none;
+  font-weight: 600;
+}
+/* 倒计时数字块：白底红字，贴近参考图 */
+.activity-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.activity-countdown-label {
+  margin-right: 4px;
+}
+.activity-countdown-box {
+  min-width: 20px;
+  padding: 0 4px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #f5222d;
+  text-align: center;
+  background: #fff;
+  border-radius: 3px;
+}
+.activity-countdown-unit,
+.activity-countdown-sep {
+  margin: 0 1px;
+}

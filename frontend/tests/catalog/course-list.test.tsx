@@ -15,7 +15,7 @@ function course(id: number) {
   return {
     id,
     name: `课程 ${id}`,
-    type: 'rich',
+    type: 'audio',
     coverKey: null,
     coverUrl: null,
     instructor: null,

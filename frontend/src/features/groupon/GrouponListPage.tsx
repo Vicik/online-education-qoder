@@ -50,13 +50,14 @@ export default function GrouponListPage() {
         </Row>
       )}
       {total > 0 && (
-        <Pagination
-          current={page}
-          pageSize={pageSize}
-          total={total}
-          onChange={onChange}
-          style={{ marginTop: 16, textAlign: 'right' }}
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={onChange}
+          />
+        </div>
       )}
     </div>
   );

@@ -39,7 +39,7 @@ export default function CourseListPage() {
         <CourseGridSkeleton />
       ) : query.data && query.data.items.length > 0 ? (
         <>
-          <CourseGrid courses={query.data.items} onCoverError={() => query.refetch()} />
+          <CourseGrid courses={query.data.items} />
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
             <Pagination
               current={page}

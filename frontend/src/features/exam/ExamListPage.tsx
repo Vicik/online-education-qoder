@@ -59,13 +59,14 @@ export default function ExamListPage() {
           </Card>
         ))
       )}
-      <Pagination
-        current={page}
-        pageSize={pageSize}
-        total={total}
-        onChange={onChange}
-        style={{ textAlign: 'right' }}
-      />
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+        <Pagination
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={onChange}
+        />
+      </div>
     </div>
   );
 }

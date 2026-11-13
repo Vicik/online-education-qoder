@@ -39,10 +39,7 @@ export default function HomePage() {
           <Typography.Title level={4} style={{ marginTop: 0 }}>
             推荐课程
           </Typography.Title>
-          <CourseGrid
-            courses={recommendations.data ?? []}
-            onCoverError={() => recommendations.refetch()}
-          />
+          <CourseGrid courses={recommendations.data ?? []} />
         </>
       ) : null}
 
@@ -66,7 +63,7 @@ export default function HomePage() {
       {latest.isLoading ? (
         <CourseGridSkeleton />
       ) : latest.data && latest.data.items.length > 0 ? (
-        <CourseGrid courses={latest.data.items} onCoverError={() => latest.refetch()} />
+        <CourseGrid courses={latest.data.items} />
       ) : (
         <EmptyState description="暂无课程" />
       )}

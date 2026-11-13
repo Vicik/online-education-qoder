@@ -59,13 +59,14 @@ export default function FeedPage() {
         items.map((item) => <PostCard key={item.id} post={item} />)
       )}
       {total > 0 && (
-        <Pagination
-          current={page}
-          pageSize={pageSize}
-          total={total}
-          onChange={onChange}
-          style={{ textAlign: 'right' }}
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={onChange}
+          />
+        </div>
       )}
     </div>
   );

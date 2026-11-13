@@ -24,7 +24,7 @@ export type CourseDetail = Schemas['CourseDetail'];
 // 章节目录项（不含正文）
 export type ChapterBrief = Schemas['ChapterBrief'];
 
-// 章节正文（rich=净化 HTML；video/audio=签名地址）
+// 章节正文（video/audio=短期签名地址）
 export type ChapterContent = Schemas['ChapterContent'];
 
 // 学习记录项
@@ -105,7 +105,7 @@ export type AdminCourseListItem = Schemas['CourseBrief'] & {
 // 管理端课程详情：用户端详情 + version（步骤 14 契约修正）
 export type AdminCourseDetail = Schemas['CourseDetail'];
 
-// 章节目录项：id/标题/内容类型/序号（不含正文）；schema 字段可选，此处收敛为必有元素
+// 章节目录项：id/标题/内容类型/序号，管理端附带正文媒体 key；schema 字段可选，此处收敛为必有元素
 export type AdminChapter = NonNullable<AdminCourseDetail['chapters']>[number];
 
 // 课程状态：草稿/已发布/已下架（剔除 schema 可选性产生的 undefined）

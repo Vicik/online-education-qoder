@@ -353,7 +353,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 已发布课程列表 */
+        /** 已发布课程列表（不含当前参与拼团/秒杀活动的课程） */
         get: {
             parameters: {
                 query?: {
@@ -841,7 +841,7 @@ export interface paths {
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
                 409: components["responses"]["Err409"];
-                /** @description 状态不允许（仅草稿/已下架可发布） */
+                /** @description 状态不允许（仅草稿/已下架可发布）；课程没有章节时也不可发布 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -918,7 +918,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 设为首页推荐（任意状态可标记；首页仅展示已发布的推荐课程） */
+        /** 设为首页推荐（仅已发布课程可标记） */
         post: {
             parameters: {
                 query?: never;
@@ -943,7 +943,7 @@ export interface paths {
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
                 409: components["responses"]["Err409"];
-                /** @description 课程已在推荐位 */
+                /** @description 课程未发布或已在推荐位 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -969,7 +969,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 取消首页推荐 */
+        /** 取消首页推荐（仅已发布课程可操作） */
         post: {
             parameters: {
                 query?: never;
@@ -994,7 +994,7 @@ export interface paths {
                 403: components["responses"]["Err403"];
                 404: components["responses"]["Err404"];
                 409: components["responses"]["Err409"];
-                /** @description 课程不在推荐位 */
+                /** @description 课程未发布或不在推荐位 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -1811,7 +1811,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 拼团活动列表（进行中） */
+        /** 拼团活动列表（仅进行中且未结束） */
         get: {
             parameters: {
                 query?: {
@@ -2185,7 +2185,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 秒杀活动列表 */
+        /** 秒杀活动列表（仅进行中且未结束） */
         get: {
             parameters: {
                 query?: {
@@ -4189,7 +4189,7 @@ export interface components {
             id?: number;
             name?: string;
             /** @enum {string} */
-            type?: "video" | "audio" | "rich";
+            type?: "video" | "audio";
             /** @description 封面图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
             coverKey?: string | null;
             /** @description key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
@@ -4213,10 +4213,12 @@ export interface components {
             id?: number;
             title?: string;
             /** @enum {string} */
-            contentType?: "video" | "audio" | "rich";
+            contentType?: "video" | "audio";
             sortOrder?: number;
-            /** @description 仅已登录已购用户返回 */
+            /** @description 是否已播放完成；仅已登录已购用户返回 */
             visited?: boolean;
+            /** @description 媒体 key；仅管理端详情返回，用于编辑回填 */
+            content?: string | null;
         };
         CourseDetail: components["schemas"]["CourseBrief"] & {
             /** @description 乐观锁版本；管理端编辑回传，用户端忽略 */
@@ -4235,15 +4237,15 @@ export interface components {
             id?: number;
             title?: string;
             /** @enum {string} */
-            contentType?: "video" | "audio" | "rich";
-            /** @description rich=净化后 HTML（img 的 src 已换公开 URL、保留 data-key）；video/audio=短期签名播放 URL；旧 key 无法解析时为 null */
+            contentType?: "video" | "audio";
+            /** @description video/audio=短期签名播放 URL；旧 key 无法解析时为 null */
             content?: string | null;
             sortOrder?: number;
         };
         CourseCreateRequest: {
             name: string;
             /** @enum {string} */
-            type: "video" | "audio" | "rich";
+            type: "video" | "audio";
             originalCents: number;
             /** @description 不得高于原价 */
             saleCents: number;
@@ -4261,7 +4263,7 @@ export interface components {
             /** @description 传入时不可为空 */
             name?: string;
             /** @enum {string} */
-            type?: "video" | "audio" | "rich";
+            type?: "video" | "audio";
             originalCents?: number;
             saleCents?: number;
             /** @description 讲师名称；传入时不可为空 */
@@ -4277,14 +4279,15 @@ export interface components {
              * @description 须与课程类型一致
              * @enum {string}
              */
-            contentType: "video" | "audio" | "rich";
-            /** @description rich=HTML（图片建议带 data-key）；video/audio=媒体上传接口返回的 key */
-            content?: string | null;
+            contentType: "video" | "audio";
+            /** @description 必填；video/audio=媒体上传接口返回的 key */
+            content: string;
         };
         ChapterUpdateRequest: {
             /** @description 传入时不可为空 */
             title?: string;
-            content?: string | null;
+            /** @description 传入时不可为空；不传表示保持原正文 */
+            content?: string;
         };
         ChapterReorderRequest: {
             /** @description 全部章节 id 的新顺序；保存后从 1 连续编号 */
@@ -4308,7 +4311,10 @@ export interface components {
             progressPercent?: number;
             /** @description 全部章节至少访问一次自动标记 */
             completed?: boolean;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description 最后学习时间；已购未观看为支付时间
+             */
             lastVisitedAt?: string;
         };
         FavoriteCreateRequest: {
@@ -4441,6 +4447,10 @@ export interface components {
             status?: "not_started" | "ongoing" | "ended" | "cancelled";
             /** @description 乐观锁版本号（管理端编辑回传） */
             version?: number;
+            /** @description 课程封面展示地址（用户端列表/详情补充） */
+            courseCoverUrl?: string | null;
+            /** @description 课程原价（分，用户端列表/详情补充） */
+            courseOriginalCents?: number;
         };
         GrouponGroup: {
             id?: number;
@@ -4452,6 +4462,8 @@ export interface components {
             expiresAt?: string;
             /** Format: date-time */
             formedAt?: string | null;
+            /** @description 团长昵称（公开详情补充） */
+            leaderNickname?: string | null;
         };
         GrouponCreateRequest: {
             /** @description 仅已发布课程；同课程活动时间不得重叠（含秒杀） */
@@ -4496,6 +4508,10 @@ export interface components {
             status?: "not_started" | "ongoing" | "ended" | "cancelled";
             /** @description 乐观锁版本号（管理端编辑回传） */
             version?: number;
+            /** @description 课程封面展示地址（用户端列表/详情补充） */
+            courseCoverUrl?: string | null;
+            /** @description 课程原价（分，用户端列表/详情补充） */
+            courseOriginalCents?: number;
         };
         FlashSaleCreateRequest: {
             /** @description 仅已发布课程；同课程活动时间不得与拼团/秒杀重叠 */

@@ -26,7 +26,7 @@ const activity = {
 };
 
 describe('GrouponListPage', () => {
-  it('展示进行中活动与服务端倒计时', async () => {
+  it('展示课程卡片、拼团价状态与服务端倒计时', async () => {
     server.use(
       http.get(/\/api\/v1\/groupons$/, () =>
         HttpResponse.json(envelope({ items: [activity], total: 1, page: 1, pageSize: 12 })),
@@ -35,10 +35,12 @@ describe('GrouponListPage', () => {
 
     renderWithProviders([{ path: '/groupons', element: <GrouponListPage /> }], '/groupons');
 
-    expect(await screen.findByText('双人成团')).toBeInTheDocument();
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
     expect(screen.getByText('¥69.00')).toBeInTheDocument();
-    expect(screen.getByText(/距结束/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /双人成团/ })).toHaveAttribute('href', '/groupons/3');
+    expect(screen.getByText('拼团中')).toBeInTheDocument();
+    expect(screen.getByText('倒计时')).toBeInTheDocument();
+    // 整卡跳课程详情页
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/courses/1?from=groupon');
   });
 
   it('空数据显示空态', async () => {

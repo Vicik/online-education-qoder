@@ -48,6 +48,32 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { path: '/admin/blocked-words', label: '屏蔽词' },
 ];
 
+// 课程详情页来源参数对应的顶部导航入口
+const COURSE_SOURCE_NAV_PATHS: Record<string, string> = {
+  groupon: '/groupons',
+  flash: '/flash-sales',
+};
+
+// 顶部导航高亮：课程详情按 from 来源选中活动入口，其余按路径前缀匹配
+export function getUserNavSelectedKey(
+  items: NavItem[],
+  pathname: string,
+  search = '',
+): string {
+  // 课程详情页：来源为拼团/秒杀时高亮对应入口
+  if (pathname.startsWith('/courses/')) {
+    const from = new URLSearchParams(search).get('from');
+    const sourcePath = from ? COURSE_SOURCE_NAV_PATHS[from] : undefined;
+    if (sourcePath) return sourcePath;
+  }
+  // 根路径精确匹配，其余按前缀匹配
+  return (
+    items.find((item) =>
+      item.path === '/' ? pathname === '/' : pathname.startsWith(item.path),
+    )?.path ?? ''
+  );
+}
+
 // 按最长前缀匹配侧栏项；根路径必须精确匹配
 function findSelectedKey(items: NavItem[], pathname: string, rootPath: string): string {
   const matched = items

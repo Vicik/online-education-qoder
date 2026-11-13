@@ -1,0 +1,34 @@
+/* 精品推荐小卡：左封面右信息 */
+.course-mini-card {
+  display: flex;
+  gap: 12px;
+}
+.course-mini-cover {
+  flex: 0 0 112px;
+  width: 112px;
+  height: 74px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #f0f2f5;
+}
+.course-mini-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.course-mini-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.course-mini-name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.88);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

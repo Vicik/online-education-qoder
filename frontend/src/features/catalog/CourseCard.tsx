@@ -5,16 +5,8 @@ import type { CourseBrief } from '@/api/types';
 import { MoneyText } from '@/components/common/MoneyText';
 import './CourseCard.css';
 
-// 封面：无地址或加载失败时回退占位块；失败只通知一次父资源重取
-function CourseCover({
-  url,
-  alt,
-  onError,
-}: {
-  url: string | null;
-  alt: string;
-  onError?: () => void;
-}) {
+// 封面：无地址或加载失败时回退占位块，只有本卡片降级，不触发列表重取
+function CourseCover({ url, alt }: { url: string | null; alt: string }) {
   // 本卡片内是否已回退占位
   const [failed, setFailed] = useState(false);
 
@@ -29,10 +21,7 @@ function CourseCover({
       loading="lazy"
       decoding="async"
       style={{ width: '100%', height: 150, objectFit: 'cover' }}
-      onError={() => {
-        setFailed(true);
-        onError?.();
-      }}
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -41,11 +30,9 @@ function CourseCover({
 export function CourseCard({
   course,
   footer,
-  onCoverError,
 }: {
   course: CourseBrief;
   footer?: ReactNode;
-  onCoverError?: () => void;
 }) {
   return (
     <Card
@@ -53,11 +40,7 @@ export function CourseCard({
       styles={{ body: { padding: 12 } }}
       cover={
         <Link to={`/courses/${course.id}`} aria-label={course.name}>
-          <CourseCover
-            url={course.coverUrl ?? null}
-            alt={course.name ?? '课程封面'}
-            onError={onCoverError}
-          />
+          <CourseCover url={course.coverUrl ?? null} alt={course.name ?? '课程封面'} />
         </Link>
       }
     >

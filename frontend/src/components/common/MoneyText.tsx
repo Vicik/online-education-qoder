@@ -8,8 +8,11 @@ export function MoneyText({
 }: {
   cents: number;
   originalCents?: number;
-  size?: 'default' | 'large';
+  size?: 'default' | 'medium' | 'large';
 }) {
+  // 字号：活动卡片用中号，详情页用大号
+  const fontSize = size === 'large' ? 24 : size === 'medium' ? 18 : 14;
+
   return (
     <span className="money-text">
       <span
@@ -17,7 +20,7 @@ export function MoneyText({
         style={{
           color: 'var(--color-price)',
           fontWeight: 600,
-          fontSize: size === 'large' ? 24 : 14,
+          fontSize,
         }}
       >
         {formatCents(cents)}
@@ -28,7 +31,7 @@ export function MoneyText({
           style={{
             marginLeft: 8,
             color: 'var(--color-price-origin)',
-            fontSize: size === 'large' ? 24 : 14,
+            fontSize,
             textDecoration: 'line-through',
           }}
         >

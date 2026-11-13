@@ -1,7 +1,7 @@
 import { Avatar, Button, Dropdown, Layout } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { getUserNavItems } from '@/app/navigation';
+import { getUserNavItems, getUserNavSelectedKey } from '@/app/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { useSessionStore } from '@/stores/session';
 import './layout.css';
@@ -20,11 +20,12 @@ export function UserHeader() {
   const logout = useLogout();
   // 按角色过滤后的顶部导航项
   const navItems = getUserNavItems(user?.role ?? null);
-  // 当前导航高亮：根路径精确匹配，其余按前缀匹配，无匹配时不选中
-  const selectedKey =
-    navItems.find((item) =>
-      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
-    )?.path ?? '';
+  // 当前导航高亮：课程详情按活动来源，其余按路径前缀，无匹配时不选中
+  const selectedKey = getUserNavSelectedKey(
+    navItems,
+    location.pathname,
+    location.search,
+  );
   // 已登录账户下拉项
   const accountItems = user
     ? [
