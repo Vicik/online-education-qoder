@@ -21,6 +21,7 @@ const row = {
   originalCents: 19900,
   saleCents: 9900,
   status: 'draft',
+  isRecommended: false,
   chapterCount: 2,
   enrollmentCount: 3,
 };
@@ -68,5 +69,134 @@ describe('CourseListPage', () => {
 
     await waitFor(() => expect(status).toBe('published'));
     expect(await screen.findByText('还没有课程')).toBeInTheDocument();
+  });
+
+  it('草稿课程确认后发布并刷新列表', async () => {
+    // 列表请求次数
+    let listCalls = 0;
+    // 发布请求次数
+    let publishCalls = 0;
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () => {
+        listCalls += 1;
+        return HttpResponse.json(envelope({ items: [row], total: 1, page: 1, pageSize: 10 }));
+      }),
+      http.post(/\/api\/v1\/admin\/courses\/1\/publish$/, () => {
+        publishCalls += 1;
+        return HttpResponse.json(envelope({ id: 1, status: 'published', version: 2 }));
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '发布' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(publishCalls).toBe(1));
+    await waitFor(() => expect(listCalls).toBeGreaterThan(1));
+  });
+
+  it('已发布课程确认后下架并刷新列表', async () => {
+    // 列表请求次数
+    let listCalls = 0;
+    // 下架请求次数
+    let unpublishCalls = 0;
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () => {
+        listCalls += 1;
+        return HttpResponse.json(
+          envelope({
+            items: [{ ...row, status: 'published' }],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        );
+      }),
+      http.post(/\/api\/v1\/admin\/courses\/1\/unpublish$/, () => {
+        unpublishCalls += 1;
+        return HttpResponse.json(envelope({ id: 1, status: 'unpublished', version: 3 }));
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '下架' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(unpublishCalls).toBe(1));
+    await waitFor(() => expect(listCalls).toBeGreaterThan(1));
+  });
+
+  it('未推荐课程可设为推荐，成功后刷新列表', async () => {
+    // 列表请求次数
+    let listCalls = 0;
+    // 推荐请求次数
+    let recommendCalls = 0;
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () => {
+        listCalls += 1;
+        return HttpResponse.json(
+          envelope({
+            items: [{ ...row, status: 'published', isRecommended: false }],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        );
+      }),
+      http.post(/\/api\/v1\/admin\/courses\/1\/recommend$/, () => {
+        recommendCalls += 1;
+        return HttpResponse.json(envelope({ id: 1, isRecommended: true }));
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '推荐' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(recommendCalls).toBe(1));
+    await waitFor(() => expect(listCalls).toBeGreaterThan(1));
+  });
+
+  it('已推荐课程可取消推荐', async () => {
+    // 取消推荐请求次数
+    let unrecommendCalls = 0;
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [{ ...row, status: 'published', isRecommended: true }],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+      http.post(/\/api\/v1\/admin\/courses\/1\/unrecommend$/, () => {
+        unrecommendCalls += 1;
+        return HttpResponse.json(envelope({ id: 1, isRecommended: false }));
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '取消推荐' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(unrecommendCalls).toBe(1));
   });
 });

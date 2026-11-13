@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Button, Select, Space } from 'antd';
+import { App, Button, Select, Space } from 'antd';
 import { Link, useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
-import { listAdminCourses } from '@/api/admin/courses';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  listAdminCourses,
+  publishCourse,
+  recommendCourse,
+  unpublishCourse,
+  unrecommendCourse,
+} from '@/api/admin/courses';
 import { queryKeys } from '@/api/query-keys';
 import type { AdminCourseListItem, CourseStatus } from '@/api/types';
 import { AppTable } from '@/components/common/AppTable';
+import { ConfirmAction } from '@/components/common/ConfirmAction';
 import { MoneyText } from '@/components/common/MoneyText';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
@@ -26,6 +33,10 @@ const STATUS_OPTIONS = [
 export default function CourseListPage() {
   // 路由跳转
   const navigate = useNavigate();
+  // AntD 消息提示
+  const { message } = App.useApp();
+  // 缓存客户端：写操作成功后失效课程相关查询
+  const queryClient = useQueryClient();
   // 当前状态筛选
   const [status, setStatus] = useState<CourseStatus | 'all'>('all');
   // 当前总数（分页入参）
@@ -39,6 +50,23 @@ export default function CourseListPage() {
     queryFn: () =>
       listAdminCourses(page, pageSize, status === 'all' ? undefined : status),
   });
+
+  // 执行发布/下架/推荐操作：成功后提示并刷新受影响的缓存
+  async function runCourseAction(
+    courseId: number,
+    action: () => Promise<unknown>,
+    successText: string,
+  ) {
+    await action();
+    message.success(successText);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] }),
+      queryClient.invalidateQueries({ queryKey: ['courses'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.course(courseId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeLatest }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeRecommendations }),
+    ]);
+  }
 
   // 同步后端总数
   useEffect(() => {
@@ -78,9 +106,67 @@ export default function CourseListPage() {
     {
       title: '操作',
       key: 'actions',
-      render: (_: unknown, record: AdminCourseListItem) => (
-        <Link to={`/admin/courses/${record.id}`}>管理</Link>
-      ),
+      render: (_: unknown, record: AdminCourseListItem) => {
+        // 列表项必有 id，缺省时不渲染操作
+        const courseId = record.id;
+        if (!courseId) return null;
+        return (
+        <Space size={4} wrap>
+          <Link to={`/admin/courses/${courseId}`}>管理</Link>
+          {record.status === 'published' ? (
+            <ConfirmAction
+              title="下架课程"
+              content={`下架后学员将无法购买《${record.name}》，确定下架？`}
+              danger
+              onConfirm={() =>
+                runCourseAction(courseId, () => unpublishCourse(courseId), '课程已下架')
+              }
+            >
+              <Button type="link" size="small" autoInsertSpace={false} danger>
+                下架
+              </Button>
+            </ConfirmAction>
+          ) : (
+            <ConfirmAction
+              title="发布课程"
+              content={`发布后学员即可浏览与购买《${record.name}》，确定发布？`}
+              onConfirm={() =>
+                runCourseAction(courseId, () => publishCourse(courseId), '课程已发布')
+              }
+            >
+              <Button type="link" size="small" autoInsertSpace={false}>
+                发布
+              </Button>
+            </ConfirmAction>
+          )}
+          {record.isRecommended ? (
+            <ConfirmAction
+              title="取消推荐"
+              content={`取消后《${record.name}》将不再出现在首页推荐位，确定取消？`}
+              onConfirm={() =>
+                runCourseAction(courseId, () => unrecommendCourse(courseId), '已取消推荐')
+              }
+            >
+              <Button type="link" size="small" autoInsertSpace={false}>
+                取消推荐
+              </Button>
+            </ConfirmAction>
+          ) : (
+            <ConfirmAction
+              title="设为推荐"
+              content={`推荐后《${record.name}》会出现在首页推荐位（需已发布），确定推荐？`}
+              onConfirm={() =>
+                runCourseAction(courseId, () => recommendCourse(courseId), '已设为推荐')
+              }
+            >
+              <Button type="link" size="small" autoInsertSpace={false}>
+                推荐
+              </Button>
+            </ConfirmAction>
+          )}
+        </Space>
+        );
+      },
     },
   ];
 

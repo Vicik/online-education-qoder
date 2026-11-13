@@ -74,6 +74,22 @@ export function unpublishCourse(courseId: number): Promise<CourseWriteResult> {
   });
 }
 
+// 设为首页推荐
+export function recommendCourse(courseId: number): Promise<CourseWriteResult> {
+  return request<CourseWriteResult>({
+    url: `/admin/courses/${courseId}/recommend`,
+    method: 'POST',
+  });
+}
+
+// 取消首页推荐
+export function unrecommendCourse(courseId: number): Promise<CourseWriteResult> {
+  return request<CourseWriteResult>({
+    url: `/admin/courses/${courseId}/unrecommend`,
+    method: 'POST',
+  });
+}
+
 // 新增章节：创建类 POST 携带幂等键；类型须等于课程类型
 export function addChapter(
   courseId: number,

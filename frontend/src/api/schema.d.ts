@@ -909,6 +909,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/courses/{courseId}/recommend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 设为首页推荐（任意状态可标记；首页仅展示已发布的推荐课程） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    courseId: components["parameters"]["courseId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+                409: components["responses"]["Err409"];
+                /** @description 课程已在推荐位 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/unrecommend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消首页推荐 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    courseId: components["parameters"]["courseId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+                409: components["responses"]["Err409"];
+                /** @description 课程不在推荐位 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/courses/{courseId}/chapters": {
         parameters: {
             query?: never;
@@ -4104,6 +4206,8 @@ export interface components {
             chapterCount?: number;
             /** @description 仅管理端返回 */
             enrollmentCount?: number;
+            /** @description 仅管理端返回；管理员手动推荐标记 */
+            isRecommended?: boolean;
         };
         ChapterBrief: {
             id?: number;

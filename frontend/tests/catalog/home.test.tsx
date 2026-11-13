@@ -46,7 +46,7 @@ describe('HomePage', () => {
     expect(screen.queryByText(/报名/)).not.toBeInTheDocument();
   });
 
-  it('推荐为空时展示空态，不影响最新区块', async () => {
+  it('推荐为空时整块隐藏，不影响最新区块', async () => {
     server.use(
       http.get(/\/api\/v1\/home\/recommendations$/, () =>
         HttpResponse.json(envelope({ courses: [] })),
@@ -60,7 +60,8 @@ describe('HomePage', () => {
 
     renderWithProviders([{ path: '/', element: <HomePage /> }], '/');
 
-    expect(await screen.findByText('暂无推荐课程')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: '最新课程' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '推荐课程' })).not.toBeInTheDocument();
+    expect(screen.queryByText('暂无推荐课程')).not.toBeInTheDocument();
   });
 });

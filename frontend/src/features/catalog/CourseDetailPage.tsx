@@ -13,28 +13,16 @@ import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
 import { ClaimCouponButton } from '@/features/coupon/ClaimCouponButton';
 import { courseTypeLabel } from '@/lib/course';
-import { useSessionStore, type SessionUser } from '@/stores/session';
+import { useSessionStore } from '@/stores/session';
 import { CourseActivityBar } from './CourseActivityBar';
 import { CourseChapterList } from './CourseChapterList';
 import { CourseCouponList } from './CourseCouponList';
 import { FavoriteButton } from './FavoriteButton';
 import './CourseDetailPage.css';
 
-// 详情页主按钮：游客先登录并回跳，已购去学习，未购进入结算
-function resolveCourseCta(
-  user: SessionUser | null,
-  courseId: number,
-  purchased = false,
-): { label: string; to: string } {
-  if (!user) {
-    return {
-      label: '立即学习',
-      to: `/login?redirect=${encodeURIComponent(`/courses/${courseId}`)}`,
-    };
-  }
-  if (purchased) {
-    return { label: '去学习', to: `/learning/${courseId}` };
-  }
+// 详情页主按钮：游客与未购用户先购买，已购用户进入学习
+function resolveCourseCta(courseId: number, purchased = false): { label: string; to: string } {
+  if (purchased) return { label: '立即学习', to: `/learning/${courseId}` };
   return { label: '立即购买', to: `/checkout/${courseId}` };
 }
 
@@ -138,7 +126,7 @@ export default function CourseDetailPage() {
     ),
   );
   // 主按钮文案与目标
-  const cta = resolveCourseCta(user, detailId, purchased);
+  const cta = resolveCourseCta(detailId, purchased);
   // 可领优惠券
   const coupons = course.claimableCoupons ?? [];
   // 已领取的模板 id：invalid 记录不占用限领额度

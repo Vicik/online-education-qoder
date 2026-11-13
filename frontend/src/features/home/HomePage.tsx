@@ -22,18 +22,29 @@ export default function HomePage() {
     queryFn: () => listCourses({ page: 1, pageSize: LATEST_SIZE }),
   });
 
+  // 有推荐数据才渲染推荐区块，空推荐整块隐藏
+  const hasRecommendations = (recommendations.data?.length ?? 0) > 0;
+
   return (
     <div>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        推荐课程
-      </Typography.Title>
       {recommendations.isLoading ? (
-        <CourseGridSkeleton />
-      ) : recommendations.data && recommendations.data.length > 0 ? (
-        <CourseGrid courses={recommendations.data} onCoverError={() => recommendations.refetch()} />
-      ) : (
-        <EmptyState description="暂无推荐课程" />
-      )}
+        <>
+          <Typography.Title level={4} style={{ marginTop: 0 }}>
+            推荐课程
+          </Typography.Title>
+          <CourseGridSkeleton />
+        </>
+      ) : hasRecommendations ? (
+        <>
+          <Typography.Title level={4} style={{ marginTop: 0 }}>
+            推荐课程
+          </Typography.Title>
+          <CourseGrid
+            courses={recommendations.data ?? []}
+            onCoverError={() => recommendations.refetch()}
+          />
+        </>
+      ) : null}
 
       <div
         style={{

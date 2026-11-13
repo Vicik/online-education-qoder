@@ -238,21 +238,20 @@ describe('CourseDetailPage', () => {
     expect(await screen.findByText('推荐课程甲')).toBeInTheDocument();
   });
 
-  it('游客点立即学习跳登录并带 redirect', async () => {
+  it('游客显示立即购买并进入结算页', async () => {
     mockDetail();
     const { router } = renderWithProviders(
       [
         { path: '/courses/:id', element: <CourseDetailPage /> },
-        { path: '/login', element: <div>login-page</div> },
+        { path: '/checkout/:courseId', element: <div>checkout-page</div> },
       ],
       '/courses/1',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '立即学习' }));
+    await userEvent.click(await screen.findByRole('button', { name: '立即购买' }));
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/login');
+      expect(router.state.location.pathname).toBe('/checkout/1');
     });
-    expect(router.state.location.search).toBe('?redirect=%2Fcourses%2F1');
   });
 
   it('普通用户点立即购买进结算页', async () => {
@@ -284,7 +283,7 @@ describe('CourseDetailPage', () => {
     });
   });
 
-  it('已购用户显示去学习并进入学习页', async () => {
+  it('已购用户显示立即学习并进入学习页', async () => {
     mockDetail();
     mockFavoriteIds();
     mockOrders([
@@ -324,7 +323,7 @@ describe('CourseDetailPage', () => {
       '/courses/1',
     );
 
-    const cta = await screen.findByRole('button', { name: '去学习' });
+    const cta = await screen.findByRole('button', { name: '立即学习' });
     expect(screen.queryByText('已购买？去学习')).not.toBeInTheDocument();
 
     await userEvent.click(cta);
