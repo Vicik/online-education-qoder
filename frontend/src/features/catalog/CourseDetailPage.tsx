@@ -64,7 +64,7 @@ export default function CourseDetailPage() {
     enabled: Boolean(user),
     retry: false,
   });
-  // 我的领取记录：登录后判断券是否已领取（含全部状态）
+  // 我的领取记录：登录后判断券是否已领取
   const claimsQuery = useQuery({
     queryKey: queryKeys.myCoupons('all', 1),
     queryFn: () => listMyCoupons(undefined, 1, 100),

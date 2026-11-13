@@ -268,7 +268,7 @@ describe('CourseDetailPage', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: '领取优惠券' }));
     expect(await screen.findByText('已领取')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '领取' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '立即领取' })).not.toBeInTheDocument();
   });
 
   it('未领取的券可领取，成功后变为已领取', async () => {
@@ -299,12 +299,12 @@ describe('CourseDetailPage', () => {
     renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
 
     await userEvent.click(await screen.findByRole('button', { name: '领取优惠券' }));
-    await userEvent.click(await screen.findByRole('button', { name: '领取' }));
+    await userEvent.click(await screen.findByRole('button', { name: '立即领取' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByText('领取成功')).toBeInTheDocument();
     expect(await screen.findByText('已领取')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '领取' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '立即领取' })).not.toBeInTheDocument();
     expect(claimKey).toBeTruthy();
   });
 

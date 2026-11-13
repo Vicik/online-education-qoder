@@ -84,7 +84,7 @@ describe('ClaimCouponButton', () => {
       '/',
     );
 
-    await userEvent.click(screen.getByRole('button', { name: '领取' }));
+    await userEvent.click(screen.getByRole('button', { name: '立即领取' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(key.length).toBeGreaterThanOrEqual(8));
@@ -107,10 +107,31 @@ describe('ClaimCouponButton', () => {
       '/',
     );
 
-    await userEvent.click(screen.getByRole('button', { name: '领取' }));
+    await userEvent.click(screen.getByRole('button', { name: '立即领取' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByRole('button', { name: '已领取' })).toBeDisabled();
+  });
+
+  it('游客「登录领取」使用橙底白字样式类', () => {
+    renderWithProviders(
+      [{ path: '/courses/:id', element: <ClaimCouponButton coupon={coupon} courseId={1} /> }],
+      '/courses/1',
+    );
+
+    // 样式类由 ClaimCouponButton.css 提供（橙底白字）
+    expect(screen.getByRole('button', { name: '登录领取' })).toHaveClass('claim-coupon-btn');
+  });
+
+  it('登录用户「立即领取」使用橙底白字样式类', () => {
+    loginAsUser();
+    renderWithProviders(
+      [{ path: '/', element: <ClaimCouponButton coupon={coupon} courseId={1} /> }],
+      '/',
+    );
+
+    // 样式类由 ClaimCouponButton.css 提供（橙底白字）
+    expect(screen.getByRole('button', { name: '立即领取' })).toHaveClass('claim-coupon-btn');
   });
 });
 

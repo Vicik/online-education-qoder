@@ -1,0 +1,12 @@
+/* 领券按钮：橙底白字，叠加类名提高优先级以覆盖 AntD 默认按钮配色 */
+.claim-coupon-btn.ant-btn.ant-btn {
+  color: #fff;
+  background: #f1a11d;
+  border-color: #f1a11d;
+}
+/* 悬停：加深一档，文字保持白色 */
+.claim-coupon-btn.ant-btn.ant-btn:hover {
+  color: #fff !important;
+  background: #d98c12 !important;
+  border-color: #d98c12 !important;
+}

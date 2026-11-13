@@ -8,6 +8,7 @@ import type { CouponClaim, CouponTemplateBrief } from '@/api/types';
 import { ConfirmAction } from '@/components/common/ConfirmAction';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { usePermission } from '@/hooks/usePermission';
+import './ClaimCouponButton.css';
 
 // 课程详情领券按钮：游客登录回跳、登录幂等领取、限领/不可领取提示
 export function ClaimCouponButton(props: {
@@ -58,7 +59,7 @@ export function ClaimCouponButton(props: {
   if (!user) {
     return (
       <Button
-        type="link"
+        className="claim-coupon-btn"
         onClick={() =>
           navigate(`/login?redirect=${encodeURIComponent(`/courses/${props.courseId}`)}`)
         }
@@ -83,7 +84,14 @@ export function ClaimCouponButton(props: {
         }
       }}
     >
-      <Button size="small" type="primary" autoInsertSpace={false} loading={mutation.isPending}>领取</Button>
+      <Button
+        size="small"
+        className="claim-coupon-btn"
+        autoInsertSpace={false}
+        loading={mutation.isPending}
+      >
+        立即领取
+      </Button>
     </ConfirmAction>
   );
 }
