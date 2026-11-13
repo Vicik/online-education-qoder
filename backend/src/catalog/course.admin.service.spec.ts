@@ -453,6 +453,17 @@ describe('CourseAdminService.recommend / unrecommend', () => {
     prisma.course.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.unrecommend(1)).rejects.toMatchObject({ status: 409 });
   });
+
+  it('recommend / unrecommend 仅已发布课程可执行', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...DRAFT, isRecommended: false });
+    await expect(service.recommend(1)).rejects.toMatchObject({ status: 422 });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
+
+    prisma.course.findUnique.mockResolvedValue({ ...DRAFT, isRecommended: true });
+    await expect(service.unrecommend(1)).rejects.toMatchObject({ status: 422 });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
+  });
 });
 
 describe('CourseAdminService.listAll / getDetail', () => {

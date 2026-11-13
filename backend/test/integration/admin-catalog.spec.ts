@@ -236,6 +236,11 @@ describe('课程管理端（CI 集成，基于种子）', () => {
       })
       .expect(201);
     const courseId = created.body.data.id;
+    // 草稿不可推荐/取消推荐
+    await agent.post(`/api/v1/admin/courses/${courseId}/recommend`).expect(422);
+    await agent
+      .post(`/api/v1/admin/courses/${courseId}/unrecommend`)
+      .expect(422);
     // 发布后才会进入首页推荐
     await agent.post(`/api/v1/admin/courses/${courseId}/publish`).expect(200);
 

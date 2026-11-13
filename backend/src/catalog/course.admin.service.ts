@@ -392,7 +392,7 @@ export class CourseAdminService {
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
   }
 
-  // 设为首页推荐：重复标记返回 422
+  // 设为首页推荐：仅已发布课程可标记，重复标记返回 422
   async recommend(courseId: number, context?: AuditContext): Promise<Course> {
     // 当前课程：不存在统一按 404 处理
     const course = await this.prisma.course.findUnique({
@@ -400,6 +400,13 @@ export class CourseAdminService {
     });
     if (!course) {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (course.status !== 'published') {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '仅已发布的课程可设为推荐',
+        422,
+      );
     }
     if (course.isRecommended) {
       throw new BizException(
@@ -433,7 +440,7 @@ export class CourseAdminService {
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
   }
 
-  // 取消首页推荐：重复取消返回 422
+  // 取消首页推荐：仅已发布课程可操作，重复取消返回 422
   async unrecommend(courseId: number, context?: AuditContext): Promise<Course> {
     // 当前课程：不存在统一按 404 处理
     const course = await this.prisma.course.findUnique({
@@ -441,6 +448,13 @@ export class CourseAdminService {
     });
     if (!course) {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (course.status !== 'published') {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '仅已发布的课程可取消推荐',
+        422,
+      );
     }
     if (!course.isRecommended) {
       throw new BizException(

@@ -157,7 +157,7 @@ model Course {
   originalCents Int
   saleCents     Int // 售价 ≤ 原价（应用层校验）
   status        CourseStatus @default(draft)
-  isRecommended Boolean      @default(false) // 首页推荐：管理员手动标记，仅 published 展示
+  isRecommended Boolean      @default(false) // 首页推荐：仅已发布课程可标记，首页仅展示已发布的推荐课程
   version       Int          @default(1)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

@@ -1143,7 +1143,7 @@ paths:
   /admin/courses/{courseId}/recommend:
     post:
       tags: [admin-courses]
-      summary: 设为首页推荐（任意状态可标记；首页仅展示已发布的推荐课程）
+      summary: 设为首页推荐（仅已发布课程可标记）
       parameters:
         - { $ref: '#/components/parameters/courseId' }
       responses:
@@ -1157,14 +1157,14 @@ paths:
         '404': { $ref: '#/components/responses/Err404' }
         '409': { $ref: '#/components/responses/Err409' }
         '422':
-          description: 课程已在推荐位
+          description: 课程未发布或已在推荐位
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
   /admin/courses/{courseId}/unrecommend:
     post:
       tags: [admin-courses]
-      summary: 取消首页推荐
+      summary: 取消首页推荐（仅已发布课程可操作）
       parameters:
         - { $ref: '#/components/parameters/courseId' }
       responses:
@@ -1178,7 +1178,7 @@ paths:
         '404': { $ref: '#/components/responses/Err404' }
         '409': { $ref: '#/components/responses/Err409' }
         '422':
-          description: 课程不在推荐位
+          description: 课程未发布或不在推荐位
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
