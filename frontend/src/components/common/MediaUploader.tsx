@@ -1,6 +1,7 @@
 import { App as AntdApp, Button, Progress, Space, Typography } from 'antd';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { uploadMedia } from '@/api/files';
+import { probeVideoDecodable } from '@/lib/media-probe';
 import { isAllowedMedia, type MediaKind } from '@/lib/validators';
 
 // 媒体上传：预检、进度、取消与即时预览；表单只保存 key
@@ -51,6 +52,14 @@ export function MediaUploader({
         kind === 'video'
           ? '视频仅支持 MP4/WebM，且不超过 1GB'
           : '音频仅支持 MP3/M4A，且不超过 100MB',
+      );
+      return;
+    }
+
+    // 视频需浏览器能解码出画面，否则预览会退化为音频样式
+    if (kind === 'video' && !(await probeVideoDecodable(file))) {
+      message.error(
+        '该视频没有可播放的画面，请使用 H.264/VP9/AV1 编码的 MP4/WebM',
       );
       return;
     }
@@ -133,6 +142,8 @@ export function MediaUploader({
         ref={inputRef}
         type="file"
         hidden
+        // 内联 display:none：AntD 表单重置样式会覆盖 hidden 属性，导致原生选择框可见
+        style={{ display: 'none' }}
         accept={
           kind === 'video' ? 'video/mp4,video/webm,.mp4,.webm' : 'audio/mpeg,audio/mp4,.mp3,.m4a'
         }
