@@ -57,7 +57,11 @@ export function ExamForm(props: {
         <Input disabled={readOnly} placeholder="例如：期中考试" />
       </Form.Item>
       <Form.Item name="description" label="考试说明">
-        <Input.TextArea disabled={readOnly} rows={3} />
+        <Input.TextArea
+          disabled={readOnly}
+          rows={3}
+          placeholder="请输入考试说明（可选）"
+        />
       </Form.Item>
       <Form.Item
         name="durationMin"
@@ -68,6 +72,7 @@ export function ExamForm(props: {
           disabled={readOnly}
           min={1}
           precision={0}
+          placeholder="请输入考试时长"
           style={{ width: 200 }}
         />
       </Form.Item>
@@ -128,6 +133,7 @@ export function ExamForm(props: {
           disabled={readOnly}
           min={1}
           precision={0}
+          placeholder="请输入及格分"
           style={{ width: 200 }}
         />
       </Form.Item>

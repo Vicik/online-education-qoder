@@ -100,7 +100,7 @@ export default function CourseCreatePage() {
               { max: 40, message: '最多 40 个字符' },
             ]}
           >
-            <Input placeholder="最多 40 个字符" />
+            <Input placeholder="请输入课程名称" />
           </Form.Item>
           <Form.Item name="type" label="课程类型" rules={[{ required: true }]}>
             <Select options={TYPE_OPTIONS} />

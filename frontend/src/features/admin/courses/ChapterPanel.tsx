@@ -287,7 +287,7 @@ export function ChapterPanel(props: {
               { max: 60, message: '最多 60 个字符' },
             ]}
           >
-            <Input />
+            <Input placeholder="请输入章节标题" />
           </Form.Item>
           <Form.Item label="内容类型">
             <Input value={CONTENT_TYPE_LABEL[courseType]} disabled />

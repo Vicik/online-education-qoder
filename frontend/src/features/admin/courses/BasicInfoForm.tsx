@@ -173,7 +173,7 @@ export function BasicInfoForm(props: {
             { max: 40, message: '最多 40 个字符' },
           ]}
         >
-          <Input disabled={!fields.name} />
+          <Input placeholder="请输入课程名称" disabled={!fields.name} />
         </Form.Item>
         <Form.Item name="type" label="课程类型">
           <Select options={TYPE_OPTIONS} disabled={!fields.type} />
@@ -210,7 +210,7 @@ export function BasicInfoForm(props: {
           label="讲师"
           rules={[{ required: true, whitespace: true, message: '请输入讲师' }]}
         >
-          <Input disabled={!fields.instructor} />
+          <Input placeholder="请输入讲师姓名" disabled={!fields.instructor} />
         </Form.Item>
         <Form.Item
           name="cover"

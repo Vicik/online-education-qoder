@@ -71,7 +71,6 @@ export default function ExamListPage() {
 
   // 表格列
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
       title: '考试名称',
       dataIndex: 'title',

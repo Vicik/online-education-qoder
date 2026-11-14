@@ -17,7 +17,11 @@ export function CouponFormFields(props: {
         name="name"
         rules={[{ required: true, whitespace: true, message: '请填写券名称' }]}
       >
-        <Input maxLength={40} disabled={props.disabled} />
+        <Input
+          maxLength={40}
+          placeholder="请输入券名称"
+          disabled={props.disabled}
+        />
       </Form.Item>
       <Form.Item
         label="抵扣面额"
@@ -73,6 +77,7 @@ export function CouponFormFields(props: {
         <InputNumber
           min={1}
           precision={0}
+          placeholder="请输入发放总量"
           style={{ width: '100%' }}
           disabled={props.disabled}
         />

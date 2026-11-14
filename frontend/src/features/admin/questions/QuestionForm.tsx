@@ -188,6 +188,7 @@ export function QuestionForm(props: {
         <InputNumber
           min={1}
           precision={0}
+          placeholder="请输入分值"
           disabled={props.mode === 'edit'}
           style={{ width: 160 }}
         />

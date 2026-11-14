@@ -183,7 +183,12 @@ export function GrouponFormDrawer(props: {
           name="targetSize"
           rules={[{ required: true, message: '请填写成团人数' }]}
         >
-          <InputNumber min={2} precision={0} style={{ width: '100%' }} />
+          <InputNumber
+            min={2}
+            precision={0}
+            placeholder="请输入成团人数"
+            style={{ width: '100%' }}
+          />
         </Form.Item>
         <Form.Item
           label="开始时间"

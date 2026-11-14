@@ -89,7 +89,6 @@ export default function QuestionListPage() {
 
   // 表格列
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
       title: '题干',
       dataIndex: 'stem',

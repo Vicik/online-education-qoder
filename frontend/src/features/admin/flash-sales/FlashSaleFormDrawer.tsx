@@ -199,7 +199,12 @@ export function FlashSaleFormDrawer(props: {
             }),
           ]}
         >
-          <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+          <InputNumber
+            min={0}
+            precision={0}
+            placeholder="请输入库存数量"
+            style={{ width: '100%' }}
+          />
         </Form.Item>
         <Form.Item
           label="开始时间"

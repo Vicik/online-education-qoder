@@ -120,7 +120,6 @@ export default function BlockedWordListPage() {
 
   // 表格列
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '屏蔽词', dataIndex: 'word', key: 'word' },
     {
       title: '状态',
