@@ -1,0 +1,78 @@
+/* 拼团详情团组卡片：标题 + 可滚动团组行 */
+.groupon-groups {
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+.groupon-groups-header {
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+/* 团组多时容器内纵向滚动，悬停/聚焦暂停由 useAutoScroll 控制 */
+.groupon-groups-scroll {
+  max-height: 232px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* 每个团组一行：团长、还差人数、截止倒计时、去拼团 */
+.groupon-groups-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.75);
+}
+.groupon-groups-row + .groupon-groups-row {
+  border-top: 1px solid #f0f0f0;
+}
+/* 团长头像：灰底白字 */
+.groupon-groups-avatar.ant-avatar {
+  flex: none;
+  color: #fff;
+  background: #bfbfbf;
+}
+.groupon-groups-leader {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.groupon-groups-need {
+  flex: none;
+  color: #8c8c8c;
+}
+/* 截止倒计时：红色等宽数字 */
+.groupon-groups-deadline {
+  flex: none;
+  color: #f5222d;
+  font-variant-numeric: tabular-nums;
+}
+/* 去拼团：与主按钮一致的绿色 */
+.groupon-groups-join.ant-btn {
+  flex: none;
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+}
+.groupon-groups-join.ant-btn:hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}
+.groupon-groups-empty {
+  margin: 8px 0 0;
+  color: #8c8c8c;
+}
+/* 窄屏：一行放不下时换行 */
+@media (max-width: 900px) {
+  .groupon-groups-row {
+    flex-wrap: wrap;
+  }
+  .groupon-groups-leader {
+    flex-basis: 120px;
+  }
+}

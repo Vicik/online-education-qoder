@@ -1,0 +1,28 @@
+/* 活动详情活动条：红底状态 + 白框倒计时，下方价格行同框 */
+.activity-hero-box {
+  margin-top: 16px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #ffccc7;
+  border-radius: 2px;
+}
+.activity-hero-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #fff;
+  background: #f5222d;
+}
+/* 左侧状态文案：参考图加粗显示 */
+.activity-hero-banner > :first-child {
+  font-weight: 600;
+}
+/* 价格行：活动价与原价同排、按基线对齐 */
+.activity-hero-price {
+  display: flex;
+  align-items: baseline;
+  padding: 8px 12px;
+}

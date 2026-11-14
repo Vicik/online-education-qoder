@@ -44,11 +44,11 @@ describe('FlashSaleListPage', () => {
     expect(screen.getByText('¥49.00')).toBeInTheDocument();
     expect(screen.getByText('秒杀中')).toBeInTheDocument();
     expect(screen.getByText('倒计时')).toBeInTheDocument();
-    // 整卡跳课程详情页
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/courses/1?from=flash');
+    // 整卡跳秒杀详情页
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/flash-sales/6');
   });
 
-  it('页脚为参考图橙色，划线原价下移 5px', async () => {
+  it('页脚为参考图橙色，划线原价与售价基线对齐', async () => {
     server.use(
       http.get(/\/api\/v1\/flash-sales$/, () =>
         HttpResponse.json(envelope({ items: [sale], total: 1, page: 1, pageSize: 12 })),
@@ -62,12 +62,16 @@ describe('FlashSaleListPage', () => {
     expect(footer).not.toBeNull();
     expect(footer).toHaveStyle({ backgroundColor: 'rgb(250, 140, 22)' });
 
-    // 原价：相对活动价下移 5px，与课程卡片一致
-    const original = document.querySelector('.activity-card-price .money-text-original');
+    // 原价：不做相对下移，由价格容器按基线对齐
+    const original = document.querySelector(
+      '.activity-card-price .money-text-original',
+    ) as HTMLElement;
     expect(original).not.toBeNull();
-    const style = getComputedStyle(original as Element);
-    expect(style.position).toBe('relative');
-    expect(style.top).toBe('5px');
+    expect(original.style.position).toBe('');
+    expect(original.style.top).toBe('');
+    const priceRow = document.querySelector('.activity-card-price .money-text') as HTMLElement;
+    expect(priceRow.style.display).toBe('inline-flex');
+    expect(priceRow.style.alignItems).toBe('baseline');
   });
 
   it('售罄活动显示已售罄', async () => {
@@ -120,10 +124,40 @@ function loginAsUser() {
   });
 }
 
+// 详情页依赖桩：关联课程、精品推荐、收藏 id 集
+function stubDetailDeps() {
+  server.use(
+    http.get(/\/api\/v1\/courses\/1$/, () =>
+      HttpResponse.json(
+        envelope({
+          id: 1,
+          name: 'TypeScript 系统入门',
+          type: 'video',
+          instructor: '讲师甲',
+          originalCents: 19900,
+          saleCents: 19900,
+          coverUrl: null,
+          intro: '课程介绍',
+          chapters: [],
+        }),
+      ),
+    ),
+    http.get(/\/api\/v1\/home\/recommendations$/, () =>
+      HttpResponse.json(envelope({ courses: [] })),
+    ),
+    http.get(/\/api\/v1\/user\/favorites/, () =>
+      HttpResponse.json(
+        envelope({ items: [], total: 0, page: 1, pageSize: 100 }),
+      ),
+    ),
+  );
+}
+
 describe('FlashSaleDetailPage', () => {
   beforeEach(() => useSessionStore.setState({ user: null }));
 
   it('游客点抢购跳登录并回跳', async () => {
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/flash-sales\/6$/, () => HttpResponse.json(envelope(sale))),
     );
@@ -132,7 +166,12 @@ describe('FlashSaleDetailPage', () => {
       '/flash-sales/6',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '立即抢购' }));
+    // 课程详情式活动条：已抢/剩余与价格
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
+    expect(screen.getByText('97人已抢/剩2名')).toBeInTheDocument();
+    expect(screen.getByText('¥49.00')).toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole('button', { name: '立即秒杀' }));
     await waitFor(() =>
       expect(router.state.location.pathname + router.state.location.search).toBe(
         '/login?redirect=%2Fflash-sales%2F6',
@@ -142,6 +181,7 @@ describe('FlashSaleDetailPage', () => {
 
   it('登录用户抢购带幂等键并进入既有订单支付', async () => {
     loginAsUser();
+    stubDetailDeps();
     // 捕获幂等键
     let key = '';
     server.use(
@@ -159,7 +199,7 @@ describe('FlashSaleDetailPage', () => {
       '/flash-sales/6',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '立即抢购' }));
+    await userEvent.click(await screen.findByRole('button', { name: '立即秒杀' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(key.length).toBeGreaterThanOrEqual(8));
@@ -172,6 +212,7 @@ describe('FlashSaleDetailPage', () => {
 
   it('售罄与未开始按钮禁用', async () => {
     loginAsUser();
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/flash-sales\/6$/, () =>
         HttpResponse.json(envelope({ ...sale, remaining: 0 })),
@@ -201,6 +242,7 @@ describe('FlashSaleDetailPage', () => {
 
   it('限购一次提示后不跳转', async () => {
     loginAsUser();
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/flash-sales\/6$/, () => HttpResponse.json(envelope(sale))),
       http.post(/\/api\/v1\/flash-sales\/6\/purchase$/, () =>
@@ -215,7 +257,7 @@ describe('FlashSaleDetailPage', () => {
       '/flash-sales/6',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '立即抢购' }));
+    await userEvent.click(await screen.findByRole('button', { name: '立即秒杀' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByText('同一活动限购一次')).toBeInTheDocument();

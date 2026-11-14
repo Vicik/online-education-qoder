@@ -1,5 +1,1 @@
-/* 课程卡片价格：原价单独下移 5px，售价保持原位 */
-.course-card-price .money-text-original {
-  position: relative;
-  top: 5px;
-}
+/* 课程卡片价格：售价与原价统一由 MoneyText 做基线对齐，暂无附加样式 */

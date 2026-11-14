@@ -3,7 +3,6 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { CourseBrief } from '@/api/types';
 import { MoneyText } from '@/components/common/MoneyText';
-import './CourseCard.css';
 
 // 封面：无地址或加载失败时回退占位块，只有本卡片降级，不触发列表重取
 function CourseCover({ url, alt }: { url: string | null; alt: string }) {
@@ -51,7 +50,6 @@ export function CourseCard({
         <Typography.Text type="secondary" ellipsis style={{ display: 'block', marginBottom: 8 }}>
           {course.instructor ?? '—'}
         </Typography.Text>
-        {/* 原价单独下移，售价保持原位 */}
         <div className="course-card-price">
           <MoneyText cents={course.saleCents ?? 0} originalCents={course.originalCents} />
         </div>

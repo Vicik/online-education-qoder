@@ -39,8 +39,8 @@ describe('GrouponListPage', () => {
     expect(screen.getByText('¥69.00')).toBeInTheDocument();
     expect(screen.getByText('拼团中')).toBeInTheDocument();
     expect(screen.getByText('倒计时')).toBeInTheDocument();
-    // 整卡跳课程详情页
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/courses/1?from=groupon');
+    // 整卡跳拼团详情页
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/groupons/3');
   });
 
   it('空数据显示空态', async () => {
@@ -63,6 +63,7 @@ const group = {
   targetSize: 2,
   expiresAt: '2099-12-01T00:00:00.000Z',
   formedAt: null,
+  leaderNickname: 'ceshi666666',
 };
 
 // 订单桩
@@ -90,10 +91,40 @@ function loginAsUser() {
   });
 }
 
+// 详情页依赖桩：关联课程、精品推荐、收藏 id 集
+function stubDetailDeps() {
+  server.use(
+    http.get(/\/api\/v1\/courses\/1$/, () =>
+      HttpResponse.json(
+        envelope({
+          id: 1,
+          name: 'TypeScript 系统入门',
+          type: 'video',
+          instructor: '讲师甲',
+          originalCents: 19900,
+          saleCents: 19900,
+          coverUrl: null,
+          intro: '课程介绍',
+          chapters: [],
+        }),
+      ),
+    ),
+    http.get(/\/api\/v1\/home\/recommendations$/, () =>
+      HttpResponse.json(envelope({ courses: [] })),
+    ),
+    http.get(/\/api\/v1\/user\/favorites/, () =>
+      HttpResponse.json(
+        envelope({ items: [], total: 0, page: 1, pageSize: 100 }),
+      ),
+    ),
+  );
+}
+
 describe('GrouponDetailPage', () => {
   beforeEach(() => useSessionStore.setState({ user: null }));
 
   it('游客点发起新团跳登录并回跳', async () => {
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/groupons\/3$/, () =>
         HttpResponse.json(envelope({ ...activity, groups: [group] })),
@@ -104,7 +135,17 @@ describe('GrouponDetailPage', () => {
       '/groupons/3',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '发起新团' }));
+    // 课程详情式活动条 + 团组行
+    expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
+    expect(screen.getByText('2人拼团')).toBeInTheDocument();
+    expect(screen.getByText('1人在拼单,可直接参与')).toBeInTheDocument();
+    expect(screen.getByText('ceshi666666')).toBeInTheDocument();
+    expect(screen.getByText('还差 1人 拼成')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '去拼团' })).toBeInTheDocument();
+    // 团组行位于自动滚动容器内（滚动/悬停暂停行为由 useAutoScroll 单测覆盖）
+    expect(document.querySelector('.groupon-groups-scroll')).not.toBeNull();
+
+    await userEvent.click(await screen.findByRole('button', { name: '立即拼团' }));
     await waitFor(() =>
       expect(router.state.location.pathname + router.state.location.search).toBe(
         '/login?redirect=%2Fgroupons%2F3',
@@ -114,6 +155,7 @@ describe('GrouponDetailPage', () => {
 
   it('登录用户开团带幂等键并进入既有订单支付', async () => {
     loginAsUser();
+    stubDetailDeps();
     // 捕获幂等键
     let key = '';
     server.use(
@@ -133,7 +175,7 @@ describe('GrouponDetailPage', () => {
       '/groupons/3',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '发起新团' }));
+    await userEvent.click(await screen.findByRole('button', { name: '立即拼团' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(key.length).toBeGreaterThanOrEqual(8));
@@ -146,6 +188,7 @@ describe('GrouponDetailPage', () => {
 
   it('参团调用加入接口并进入既有订单支付', async () => {
     loginAsUser();
+    stubDetailDeps();
     // 捕获参团请求
     let joined = 0;
     server.use(
@@ -165,7 +208,7 @@ describe('GrouponDetailPage', () => {
       '/groupons/3',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '参团' }));
+    await userEvent.click(await screen.findByRole('button', { name: '去拼团' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(joined).toBe(1));
@@ -178,6 +221,7 @@ describe('GrouponDetailPage', () => {
 
   it('满员团组参团按钮禁用', async () => {
     loginAsUser();
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/groupons\/3$/, () =>
         HttpResponse.json(
@@ -190,11 +234,12 @@ describe('GrouponDetailPage', () => {
       '/groupons/3',
     );
 
-    expect(await screen.findByRole('button', { name: '参团' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: '去拼团' })).toBeDisabled();
   });
 
   it('已参与提示并回显后端文案', async () => {
     loginAsUser();
+    stubDetailDeps();
     server.use(
       http.get(/\/api\/v1\/groupons\/3$/, () =>
         HttpResponse.json(envelope({ ...activity, groups: [group] })),
@@ -211,7 +256,7 @@ describe('GrouponDetailPage', () => {
       '/groupons/3',
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: '参团' }));
+    await userEvent.click(await screen.findByRole('button', { name: '去拼团' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByText('您已参与过该拼团活动')).toBeInTheDocument();

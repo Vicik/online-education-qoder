@@ -43,7 +43,7 @@ export default function FlashSaleListPage() {
       ) : (
         <Row gutter={[16, 16]}>
           {items.map((item) => (
-            <Col key={item.id} xs={24} md={12} lg={8}>
+            <Col key={item.id} xs={24} md={12} lg={6}>
               <FlashSaleCard activity={item} onExpire={handleExpire} />
             </Col>
           ))}
