@@ -549,6 +549,33 @@ describe('CourseAdminService.listAll / getDetail', () => {
     );
   });
 
+  it('listAll 指定 withoutActivePromotion 时排除仍有未结束活动的课程', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findMany.mockResolvedValue([]);
+    prisma.course.count.mockResolvedValue(0);
+
+    await service.listAll({ page: 1, pageSize: 20 }, undefined, true);
+
+    expect(prisma.course.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          grouponActivities: {
+            none: {
+              status: { notIn: ['ended', 'cancelled'] },
+              endAt: { gte: expect.any(Date) },
+            },
+          },
+          flashSaleActivities: {
+            none: {
+              status: { notIn: ['ended', 'cancelled'] },
+              endAt: { gte: expect.any(Date) },
+            },
+          },
+        },
+      }),
+    );
+  });
+
   it('getDetail 以管理端视角获取含草稿/下架的详情', async () => {
     const { courses, service } = setup();
     courses.getDetail.mockResolvedValue({ id: 1, status: 'draft' });

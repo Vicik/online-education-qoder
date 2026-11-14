@@ -276,4 +276,67 @@ describe('GrouponAdminService.listAll', () => {
       courseName: 'TypeScript 系统入门',
     });
   });
+
+  it('按起止时间推导展示状态（取消/已结束保持不变）', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2027-01-05T00:00:00Z'));
+    try {
+      const { prisma, service } = setup();
+      prisma.grouponActivity.findMany.mockResolvedValue([
+        // 未开始但已过结束时间：展示为已结束
+        {
+          ...ACTIVITY,
+          id: 1,
+          status: 'not_started',
+          startAt: new Date('2026-12-30T00:00:00Z'),
+          endAt: new Date('2026-12-31T00:00:00Z'),
+        },
+        // 时间区间内：展示为进行中
+        {
+          ...ACTIVITY,
+          id: 2,
+          status: 'ongoing',
+          startAt: new Date('2027-01-04T00:00:00Z'),
+          endAt: new Date('2027-01-06T00:00:00Z'),
+        },
+        // 未到开始时间：展示为未开始
+        {
+          ...ACTIVITY,
+          id: 3,
+          status: 'not_started',
+          startAt: new Date('2027-01-06T00:00:00Z'),
+          endAt: new Date('2027-01-07T00:00:00Z'),
+        },
+        // 已取消：即使已过结束时间仍展示为已取消
+        {
+          ...ACTIVITY,
+          id: 4,
+          status: 'cancelled',
+          startAt: new Date('2026-12-30T00:00:00Z'),
+          endAt: new Date('2026-12-31T00:00:00Z'),
+        },
+        // 物化状态滞后（进行中但已过结束时间）：展示为已结束
+        {
+          ...ACTIVITY,
+          id: 5,
+          status: 'ongoing',
+          startAt: new Date('2026-12-30T00:00:00Z'),
+          endAt: new Date('2026-12-31T00:00:00Z'),
+        },
+      ]);
+      prisma.grouponActivity.count.mockResolvedValue(5);
+
+      const page = await service.listAll({ page: 1, pageSize: 20 });
+
+      expect(page.items.map((item) => item.status)).toEqual([
+        'ended',
+        'ongoing',
+        'not_started',
+        'cancelled',
+        'ended',
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

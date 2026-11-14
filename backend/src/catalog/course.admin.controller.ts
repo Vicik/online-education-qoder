@@ -38,10 +38,14 @@ export class CourseAdminController {
     private readonly chapters: ChapterAdminService,
   ) {}
 
-  // 课程列表（全部状态，可按状态筛选）
+  // 课程列表（全部状态，可按状态筛选；可选排除已有活动的课程）
   @Get()
   list(@Query() query: AdminCourseListQuery) {
-    return this.courses.listAll(query, query.status);
+    return this.courses.listAll(
+      query,
+      query.status,
+      query.withoutActivePromotion,
+    );
   }
 
   // 创建课程（草稿）

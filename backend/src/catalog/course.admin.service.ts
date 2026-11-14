@@ -99,12 +99,34 @@ export class CourseAdminService {
   async listAll(
     page: PageQuery,
     status?: CourseStatus,
+    withoutActivePromotion = false,
   ): Promise<PageResult<AdminCourseListItem>> {
     // 分页参数兜底
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
+    // 当前时刻：用于判断活动是否已结束（与展示状态推导一致，不依赖物化状态）
+    const now = new Date();
     // 状态筛选条件
-    const where: Prisma.CourseWhereInput = status ? { status } : {};
+    const where: Prisma.CourseWhereInput = {
+      ...(status ? { status } : {}),
+      // 无有效活动的课程：未取消/未结束且尚未到结束时间的拼团与秒杀都不存在
+      ...(withoutActivePromotion
+        ? {
+            grouponActivities: {
+              none: {
+                status: { notIn: ['ended', 'cancelled'] },
+                endAt: { gte: now },
+              },
+            },
+            flashSaleActivities: {
+              none: {
+                status: { notIn: ['ended', 'cancelled'] },
+                endAt: { gte: now },
+              },
+            },
+          }
+        : {}),
+    };
 
     const [rows, total] = await Promise.all([
       // 当前页课程（含章节数）

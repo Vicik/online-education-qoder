@@ -1042,6 +1042,10 @@ paths:
         - in: query
           name: status
           schema: { type: string, enum: [draft, published, unpublished] }
+        - in: query
+          name: withoutActivePromotion
+          description: 为 true 时仅返回当前没有未开始/进行中拼团或秒杀活动的课程
+          schema: { type: boolean }
       responses:
         '200':
           description: 'data: Page（items: CourseBrief，含 chapterCount/enrollmentCount）'

@@ -10,6 +10,7 @@ import { PageResult } from '../../common/dto/page-result';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import { assertNoActivityOverlap } from '../activity-overlap';
+import { deriveActivityStatus } from '../activity-status';
 import { CreateGrouponDto } from './dto/create-groupon.dto';
 import { UpdateGrouponDto } from './dto/update-groupon.dto';
 import { GrouponActivityBrief, toActivityBrief } from './groupon.mapper';
@@ -288,6 +289,8 @@ export class GrouponAdminService {
     // 分页参数兜底
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
+    // 展示状态按时间推导：Worker 停摆或滞后时管理端仍显示正确状态
+    const now = new Date();
 
     const [rows, total] = await Promise.all([
       // 当前页活动（带课程名称）
@@ -302,7 +305,9 @@ export class GrouponAdminService {
     ]);
 
     return {
-      items: rows.map(toActivityBrief),
+      items: rows.map((row) =>
+        toActivityBrief({ ...row, status: deriveActivityStatus(row, now) }),
+      ),
       total,
       page: pageNo,
       pageSize,

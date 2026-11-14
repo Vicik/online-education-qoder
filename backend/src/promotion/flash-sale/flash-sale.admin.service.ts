@@ -10,6 +10,7 @@ import { PageResult } from '../../common/dto/page-result';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import { assertNoActivityOverlap } from '../activity-overlap';
+import { deriveActivityStatus } from '../activity-status';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
 import {
@@ -294,6 +295,8 @@ export class FlashSaleAdminService {
     // 分页参数兜底
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
+    // 展示状态按时间推导：Worker 停摆或滞后时管理端仍显示正确状态
+    const now = new Date();
 
     const [rows, total] = await Promise.all([
       // 当前页活动（带课程名称）
@@ -309,7 +312,10 @@ export class FlashSaleAdminService {
 
     return {
       items: rows.map((row) =>
-        toFlashSaleActivityView(row, row.stock - row.sold),
+        toFlashSaleActivityView(
+          { ...row, status: deriveActivityStatus(row, now) },
+          row.stock - row.sold,
+        ),
       ),
       total,
       page: pageNo,
