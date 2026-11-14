@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { usePermission } from '@/hooks/usePermission';
+import { deriveActivityStatus } from '@/lib/activity-status';
 import { formatCents } from '@/lib/money';
 
 // 开团/参团的返回结构
@@ -105,8 +106,10 @@ export default function GrouponDetailPage() {
 
   // 活动详情
   const detail = query.data;
-  // 是否可参与（后端只返回进行中活动；此处用状态兜底）
-  const joinable = detail.status === 'ongoing';
+  // 展示状态：按服务端时间推导，物化状态滞后时仍能正确禁用参与
+  const status = deriveActivityStatus(detail);
+  // 是否可参与（仅进行中可参与）
+  const joinable = status === 'ongoing';
   // 待成团团组
   const groups = detail.groups;
   // 拼团价（分）
@@ -118,7 +121,7 @@ export default function GrouponDetailPage() {
     <div>
       <PageHeader
         title={detail.name ?? ''}
-        extra={<StatusTag domain="groupon" status={detail.status ?? ''} />}
+        extra={<StatusTag domain="groupon" status={status} />}
       />
       <Card style={{ marginBottom: 16 }}>
         <Space direction="vertical" size={8}>

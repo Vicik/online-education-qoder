@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { usePermission } from '@/hooks/usePermission';
+import { deriveActivityStatus } from '@/lib/activity-status';
 
 // 秒杀详情：剩余库存、倒计时、售罄/未开始禁用与幂等抢购
 export default function FlashSaleDetailPage() {
@@ -85,20 +86,22 @@ export default function FlashSaleDetailPage() {
 
   // 活动详情
   const sale = query.data;
+  // 展示状态：按服务端时间推导，物化状态滞后时仍能正确禁用抢购
+  const status = deriveActivityStatus(sale);
   // 是否未开始：未开始倒计时到开始时间，其余倒计时到结束时间
-  const notStarted = sale.status === 'not_started';
+  const notStarted = status === 'not_started';
   // 服务端剩余库存
   const remaining = sale.remaining ?? 0;
   // 是否售罄：以服务端剩余库存为准
   const soldOut = remaining <= 0;
   // 是否可抢购：进行中且未售罄
-  const purchasable = sale.status === 'ongoing' && !soldOut;
+  const purchasable = status === 'ongoing' && !soldOut;
   // 按钮文案：售罄优先，其次未开始/已结束
   const buttonLabel = soldOut
     ? '已售罄'
     : notStarted
       ? '未开始'
-      : sale.status !== 'ongoing'
+      : status !== 'ongoing'
         ? '已结束'
         : '立即抢购';
   // 倒计时截止时间
@@ -108,7 +111,7 @@ export default function FlashSaleDetailPage() {
     <div>
       <PageHeader
         title={sale.name ?? ''}
-        extra={<StatusTag domain="flash-sale" status={sale.status ?? ''} />}
+        extra={<StatusTag domain="flash-sale" status={status} />}
       />
       <Card>
         <Space direction="vertical" size={8}>

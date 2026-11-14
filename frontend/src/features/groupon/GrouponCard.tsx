@@ -1,5 +1,6 @@
 import type { GrouponActivityBrief } from '@/api/types';
 import { ActivityCardFrame } from '@/features/promotion/ActivityCardFrame';
+import { deriveActivityStatus } from '@/lib/activity-status';
 
 // 拼团页脚底色：橙色
 const GROUPON_FOOTER_COLOR = '#fa8c16';
@@ -14,14 +15,16 @@ export function GrouponCard({
 }) {
   // 课程 id：整卡跳课程详情
   const courseId = activity.courseId ?? 0;
+  // 展示状态：按服务端时间推导，避免物化状态滞后
+  const status = deriveActivityStatus(activity);
   // 是否未开始：倒计时到开始时间，其余到活动结束时间
-  const notStarted = activity.status === 'not_started';
+  const notStarted = status === 'not_started';
   // 倒计时截止时间
   const deadlineAt = (notStarted ? activity.startAt : activity.endAt) ?? '';
   // 页脚状态文案
   const footerLabel = notStarted
     ? '即将开始'
-    : activity.status === 'ongoing'
+    : status === 'ongoing'
       ? '拼团中'
       : '已结束';
 

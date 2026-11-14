@@ -1,5 +1,6 @@
 import type { FlashSaleActivityBrief } from '@/api/types';
 import { ActivityCardFrame } from '@/features/promotion/ActivityCardFrame';
+import { deriveActivityStatus } from '@/lib/activity-status';
 
 // 秒杀页脚底色：与参考图一致的橙色
 const FLASH_SALE_FOOTER_COLOR = '#fa8c16';
@@ -14,8 +15,10 @@ export function FlashSaleCard({
 }) {
   // 课程 id：整卡跳课程详情
   const courseId = activity.courseId ?? 0;
+  // 展示状态：按服务端时间推导，避免物化状态滞后
+  const status = deriveActivityStatus(activity);
   // 是否未开始：倒计时到开始时间，其余到活动结束时间
-  const notStarted = activity.status === 'not_started';
+  const notStarted = status === 'not_started';
   // 是否已售罄：以服务端剩余库存为准
   const soldOut = (activity.remaining ?? 0) <= 0;
   // 倒计时截止时间
@@ -25,7 +28,7 @@ export function FlashSaleCard({
     ? '已售罄'
     : notStarted
       ? '即将开始'
-      : activity.status === 'ongoing'
+      : status === 'ongoing'
         ? '秒杀中'
         : '已结束';
 

@@ -16,6 +16,7 @@ import type {
   Order,
 } from '@/api/types';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
+import { deriveActivityStatus } from '@/lib/activity-status';
 
 // 活动横幅：左侧活动信息，右侧倒计时
 export interface CoursePromotionBanner {
@@ -55,12 +56,16 @@ export function useCoursePromotion({
   const flashRemaining = flashSale?.remaining ?? 0;
   // 秒杀是否售罄
   const flashSoldOut = flashRemaining <= 0;
+  // 秒杀展示状态：按服务端时间推导，物化状态滞后时仍能正确禁用抢购
+  const flashStatus = flashSale ? deriveActivityStatus(flashSale) : null;
+  // 拼团展示状态：按服务端时间推导
+  const grouponStatus = groupon ? deriveActivityStatus(groupon) : null;
   // 秒杀是否未开始
-  const flashNotStarted = flashSale?.status === 'not_started';
+  const flashNotStarted = flashStatus === 'not_started';
   // 秒杀是否可抢购：进行中且未售罄
-  const flashPurchasable = flashSale?.status === 'ongoing' && !flashSoldOut;
+  const flashPurchasable = flashStatus === 'ongoing' && !flashSoldOut;
   // 拼团是否可参与：进行中
-  const grouponJoinable = groupon?.status === 'ongoing';
+  const grouponJoinable = grouponStatus === 'ongoing';
 
   // 待成团团组：详情页需要团长昵称与还差人数，取拼团详情
   const groupsQuery = useQuery({
@@ -142,7 +147,7 @@ export function useCoursePromotion({
       ? '已售罄'
       : flashNotStarted
         ? '未开始'
-        : flashSale.status !== 'ongoing'
+        : flashStatus !== 'ongoing'
           ? '已结束'
           : '立即秒杀'
     : groupon
