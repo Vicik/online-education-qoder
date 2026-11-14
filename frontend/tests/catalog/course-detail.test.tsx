@@ -97,78 +97,6 @@ function mockDetail(overrides: Record<string, unknown> = {}) {
   );
 }
 
-// 拼团详情桩：课程详情页据此展示待成团团组
-const groupStub = {
-  id: 8,
-  status: 'pending',
-  memberCount: 1,
-  targetSize: 2,
-  expiresAt: '2099-12-01T00:00:00.000Z',
-  formedAt: null,
-  leaderNickname: '团长甲',
-};
-
-// 拼团详情接口桩：默认一个待成团团组
-function mockGrouponGroups(groups: unknown[] = [groupStub]) {
-  server.use(
-    http.get(/\/api\/v1\/groupons\/3$/, () =>
-      HttpResponse.json(envelope({ ...detail().groupon, groups })),
-    ),
-  );
-}
-
-// 秒杀活动桩
-const flashSaleStub = {
-  id: 6,
-  courseId: 1,
-  courseName: 'TypeScript 系统入门',
-  name: '限时秒杀',
-  priceCents: 4900,
-  stock: 100,
-  sold: 97,
-  remaining: 2,
-  startAt: '2026-11-01T00:00:00.000Z',
-  endAt: '2099-12-01T00:00:00.000Z',
-  status: 'ongoing',
-  version: 1,
-};
-
-// 秒杀订单桩
-const flashOrder = {
-  id: 7,
-  orderNo: 'NO7',
-  courseId: 1,
-  courseName: 'TypeScript 系统入门',
-  activityType: 'flash_sale',
-  activityId: 6,
-  originalCents: 19900,
-  currentCents: 4900,
-  discountCents: 0,
-  paidCents: 4900,
-  couponClaimId: null,
-  status: 'pending',
-  paidAt: null,
-  createdAt: '2026-11-10T00:00:00.000Z',
-};
-
-// 拼团订单桩
-const grouponOrder = {
-  id: 5,
-  orderNo: 'NO5',
-  courseId: 1,
-  courseName: 'TypeScript 系统入门',
-  activityType: 'groupon',
-  activityId: 8,
-  originalCents: 19900,
-  currentCents: 6900,
-  discountCents: 0,
-  paidCents: 6900,
-  couponClaimId: null,
-  status: 'pending',
-  paidAt: null,
-  createdAt: '2026-11-10T00:00:00.000Z',
-};
-
 // 收藏 id 全集桩：已登录页面会请求
 function mockFavoriteIds() {
   server.use(
@@ -216,20 +144,20 @@ describe('CourseDetailPage', () => {
   beforeEach(() => {
     mockRecommendations();
     mockMyCoupons(() => []);
-    mockGrouponGroups();
   });
 
   afterEach(() => {
     useSessionStore.getState().clear();
   });
 
-  it('渲染活动、课程概述与章节目录页签', async () => {
+  it('渲染课程概述与章节目录页签，不展示拼团内容', async () => {
     mockDetail();
     renderWithProviders([{ path: '/courses/:id', element: <CourseDetailPage /> }], '/courses/1');
 
-    // 活动横幅显示成团人数，主按钮切换为立即拼团
-    expect(await screen.findByText('2人拼团')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '立即拼团' })).toBeInTheDocument();
+    // 即使详情接口返回进行中的拼团，普通课程详情页也不再展示活动内容
+    expect(await screen.findByRole('button', { name: '立即购买' })).toBeInTheDocument();
+    expect(screen.queryByText('2人拼团')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '立即拼团' })).not.toBeInTheDocument();
     expect(screen.getByText('详细介绍')).toBeInTheDocument();
     expect(screen.queryByText(/第一章 类型系统/)).not.toBeInTheDocument();
 
@@ -317,8 +245,7 @@ describe('CourseDetailPage', () => {
   });
 
   it('游客显示立即购买并进入结算页', async () => {
-    // 无活动时使用普通购买入口
-    mockDetail({ groupon: null });
+    mockDetail();
     const { router } = renderWithProviders(
       [
         { path: '/courses/:id', element: <CourseDetailPage /> },
@@ -334,7 +261,7 @@ describe('CourseDetailPage', () => {
   });
 
   it('普通用户点立即购买进结算页', async () => {
-    mockDetail({ groupon: null });
+    mockDetail();
     mockFavoriteIds();
     mockOrders([]);
     useSessionStore.getState().setUser({
@@ -407,112 +334,6 @@ describe('CourseDetailPage', () => {
 
     await userEvent.click(cta);
     await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
-  });
-
-  it('拼团详情展示团组并可参团进入结算', async () => {
-    mockDetail();
-    mockFavoriteIds();
-    mockOrders([]);
-    // 捕获参团请求次数
-    let joined = 0;
-    server.use(
-      http.post(/\/api\/v1\/groupons\/3\/groups\/8\/join$/, () => {
-        joined += 1;
-        return HttpResponse.json(
-          envelope({ order: grouponOrder, group: groupStub }),
-          { status: 201 },
-        );
-      }),
-    );
-    useSessionStore.getState().setUser({
-      id: 2,
-      email: 'user@example.com',
-      nickname: '学员',
-      avatarKey: null,
-      avatarUrl: null,
-      gender: 'secret',
-      role: 'user',
-      createdAt: '2026-11-01T00:00:00.000Z',
-    } as never);
-
-    const { router } = renderWithProviders(
-      [
-        { path: '/courses/:id', element: <CourseDetailPage /> },
-        { path: '/checkout/:courseId', element: <div>checkout-page</div> },
-      ],
-      '/courses/1',
-    );
-
-    // 活动横幅与团组信息：团长昵称、还差人数
-    expect(await screen.findByText('2人拼团')).toBeInTheDocument();
-    expect(await screen.findByText('团长甲')).toBeInTheDocument();
-    expect(screen.getByText(/还差/)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: '去拼团' }));
-    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
-
-    await waitFor(() => expect(joined).toBe(1));
-    await waitFor(() =>
-      expect(
-        router.state.location.pathname + router.state.location.search,
-      ).toBe('/checkout/1?orderId=5'),
-    );
-  });
-
-  it('秒杀详情展示已抢/剩余并可立即秒杀进入结算', async () => {
-    mockDetail({ groupon: null, flashSale: flashSaleStub });
-    mockFavoriteIds();
-    mockOrders([]);
-    // 捕获抢购请求
-    let purchased = 0;
-    server.use(
-      http.post(/\/api\/v1\/flash-sales\/6\/purchase$/, () => {
-        purchased += 1;
-        return HttpResponse.json(envelope({ order: flashOrder }), { status: 201 });
-      }),
-    );
-    useSessionStore.getState().setUser({
-      id: 2,
-      email: 'user@example.com',
-      nickname: '学员',
-      avatarKey: null,
-      avatarUrl: null,
-      gender: 'secret',
-      role: 'user',
-      createdAt: '2026-11-01T00:00:00.000Z',
-    } as never);
-
-    const { router } = renderWithProviders(
-      [
-        { path: '/courses/:id', element: <CourseDetailPage /> },
-        { path: '/checkout/:courseId', element: <div>checkout-page</div> },
-      ],
-      '/courses/1',
-    );
-
-    expect(await screen.findByText('97人已抢/剩2名')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '立即秒杀' }));
-    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
-
-    await waitFor(() => expect(purchased).toBe(1));
-    await waitFor(() =>
-      expect(
-        router.state.location.pathname + router.state.location.search,
-      ).toBe('/checkout/1?orderId=7'),
-    );
-  });
-
-  it('秒杀售罄时主按钮禁用', async () => {
-    mockDetail({
-      groupon: null,
-      flashSale: { ...flashSaleStub, remaining: 0 },
-    });
-    renderWithProviders(
-      [{ path: '/courses/:id', element: <CourseDetailPage /> }],
-      '/courses/1',
-    );
-
-    expect(await screen.findByRole('button', { name: '已售罄' })).toBeDisabled();
   });
 
   it('3001 显示课程不存在空态', async () => {

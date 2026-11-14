@@ -13,8 +13,8 @@ export function GrouponCard({
   activity: GrouponActivityBrief;
   onExpire?: () => void;
 }) {
-  // 课程 id：整卡跳课程详情
-  const courseId = activity.courseId ?? 0;
+  // 活动 id：整卡跳拼团详情
+  const activityId = activity.id ?? 0;
   // 展示状态：按服务端时间推导，避免物化状态滞后
   const status = deriveActivityStatus(activity);
   // 是否未开始：倒计时到开始时间，其余到活动结束时间
@@ -30,8 +30,7 @@ export function GrouponCard({
 
   return (
     <ActivityCardFrame
-      courseId={courseId}
-      source="groupon"
+      to={`/groupons/${activityId}`}
       courseName={activity.courseName ?? ''}
       coverUrl={activity.courseCoverUrl ?? null}
       priceCents={activity.priceCents ?? 0}

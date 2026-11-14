@@ -52,33 +52,7 @@ function mockDetail(overrides: Record<string, unknown> = {}) {
   );
 }
 
-// 拼团详情桩：用于展示待成团团组
-function mockGrouponGroups() {
-  server.use(
-    http.get(/\/api\/v1\/groupons\/3$/, () =>
-      HttpResponse.json(
-        envelope({
-          ...courseDetail().groupon,
-          groups: [
-            {
-              id: 8,
-              status: 'pending',
-              memberCount: 1,
-              targetSize: 2,
-              expiresAt: '2099-12-01T00:00:00.000Z',
-              formedAt: null,
-              leaderNickname: '团长甲',
-            },
-          ],
-        }),
-      ),
-    ),
-  );
-}
-
 describe('CoursePreviewPage', () => {
-  beforeEach(() => mockGrouponGroups());
-
   it('展示课程内容但隐藏购买互动与精品推荐', async () => {
     mockDetail();
 
@@ -87,15 +61,15 @@ describe('CoursePreviewPage', () => {
       '/admin/courses/42/preview',
     );
 
-    // 预览提示、标题与活动横幅
+    // 预览提示与标题
     expect(
       await screen.findByText('预览模式：仅展示课程内容，购买、优惠券、收藏与拼团操作已隐藏'),
     ).toBeInTheDocument();
     expect(screen.getByText('虚拟机使用')).toBeInTheDocument();
-    expect(screen.getByText('2人拼团')).toBeInTheDocument();
-    // 团组只展示信息，不提供参团按钮
-    expect(await screen.findByText('团长甲')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '去拼团' })).not.toBeInTheDocument();
+
+    // 即使接口返回进行中的拼团，预览也与普通课程详情页一致，不展示活动内容
+    expect(screen.queryByText('2人拼团')).not.toBeInTheDocument();
+    expect(screen.queryByText('团长甲')).not.toBeInTheDocument();
 
     // 普通用户操作全部隐藏
     expect(screen.queryByRole('button', { name: '立即拼团' })).not.toBeInTheDocument();

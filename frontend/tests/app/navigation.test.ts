@@ -29,13 +29,13 @@ describe('navigation', () => {
     expect(getUserCenterSelectedKey('/user/study-records')).toBe('/user/study-records');
     expect(getUserCenterSelectedKey('/user')).toBe('/user');
   });
-  it('课程详情按活动来源高亮拼团或秒杀', () => {
+  it('活动详情按路径前缀高亮对应入口', () => {
     const navItems = getUserNavItems('user');
-    expect(getUserNavSelectedKey(navItems, '/courses/1', '?from=groupon')).toBe('/groupons');
-    expect(getUserNavSelectedKey(navItems, '/courses/1', '?from=flash')).toBe('/flash-sales');
-    // 无来源参数或非课程详情时按原路径规则
-    expect(getUserNavSelectedKey(navItems, '/courses/1', '')).toBe('/courses');
-    expect(getUserNavSelectedKey(navItems, '/groupons', '?from=flash')).toBe('/groupons');
-    expect(getUserNavSelectedKey(navItems, '/', '')).toBe('/');
+    expect(getUserNavSelectedKey(navItems, '/courses/1')).toBe('/courses');
+    expect(getUserNavSelectedKey(navItems, '/groupons')).toBe('/groupons');
+    expect(getUserNavSelectedKey(navItems, '/groupons/3')).toBe('/groupons');
+    expect(getUserNavSelectedKey(navItems, '/flash-sales')).toBe('/flash-sales');
+    expect(getUserNavSelectedKey(navItems, '/flash-sales/6')).toBe('/flash-sales');
+    expect(getUserNavSelectedKey(navItems, '/')).toBe('/');
   });
 });

@@ -21,12 +21,8 @@ export function UserHeader() {
   const logout = useLogout();
   // 按角色过滤后的顶部导航项
   const navItems = getUserNavItems(user?.role ?? null);
-  // 当前导航高亮：课程详情按活动来源，其余按路径前缀，无匹配时不选中
-  const selectedKey = getUserNavSelectedKey(
-    navItems,
-    location.pathname,
-    location.search,
-  );
+  // 当前导航高亮：按路径前缀匹配，无匹配时不选中
+  const selectedKey = getUserNavSelectedKey(navItems, location.pathname);
   // 管理员课程预览：仅隐藏主导航，保留品牌与账户入口
   const adminPreview =
     user?.role === 'admin' &&

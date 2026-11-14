@@ -72,11 +72,6 @@
   font-size: 13px;
   color: #8c8c8c;
 }
-/* 详情页原价单独下移 10px，售价保持原位 */
-.course-detail-price .money-text-original {
-  position: relative;
-  top: 10px;
-}
 /* 领取优惠券：价格下方的橙色描边标签 */
 .course-detail-coupon {
   align-self: flex-start;
@@ -111,69 +106,6 @@
 /* 券弹层：加大内边距，贴近参考图的白色面板 */
 .course-coupon-popover .ant-popover-inner {
   padding: 20px 24px;
-}
-/* 秒杀/拼团横幅：红底活动条，右端为白框倒计时 */
-.course-promo-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: #fff;
-  background: #f5222d;
-  border-radius: 4px;
-}
-/* 拼团团组卡：团多时纵向滚动 */
-.course-groupon-groups.ant-card {
-  border-radius: 8px;
-}
-.course-groupon-scroll {
-  display: flex;
-  flex-direction: column;
-  max-height: 280px;
-  overflow-y: auto;
-}
-.course-groupon-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 4px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.course-groupon-row:last-child {
-  border-bottom: none;
-}
-.course-groupon-avatar {
-  flex: none;
-  color: #fff;
-  background: #bfbfbf;
-}
-.course-groupon-nickname {
-  min-width: 120px;
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.88);
-}
-.course-groupon-remaining {
-  color: rgba(0, 0, 0, 0.65);
-}
-.course-groupon-remaining b {
-  margin: 0 2px;
-  font-weight: 600;
-  color: var(--color-price);
-}
-/* 去拼团按钮靠右，绿色与参考图一致 */
-.course-groupon-row > :last-child {
-  margin-left: auto;
-}
-.course-groupon-join.ant-btn {
-  background: var(--color-cta);
-  border-color: var(--color-cta);
-}
-.course-groupon-join.ant-btn:hover {
-  background: #0e8a4d !important;
-  border-color: #0e8a4d !important;
 }
 /* 正文两栏：左内容卡 + 右精品推荐 */
 .course-detail-body {

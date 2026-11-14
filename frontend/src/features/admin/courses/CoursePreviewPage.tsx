@@ -1,17 +1,13 @@
-import { Alert, Avatar, Card, Tabs, Typography } from 'antd';
+import { Alert, Card, Tabs, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { getAdminCourse } from '@/api/admin/courses';
 import { queryKeys } from '@/api/query-keys';
-import { Countdown } from '@/components/common/Countdown';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
 import { CourseChapterList } from '@/features/catalog/CourseChapterList';
-import { useCoursePromotion } from '@/features/catalog/useCoursePromotion';
-import { ActivityCountdown } from '@/features/promotion/ActivityCardFrame';
-import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { courseTypeLabel } from '@/lib/course';
 import '@/features/catalog/CourseDetailPage.css';
 import './CoursePreviewPage.css';
@@ -33,15 +29,6 @@ export default function CoursePreviewPage() {
     queryFn: () => getAdminCourse(courseId),
     enabled: validId,
   });
-  // 秒杀/拼团展示数据：只渲染横幅与团组，不提供下单入口
-  const promotion = useCoursePromotion({
-    courseId,
-    groupon: query.data?.groupon ?? null,
-    flashSale: query.data?.flashSale ?? null,
-  });
-  // 拼团团组自动滚动：悬停或聚焦暂停
-  const groupScroll = useAutoScroll<HTMLDivElement>(promotion.groups.length > 0);
-
   // 非法的路由 id
   if (!validId) {
     return (
@@ -69,16 +56,12 @@ export default function CoursePreviewPage() {
 
   // 已加载的课程详情
   const course = query.data;
-  // 活动价：秒杀优先，其次拼团；无活动时沿用课程售价
-  const activityPriceCents = course.flashSale?.priceCents ?? course.groupon?.priceCents;
-  // 实际展示价
-  const displayPriceCents = activityPriceCents ?? course.saleCents ?? 0;
+  // 展示价：普通课程售价，不含秒杀/拼团活动价
+  const displayPriceCents = course.saleCents ?? 0;
   // 课程类型中文名
   const typeLabel = courseTypeLabel(course.type);
   // 是否免费课程
   const isFree = (course.saleCents ?? 0) === 0;
-  // 待成团团组
-  const groups = promotion.groups;
 
   return (
     <div className="course-detail">
@@ -108,15 +91,6 @@ export default function CoursePreviewPage() {
             {typeLabel && <span>【{typeLabel}】</span>}
             <span>讲师：{course.instructor ?? '—'}</span>
           </p>
-          {promotion.banner && (
-            <div className="course-promo-banner">
-              <span>{promotion.banner.text}</span>
-              <ActivityCountdown
-                deadlineAt={promotion.banner.deadlineAt}
-                onExpire={() => void query.refetch()}
-              />
-            </div>
-          )}
           <div className="course-detail-price">
             <MoneyText
               cents={displayPriceCents}
@@ -134,62 +108,6 @@ export default function CoursePreviewPage() {
           )}
         </div>
       </div>
-
-      {promotion.banner?.kind === 'groupon' && (
-        <Card
-          className="course-groupon-groups"
-          title={
-            groups.length > 0
-              ? `${groups.length} 个团正在拼单，可直接参与`
-              : '正在拼单'
-          }
-        >
-          {promotion.groupsLoading ? (
-            <Typography.Text type="secondary">加载中…</Typography.Text>
-          ) : groups.length === 0 ? (
-            <Typography.Text type="secondary">
-              暂无可加入的团，点击上方「立即拼团」发起新团。
-            </Typography.Text>
-          ) : (
-            // 团组纵向滚动：团多时自动滚动，悬停/聚焦暂停
-            <div
-              className="course-groupon-scroll"
-              ref={groupScroll.ref}
-              onMouseEnter={groupScroll.onMouseEnter}
-              onMouseLeave={groupScroll.onMouseLeave}
-              onFocus={groupScroll.onFocus}
-              onBlur={groupScroll.onBlur}
-            >
-              {groups.map((group) => {
-                // 已支付成员数
-                const memberCount = group.memberCount ?? 0;
-                // 成团人数
-                const targetSize = group.targetSize ?? 0;
-                // 还差人数
-                const needCount = Math.max(targetSize - memberCount, 0);
-                return (
-                  <div className="course-groupon-row" key={group.id}>
-                    <Avatar className="course-groupon-avatar">
-                      {group.leaderNickname?.slice(0, 1) || '团'}
-                    </Avatar>
-                    <span className="course-groupon-nickname">
-                      {group.leaderNickname || '拼团用户'}
-                    </span>
-                    <span className="course-groupon-remaining">
-                      还差 <b>{needCount}</b> 人拼成
-                    </span>
-                    <Countdown
-                      deadlineAt={group.expiresAt ?? ''}
-                      prefix="剩余"
-                      onExpire={() => void query.refetch()}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      )}
 
       <div className="course-detail-body">
         <div className="course-detail-main">

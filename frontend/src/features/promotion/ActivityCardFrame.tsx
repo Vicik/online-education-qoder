@@ -39,10 +39,9 @@ export function ActivityCountdown({
   );
 }
 
-// 活动卡片外框：封面上置、课程标题、活动价与彩色页脚，整卡跳课程详情
+// 活动卡片外框：封面上置、课程标题、活动价与彩色页脚，整卡跳活动详情
 export function ActivityCardFrame({
-  courseId,
-  source,
+  to,
   courseName,
   coverUrl,
   priceCents,
@@ -52,8 +51,7 @@ export function ActivityCardFrame({
   deadlineAt,
   onExpire,
 }: {
-  courseId: number; // 跳转的课程 id
-  source: 'groupon' | 'flash'; // 来源活动：详情页据此高亮顶部导航
+  to: string; // 跳转的活动详情地址
   courseName: string; // 卡片标题：课程名称
   coverUrl: string | null; // 课程封面地址
   priceCents: number; // 活动价（分）
@@ -67,7 +65,7 @@ export function ActivityCardFrame({
   const [failed, setFailed] = useState(false);
 
   return (
-    <Link to={`/courses/${courseId}?from=${source}`} className="activity-card">
+    <Link to={to} className="activity-card">
       <div className="activity-card-cover">
         {coverUrl && !failed ? (
           <img

@@ -1,4 +1,4 @@
-import { Avatar, Button, Card, Popover, Tabs, Typography } from 'antd';
+import { Button, Card, Popover, Tabs, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -8,21 +8,16 @@ import { listMyCoupons } from '@/api/promotion';
 import { queryKeys } from '@/api/query-keys';
 import { listMyOrders } from '@/api/trade';
 import type { CourseDetail } from '@/api/types';
-import { ConfirmAction } from '@/components/common/ConfirmAction';
-import { Countdown } from '@/components/common/Countdown';
 import { CourseMiniCard } from '@/components/common/CourseMiniCard';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MoneyText } from '@/components/common/MoneyText';
 import { RichTextViewer } from '@/components/common/RichTextViewer';
 import { ClaimCouponButton } from '@/features/coupon/ClaimCouponButton';
-import { ActivityCountdown } from '@/features/promotion/ActivityCardFrame';
-import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { courseTypeLabel } from '@/lib/course';
 import { useSessionStore } from '@/stores/session';
 import { CourseChapterList } from './CourseChapterList';
 import { CourseCouponList } from './CourseCouponList';
 import { FavoriteButton } from './FavoriteButton';
-import { useCoursePromotion } from './useCoursePromotion';
 import './CourseDetailPage.css';
 
 // 详情页主按钮：游客与未购用户先购买，已购用户进入学习
@@ -71,15 +66,6 @@ export default function CourseDetailPage() {
     enabled: Boolean(user),
     retry: false,
   });
-  // 秒杀/拼团：横幅、主按钮与开团/参团流程
-  const promotion = useCoursePromotion({
-    courseId,
-    groupon: query.data?.groupon ?? null,
-    flashSale: query.data?.flashSale ?? null,
-  });
-  // 拼团团组自动滚动：有团组时启用，悬停或聚焦暂停
-  const groupScroll = useAutoScroll<HTMLDivElement>(promotion.groups.length > 0);
-
   // 非 3001 的错误在此兜底；2001/2002 已由全局处理
   if (
     query.error &&
@@ -116,18 +102,10 @@ export default function CourseDetailPage() {
       (order) => order.courseId === detailId && order.status === 'paid',
     ),
   );
-  // 主按钮文案与目标（无活动时使用）
+  // 主按钮文案与目标
   const cta = resolveCourseCta(detailId, purchased);
-  // 活动价：秒杀优先，其次拼团；无活动时沿用课程售价
-  const activityPriceCents = course.flashSale?.priceCents ?? course.groupon?.priceCents;
-  // 实际展示价
-  const displayPriceCents = activityPriceCents ?? course.saleCents ?? 0;
-  // 待成团团组
-  const groups = promotion.groups;
-  // 游客参加活动：登录后回跳本页
-  const gotoLogin = () => {
-    navigate(`/login?redirect=${encodeURIComponent(`/courses/${detailId}`)}`);
-  };
+  // 展示价：普通课程售价，不含秒杀/拼团活动价
+  const displayPriceCents = course.saleCents ?? 0;
   // 可领优惠券
   const coupons = course.claimableCoupons ?? [];
   // 已领取的模板 id：invalid 记录不占用限领额度
@@ -168,15 +146,6 @@ export default function CourseDetailPage() {
             {typeLabel && <span>【{typeLabel}】</span>}
             <span>讲师：{course.instructor ?? '—'}</span>
           </p>
-          {promotion.banner && (
-            <div className="course-promo-banner">
-              <span>{promotion.banner.text}</span>
-              <ActivityCountdown
-                deadlineAt={promotion.banner.deadlineAt}
-                onExpire={() => void query.refetch()}
-              />
-            </div>
-          )}
           <div className="course-detail-price">
             <MoneyText
               cents={displayPriceCents}
@@ -229,42 +198,6 @@ export default function CourseDetailPage() {
               >
                 立即学习
               </Button>
-            ) : promotion.activeKind ? (
-              // 有秒杀/拼团：游客先登录并回跳，不可购时禁用
-              !user ? (
-                <Button
-                  type="primary"
-                  size="large"
-                  className="course-detail-cta"
-                  disabled={promotion.ctaDisabled}
-                  onClick={gotoLogin}
-                >
-                  {promotion.ctaLabel}
-                </Button>
-              ) : promotion.ctaDisabled ? (
-                <Button type="primary" size="large" className="course-detail-cta" disabled>
-                  {promotion.ctaLabel}
-                </Button>
-              ) : (
-                <ConfirmAction
-                  title={promotion.activeKind === 'flash' ? '确认抢购' : '发起拼团'}
-                  content={
-                    promotion.activeKind === 'flash'
-                      ? '抢购会创建待支付订单，请在支付结果页完成支付。确认继续？'
-                      : '支付成功后计入成团人数，成团后即可学习。确认发起新团？'
-                  }
-                  onConfirm={promotion.run}
-                >
-                  <Button
-                    type="primary"
-                    size="large"
-                    className="course-detail-cta"
-                    loading={promotion.pending}
-                  >
-                    {promotion.ctaLabel}
-                  </Button>
-                </ConfirmAction>
-              )
             ) : (
               <Button
                 type="primary"
@@ -278,90 +211,6 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </div>
-
-      {promotion.banner?.kind === 'groupon' && (
-        <Card
-          className="course-groupon-groups"
-          title={
-            groups.length > 0
-              ? `${groups.length} 个团正在拼单，可直接参与`
-              : '正在拼单'
-          }
-        >
-          {promotion.groupsLoading ? (
-            <Typography.Text type="secondary">加载中…</Typography.Text>
-          ) : groups.length === 0 ? (
-            <Typography.Text type="secondary">
-              暂无可加入的团，点击上方「立即拼团」发起新团。
-            </Typography.Text>
-          ) : (
-            // 团组纵向滚动：团多时自动滚动，悬停/聚焦暂停
-            <div
-              className="course-groupon-scroll"
-              ref={groupScroll.ref}
-              onMouseEnter={groupScroll.onMouseEnter}
-              onMouseLeave={groupScroll.onMouseLeave}
-              onFocus={groupScroll.onFocus}
-              onBlur={groupScroll.onBlur}
-            >
-              {groups.map((group) => {
-                // 已支付成员数
-                const memberCount = group.memberCount ?? 0;
-                // 成团人数
-                const targetSize = group.targetSize ?? 0;
-                // 还差人数
-                const needCount = Math.max(targetSize - memberCount, 0);
-                // 团是否已满
-                const full = needCount === 0;
-                return (
-                  <div className="course-groupon-row" key={group.id}>
-                    <Avatar className="course-groupon-avatar">
-                      {group.leaderNickname?.slice(0, 1) || '团'}
-                    </Avatar>
-                    <span className="course-groupon-nickname">
-                      {group.leaderNickname || '拼团用户'}
-                    </span>
-                    <span className="course-groupon-remaining">
-                      还差 <b>{needCount}</b> 人拼成
-                    </span>
-                    <Countdown
-                      deadlineAt={group.expiresAt ?? ''}
-                      prefix="剩余"
-                      onExpire={() => void query.refetch()}
-                    />
-                    {user ? (
-                      <ConfirmAction
-                        title="参与拼团"
-                        content={`确认加入该团？还差 ${needCount} 人成团。`}
-                        onConfirm={() => promotion.join(group.id ?? 0)}
-                        disabled={full || group.status !== 'pending'}
-                      >
-                        <Button
-                          type="primary"
-                          size="small"
-                          className="course-groupon-join"
-                          loading={promotion.pending}
-                        >
-                          去拼团
-                        </Button>
-                      </ConfirmAction>
-                    ) : (
-                      <Button
-                        type="primary"
-                        size="small"
-                        className="course-groupon-join"
-                        onClick={gotoLogin}
-                      >
-                        去拼团
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      )}
 
       <div className="course-detail-body">
         <div className="course-detail-main">
