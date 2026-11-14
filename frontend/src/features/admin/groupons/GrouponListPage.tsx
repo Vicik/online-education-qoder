@@ -12,6 +12,7 @@ import { MoneyText } from '@/components/common/MoneyText';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { formatShanghai } from '@/lib/datetime';
+import { deriveActivityStatus } from '@/lib/activity-status';
 import { usePagination } from '@/hooks/usePagination';
 import { GrouponFormDrawer } from './GrouponFormDrawer';
 
@@ -114,18 +115,17 @@ export default function GrouponListPage() {
     },
     {
       title: '状态',
-      dataIndex: 'status',
       key: 'status',
-      render: (value: AdminGroupon['status']) => (
-        <StatusTag domain="groupon" status={value ?? ''} />
+      render: (_: unknown, record: AdminGroupon) => (
+        <StatusTag domain="groupon" status={deriveActivityStatus(record)} />
       ),
     },
     {
       title: '操作',
       key: 'actions',
       render: (_: unknown, record: AdminGroupon) => {
-        // 仅未开始可编辑/取消
-        const editable = record.status === 'not_started';
+        // 仅未开始可编辑/取消（按时间推导，避免缓存数据滞后）
+        const editable = deriveActivityStatus(record) === 'not_started';
         return (
           <Space>
             <Button

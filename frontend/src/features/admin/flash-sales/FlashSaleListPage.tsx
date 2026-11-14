@@ -12,6 +12,7 @@ import { MoneyText } from '@/components/common/MoneyText';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { formatShanghai } from '@/lib/datetime';
+import { deriveActivityStatus } from '@/lib/activity-status';
 import { usePagination } from '@/hooks/usePagination';
 import { FlashSaleFormDrawer } from './FlashSaleFormDrawer';
 
@@ -118,18 +119,17 @@ export default function FlashSaleListPage() {
     },
     {
       title: '状态',
-      dataIndex: 'status',
       key: 'status',
-      render: (value: AdminFlashSale['status']) => (
-        <StatusTag domain="flash-sale" status={value ?? ''} />
+      render: (_: unknown, record: AdminFlashSale) => (
+        <StatusTag domain="flash-sale" status={deriveActivityStatus(record)} />
       ),
     },
     {
       title: '操作',
       key: 'actions',
       render: (_: unknown, record: AdminFlashSale) => {
-        // 仅未开始可编辑/取消
-        const editable = record.status === 'not_started';
+        // 仅未开始可编辑/取消（按时间推导，避免缓存数据滞后）
+        const editable = deriveActivityStatus(record) === 'not_started';
         return (
           <Space>
             <Button

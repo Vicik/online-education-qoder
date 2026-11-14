@@ -8,11 +8,22 @@ import type { AdminCourseListItem } from '@/api/types';
 const COURSE_OPTION_PAGE_SIZE = 100;
 
 // 已发布课程下拉数据：活动与优惠券只能关联已发布课程
-export function usePublishedCourses() {
+// withoutActivePromotion 为 true 时排除当前已有未开始/进行中活动的课程
+export function usePublishedCourses(withoutActivePromotion = false) {
   // 已发布课程查询（复用管理端课程 API）
   const query = useQuery({
-    queryKey: queryKeys.adminCourses('published-options'),
-    queryFn: () => listAdminCourses(1, COURSE_OPTION_PAGE_SIZE, 'published'),
+    queryKey: queryKeys.adminCourses(
+      withoutActivePromotion
+        ? 'published-options-no-promotion'
+        : 'published-options',
+    ),
+    queryFn: () =>
+      listAdminCourses(
+        1,
+        COURSE_OPTION_PAGE_SIZE,
+        'published',
+        withoutActivePromotion,
+      ),
   });
   // 下拉选项：课程 id 作值，课程名作标签
   const options = (query.data?.items ?? []).map(
@@ -29,9 +40,13 @@ export function CourseSelect(props: {
   value?: number;
   onChange?: (value: number) => void;
   disabled?: boolean;
+  // 是否排除已有活动的课程（创建活动时启用）
+  withoutActivePromotion?: boolean;
 }) {
   // 下拉数据
-  const { options, loading } = usePublishedCourses();
+  const { options, loading } = usePublishedCourses(
+    props.withoutActivePromotion,
+  );
   return (
     <Select
       aria-label="关联课程"

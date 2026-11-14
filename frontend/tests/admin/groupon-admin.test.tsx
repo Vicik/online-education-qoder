@@ -17,17 +17,19 @@ const draftActivity = {
   name: '三人成团',
   priceCents: 9900,
   targetSize: 3,
-  startAt: '2026-11-20T02:00:00.000Z',
-  endAt: '2026-11-27T02:00:00.000Z',
+  startAt: '2099-01-01T00:00:00.000Z',
+  endAt: '2099-01-07T00:00:00.000Z',
   status: 'not_started',
   version: 2,
 };
 
-// 进行中活动桩（不可编辑/取消）
+// 进行中活动桩（不可编辑/取消）：时间跨越当前时刻
 const ongoingActivity = {
   ...draftActivity,
   id: 3,
   name: '进行中的团',
+  startAt: '2020-01-01T00:00:00.000Z',
+  endAt: '2099-12-31T00:00:00.000Z',
   status: 'ongoing',
 };
 
@@ -102,8 +104,20 @@ describe('GrouponListPage', () => {
       let body: Record<string, unknown> | null = null;
       // 创建幂等键
       let key: string | null = null;
+      // 课程下拉请求地址：创建时应排除已有活动的课程
+      const courseUrls: string[] = [];
       server.use(
-        coursesHandler,
+        http.get(/\/api\/v1\/admin\/courses$/, ({ request }) => {
+          courseUrls.push(request.url);
+          return HttpResponse.json(
+            envelope({
+              items: [{ id: 2, name: 'TypeScript 系统入门' }],
+              total: 1,
+              page: 1,
+              pageSize: 100,
+            }),
+          );
+        }),
         listHandler(),
         http.post(/\/api\/v1\/admin\/groupons$/, async ({ request }) => {
           body = (await request.json()) as Record<string, unknown>;
@@ -118,6 +132,10 @@ describe('GrouponListPage', () => {
       );
 
       await clickButton('创建拼团');
+      await waitFor(() => expect(courseUrls.length).toBeGreaterThan(0));
+      expect(
+        decodeURIComponent(courseUrls[0] ?? ''),
+      ).toContain('withoutActivePromotion=true');
       fireEvent.mouseDown(screen.getByRole('combobox', { name: '关联课程' }));
       fireEvent.click(await screen.findByTitle('TypeScript 系统入门'));
       fireEvent.change(screen.getByLabelText('活动名称'), {
@@ -143,6 +161,15 @@ describe('GrouponListPage', () => {
         startAt: '2026-11-20T02:00:00.000Z',
         endAt: '2026-11-27T02:00:00.000Z',
       });
+
+      // 再次创建：上次填写与选择的课程、时间应全部清空，仅保留默认成团人数
+      await clickButton('创建拼团');
+      expect(screen.getByLabelText('活动名称')).toHaveValue('');
+      expect(screen.getByPlaceholderText('拼团价（元）')).toHaveValue('');
+      expect(screen.getByLabelText('成团人数')).toHaveValue('2');
+      expect(screen.getByPlaceholderText('开始时间')).toHaveValue('');
+      expect(screen.getByPlaceholderText('结束时间')).toHaveValue('');
+      expect(screen.queryByTitle('TypeScript 系统入门')).not.toBeInTheDocument();
     },
     60_000,
   );
@@ -152,8 +179,20 @@ describe('GrouponListPage', () => {
     async () => {
       // 编辑请求体
       let body: Record<string, unknown> | null = null;
+      // 课程下拉请求地址：编辑时应保留当前课程，不启用排除
+      const courseUrls: string[] = [];
       server.use(
-        coursesHandler,
+        http.get(/\/api\/v1\/admin\/courses$/, ({ request }) => {
+          courseUrls.push(request.url);
+          return HttpResponse.json(
+            envelope({
+              items: [{ id: 2, name: 'TypeScript 系统入门' }],
+              total: 1,
+              page: 1,
+              pageSize: 100,
+            }),
+          );
+        }),
         listHandler(),
         http.put(/\/api\/v1\/admin\/groupons\/1$/, async ({ request }) => {
           body = (await request.json()) as Record<string, unknown>;
@@ -169,6 +208,11 @@ describe('GrouponListPage', () => {
       const draftRow = (await screen.findByText('三人成团')).closest('tr')!;
       fireEvent.click(within(draftRow).getByRole('button', { name: '编辑' }));
       expect(screen.getByLabelText('活动名称')).toHaveValue('三人成团');
+      // 编辑模式：课程下拉不启用排除，确保当前课程仍可显示
+      await waitFor(() => expect(courseUrls.length).toBeGreaterThan(0));
+      expect(
+        courseUrls.some((url) => url.includes('withoutActivePromotion')),
+      ).toBe(false);
 
       fireEvent.change(screen.getByLabelText('活动名称'), {
         target: { value: '新名字' },

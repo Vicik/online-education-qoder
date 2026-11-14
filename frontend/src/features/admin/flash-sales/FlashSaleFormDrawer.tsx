@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   App as AntdApp,
   Button,
@@ -15,7 +16,11 @@ import type { AdminFlashSale } from '@/api/types';
 import { MoneyInput } from '@/components/common/MoneyInput';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { CourseSelect } from '../promotions/shared';
-import { toPickerValue } from '../promotions/time';
+import {
+  disabledPastDate,
+  disabledPastTime,
+  toPickerValue,
+} from '../promotions/time';
 import {
   toFlashSaleCreatePayload,
   toFlashSaleUpdatePayload,
@@ -46,6 +51,8 @@ export function FlashSaleFormDrawer(props: {
     {
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: ['admin', 'flash-sales'] });
+        // 课程已关联新活动，刷新表单的课程选项
+        await queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
         message.success('秒杀活动已创建');
         props.onSaved();
       },
@@ -85,6 +92,32 @@ export function FlashSaleFormDrawer(props: {
         endAt: toPickerValue(props.sale.endAt ?? ''),
       }
     : { stock: 1 };
+
+  // 每次打开抽屉重置表单：创建清空上次输入，编辑回填当前活动
+  useEffect(() => {
+    if (!props.open) return;
+    form.resetFields();
+    form.setFieldsValue(
+      props.sale
+        ? {
+            courseId: props.sale.courseId,
+            name: props.sale.name,
+            priceCents: props.sale.priceCents,
+            stock: props.sale.stock,
+            startAt: toPickerValue(props.sale.startAt ?? ''),
+            endAt: toPickerValue(props.sale.endAt ?? ''),
+          }
+        : {
+            courseId: undefined,
+            name: undefined,
+            priceCents: undefined,
+            stock: 1,
+            startAt: undefined,
+            endAt: undefined,
+          },
+    );
+    // 仅在打开或编辑对象变化时重置，避免输入过程中被覆盖
+  }, [form, props.open, props.sale]);
 
   // 校验通过后二次确认再提交
   function handleFinish(values: FlashSaleFormValues) {
@@ -126,14 +159,17 @@ export function FlashSaleFormDrawer(props: {
           name="courseId"
           rules={[{ required: true, message: '请选择关联课程' }]}
         >
-          <CourseSelect disabled={isEdit} />
+          <CourseSelect
+            disabled={isEdit}
+            withoutActivePromotion={!isEdit}
+          />
         </Form.Item>
         <Form.Item
           label="活动名称"
           name="name"
           rules={[{ required: true, whitespace: true, message: '请填写活动名称' }]}
         >
-          <Input maxLength={40} />
+          <Input maxLength={40} placeholder="请输入活动名称" />
         </Form.Item>
         <Form.Item
           label="秒杀价"
@@ -175,6 +211,8 @@ export function FlashSaleFormDrawer(props: {
             format="YYYY-MM-DD HH:mm:ss"
             placeholder="开始时间"
             style={{ width: '100%' }}
+            disabledDate={(current) => disabledPastDate(current)}
+            disabledTime={(current) => disabledPastTime(current)}
           />
         </Form.Item>
         <Form.Item
@@ -200,6 +238,8 @@ export function FlashSaleFormDrawer(props: {
             format="YYYY-MM-DD HH:mm:ss"
             placeholder="结束时间"
             style={{ width: '100%' }}
+            disabledDate={(current) => disabledPastDate(current)}
+            disabledTime={(current) => disabledPastTime(current)}
           />
         </Form.Item>
         <Button

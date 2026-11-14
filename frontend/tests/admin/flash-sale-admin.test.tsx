@@ -19,14 +19,21 @@ const draftSale = {
   stock: 50,
   sold: 3,
   remaining: 47,
-  startAt: '2026-11-20T02:00:00.000Z',
-  endAt: '2026-11-20T04:00:00.000Z',
+  startAt: '2099-01-01T00:00:00.000Z',
+  endAt: '2099-01-02T00:00:00.000Z',
   status: 'not_started',
   version: 4,
 };
 
-// 进行中活动桩（不可编辑/取消）
-const ongoingSale = { ...draftSale, id: 6, name: '进行中秒杀', status: 'ongoing' };
+// 进行中活动桩（不可编辑/取消）：时间跨越当前时刻
+const ongoingSale = {
+  ...draftSale,
+  id: 6,
+  name: '进行中秒杀',
+  startAt: '2020-01-01T00:00:00.000Z',
+  endAt: '2099-12-31T00:00:00.000Z',
+  status: 'ongoing',
+};
 
 // 已发布课程下拉桩
 const coursesHandler = http.get(/\/api\/v1\/admin\/courses$/, () =>
@@ -102,8 +109,20 @@ describe('FlashSaleListPage', () => {
       let body: Record<string, unknown> | null = null;
       // 创建幂等键
       let key: string | null = null;
+      // 课程下拉请求地址：创建时应排除已有活动的课程
+      const courseUrls: string[] = [];
       server.use(
-        coursesHandler,
+        http.get(/\/api\/v1\/admin\/courses$/, ({ request }) => {
+          courseUrls.push(request.url);
+          return HttpResponse.json(
+            envelope({
+              items: [{ id: 2, name: 'TypeScript 系统入门' }],
+              total: 1,
+              page: 1,
+              pageSize: 100,
+            }),
+          );
+        }),
         listHandler(),
         http.post(/\/api\/v1\/admin\/flash-sales$/, async ({ request }) => {
           body = (await request.json()) as Record<string, unknown>;
@@ -118,6 +137,10 @@ describe('FlashSaleListPage', () => {
       );
 
       await clickButton('创建秒杀');
+      await waitFor(() => expect(courseUrls.length).toBeGreaterThan(0));
+      expect(
+        decodeURIComponent(courseUrls[0] ?? ''),
+      ).toContain('withoutActivePromotion=true');
       fireEvent.mouseDown(screen.getByRole('combobox', { name: '关联课程' }));
       fireEvent.click(await screen.findByTitle('TypeScript 系统入门'));
       fireEvent.change(screen.getByLabelText('活动名称'), {
@@ -143,6 +166,15 @@ describe('FlashSaleListPage', () => {
         startAt: '2026-11-20T02:00:00.000Z',
         endAt: '2026-11-20T04:00:00.000Z',
       });
+
+      // 再次创建：上次填写与选择的课程、时间应全部清空，仅保留默认库存
+      await clickButton('创建秒杀');
+      expect(screen.getByLabelText('活动名称')).toHaveValue('');
+      expect(screen.getByPlaceholderText('秒杀价（元）')).toHaveValue('');
+      expect(screen.getByLabelText('总库存')).toHaveValue('1');
+      expect(screen.getByPlaceholderText('开始时间')).toHaveValue('');
+      expect(screen.getByPlaceholderText('结束时间')).toHaveValue('');
+      expect(screen.queryByTitle('TypeScript 系统入门')).not.toBeInTheDocument();
     },
     60_000,
   );

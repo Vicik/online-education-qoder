@@ -12,16 +12,22 @@ import type {
   PageResult,
 } from '../types';
 
-// 管理端课程列表：可选状态筛选
+// 管理端课程列表：可选状态筛选；withoutActivePromotion 仅返回当前无活动的课程
 export function listAdminCourses(
   page = 1,
   pageSize = 10,
   status?: CourseStatus,
+  withoutActivePromotion?: boolean,
 ): Promise<PageResult<AdminCourseListItem>> {
   return request<PageResult<AdminCourseListItem>>({
     url: '/admin/courses',
     method: 'GET',
-    params: { page, pageSize, ...(status ? { status } : {}) },
+    params: {
+      page,
+      pageSize,
+      ...(status ? { status } : {}),
+      ...(withoutActivePromotion ? { withoutActivePromotion: true } : {}),
+    },
   });
 }
 

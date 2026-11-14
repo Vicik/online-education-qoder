@@ -1,5 +1,10 @@
 import dayjs from 'dayjs';
-import { fromPickerValue, toPickerValue } from '@/features/admin/promotions/time';
+import {
+  disabledPastDate,
+  disabledPastTime,
+  fromPickerValue,
+  toPickerValue,
+} from '@/features/admin/promotions/time';
 import {
   toGrouponCreatePayload,
   toGrouponUpdatePayload,
@@ -136,5 +141,37 @@ describe('promotion payload', () => {
       totalQty: 100,
       courseIds: [2],
     });
+  });
+
+  it('早于当前日期的日期不可选，当天保留可选的未来时刻', () => {
+    // 当前时刻桩：上海时间 2026-11-14 20:30:45
+    const now = toPickerValue('2026-11-14T12:30:45.000Z');
+
+    expect(disabledPastDate(now.subtract(1, 'day'), now)).toBe(true);
+    expect(disabledPastDate(now, now)).toBe(false);
+    expect(disabledPastDate(now.add(1, 'day'), now)).toBe(false);
+  });
+
+  it('当天早于当前时刻的时分秒被禁用，其他日期不限制', () => {
+    // 当前时刻桩：上海时间 2026-11-14 20:30:45
+    const now = toPickerValue('2026-11-14T12:30:45.000Z');
+
+    // 无值或其他日期不限制
+    expect(disabledPastTime(null, now)).toEqual({});
+    expect(disabledPastTime(now.add(1, 'day'), now)).toEqual({});
+
+    // 当天：20 点前、20:30 前、20:30:45 前不可选
+    const config = disabledPastTime(now, now);
+    expect(config.disabledHours?.()).toEqual(
+      Array.from({ length: 20 }, (_, index) => index),
+    );
+    expect(config.disabledMinutes?.(20)).toEqual(
+      Array.from({ length: 30 }, (_, index) => index),
+    );
+    expect(config.disabledSeconds?.(20, 30)).toEqual(
+      Array.from({ length: 45 }, (_, index) => index),
+    );
+    expect(config.disabledMinutes?.(21)).toEqual([]);
+    expect(config.disabledSeconds?.(20, 31)).toEqual([]);
   });
 });
