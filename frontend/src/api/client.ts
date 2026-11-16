@@ -17,6 +17,8 @@ import { isPlainObject, trimDeep } from './trim';
 declare module 'axios' {
   export interface AxiosRequestConfig {
     skipAuthRedirect?: boolean;
+    // 心跳等静默请求不计入全局加载状态
+    skipRequestActivity?: boolean;
   }
 }
 
@@ -35,14 +37,15 @@ apiClient.interceptors.request.use((config) => {
   if (isPlainObject(config.params)) {
     config.params = trimDeep(config.params);
   }
-  useRequestActivityStore.getState().startRequest();
+  // 静默请求不驱动全局加载遮罩
+  if (!config.skipRequestActivity) useRequestActivityStore.getState().startRequest();
   return config;
 });
 
 // 成功响应：解包信封；非 0 业务码抛 ApiError
 apiClient.interceptors.response.use(
   (response) => {
-    useRequestActivityStore.getState().finishRequest();
+    if (!response.config.skipRequestActivity) useRequestActivityStore.getState().finishRequest();
     syncServerClock(response.headers.date);
     const envelope = response.data as Envelope<unknown>;
     if (envelope.code !== 0) {
@@ -59,7 +62,10 @@ apiClient.interceptors.response.use(
     return envelope.data as unknown as AxiosResponse;
   },
   (error) => {
-    useRequestActivityStore.getState().finishRequest();
+    // 静默请求未计入加载状态，失败时也不归还
+    if (!axios.isAxiosError(error) || !error.config?.skipRequestActivity) {
+      useRequestActivityStore.getState().finishRequest();
+    }
     const normalized = normalizeAxiosError(error);
     if (!axios.isAxiosError(error) || !error.config?.skipAuthRedirect) {
       handleAuthError(normalized);

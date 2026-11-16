@@ -35,6 +35,8 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const registered = searchParams.get('registered') === '1';
   const passwordChanged = searchParams.get('changed') === '1';
+  // 会话过期失效：由全局 401 处理器附带
+  const expired = searchParams.get('expired') === '1';
 
   // 提交登录：成功写入会话并跳转
   async function handleFinish(values: LoginFormValues) {
@@ -62,6 +64,9 @@ export default function LoginPage() {
       <Typography.Title level={3} style={{ marginTop: 0 }}>
         登录
       </Typography.Title>
+      {expired && (
+        <Alert type="warning" showIcon message="登录状态已失效，请重新登录" style={{ marginBottom: 16 }} />
+      )}
       {registered && <Alert type="success" showIcon message="注册成功，请登录" style={{ marginBottom: 16 }} />}
       {passwordChanged && <Alert type="success" showIcon message="密码已修改，请重新登录" style={{ marginBottom: 16 }} />}
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}

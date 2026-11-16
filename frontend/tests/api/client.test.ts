@@ -83,6 +83,19 @@ describe('api client', () => {
     await pending;
     expect(pendingCount()).toBe(0);
   });
+  it('skipRequestActivity 的静默请求不计入加载计数', async () => {
+    server.use(
+      http.get(/\/api\/v1\/silent$/, async () => {
+        await delay(80);
+        return HttpResponse.json({ code: 0, message: 'ok', data: null, requestId: 'r-silent' });
+      }),
+    );
+    const pending = request({ url: '/silent', skipRequestActivity: true });
+    await delay(30);
+    expect(pendingCount()).toBe(0);
+    await pending;
+    expect(pendingCount()).toBe(0);
+  });
   it('业务错误后待处理数也归零', async () => {
     server.use(
       http.get(/\/api\/v1\/fail$/, () =>

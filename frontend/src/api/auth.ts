@@ -23,6 +23,15 @@ export function getMe(): Promise<SessionUser> {
   return request<SessionUser>({ url: '/auth/me', method: 'GET', skipAuthRedirect: true });
 }
 
+// 会话心跳：真实交互时续期 30 分钟空闲窗口；静默请求不显示加载遮罩
+export function heartbeat(): Promise<null> {
+  return request<null>({
+    url: '/auth/heartbeat',
+    method: 'POST',
+    skipRequestActivity: true,
+  });
+}
+
 // 登录：角色由账号携带，前端不选择角色
 export function login(payload: LoginPayload): Promise<SessionUser> {
   return request<SessionUser>({

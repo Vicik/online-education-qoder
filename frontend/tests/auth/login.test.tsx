@@ -70,6 +70,11 @@ describe('LoginPage', () => {
     expect(await screen.findByText('邮箱或密码错误')).toBeInTheDocument();
   });
 
+  it('会话过期回跳时提示重新登录', () => {
+    renderLogin('/login?expired=1&redirect=%2Fcourses%2F1');
+    expect(screen.getByText('登录状态已失效，请重新登录')).toBeInTheDocument();
+  });
+
   it('外链 redirect 不允许，回退 /user', async () => {
     mockLoginSuccess('user');
     renderLogin('/login?redirect=https%3A%2F%2Fevil.example.com');

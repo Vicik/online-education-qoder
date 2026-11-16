@@ -156,6 +156,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 会话心跳（真实交互时续期 30 分钟空闲窗口） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: components["responses"]["Ok"];
+                401: components["responses"]["Err401"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/password": {
         parameters: {
             query?: never;
