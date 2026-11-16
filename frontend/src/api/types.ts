@@ -201,4 +201,7 @@ export type BlockedWordUpdateInput = Schemas['BlockedWordUpdateRequest'];
 // 屏蔽词状态：启用/停用
 export type BlockedWordStatus = NonNullable<AdminBlockedWord['status']>;
 
+// 管理端工作台统计：服务端保证八项均返回
+export type DashboardStats = Required<Schemas['DashboardStats']>;
+
 
