@@ -16,7 +16,7 @@ export interface AppConfig {
   databaseUrl: string; // 数据库连接 URL
   redisUrl: string; // Redis 连接 URL
   sessionSecret: string; // 会话加密密钥
-  sessionTtl: number; // 会话过期时间（秒）
+  sessionTtl: number; // 会话空闲有效期（秒）
   orderPendingTtlMinutes: number; // 订单待支付超时时间（分钟）
   jobScanIntervalSeconds: number; // 定时任务扫描间隔（秒）
   corsOrigins: string[]; // 允许跨域请求的来源列表
@@ -54,7 +54,7 @@ export function loadConfig(): AppConfig {
     databaseUrl: process.env.DATABASE_URL!, // 数据库连接 URL
     redisUrl: process.env.REDIS_URL!, // Redis 连接 URL
     sessionSecret, // 会话加密密钥
-    sessionTtl: Number(process.env.SESSION_TTL ?? 86400), // 会话过期时间，默认 24 小时
+    sessionTtl: Number(process.env.SESSION_TTL ?? 1800), // 会话空闲有效期，默认 30 分钟
     orderPendingTtlMinutes: Number(process.env.ORDER_PENDING_TTL_MINUTES ?? 15), // 订单待支付超时，默认 15 分钟
     jobScanIntervalSeconds: Number(process.env.JOB_SCAN_INTERVAL_SECONDS ?? 60), // 任务扫描间隔，默认 60 秒
     corsOrigins: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean), // CORS 允许的来源列表

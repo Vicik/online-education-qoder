@@ -27,7 +27,7 @@ const config: AppConfig = {
   databaseUrl: 'postgres://x',
   redisUrl: 'redis://x',
   sessionSecret: 's3cret',
-  sessionTtl: 86400,
+  sessionTtl: 1800,
   orderPendingTtlMinutes: 15,
   jobScanIntervalSeconds: 60,
   corsOrigins: [],
@@ -80,7 +80,7 @@ describe('sessionMiddleware', () => {
     expect(handler).toHaveBeenCalledWith(request, response, next);
   });
 
-  it('Cookie 属性：HttpOnly + SameSite=Lax + 非生产不 Secure + TTL', () => {
+  it('Cookie 属性：HttpOnly + SameSite=Lax + 非生产不 Secure + 30 分钟 TTL', () => {
     process.env.NODE_ENV = 'test';
     mockSessionFactory.mockReturnValue(jest.fn());
     // 执行一次请求触发构建
@@ -106,12 +106,12 @@ describe('sessionMiddleware', () => {
     expect(options.secret).toBe('s3cret');
     expect(options.resave).toBe(false);
     expect(options.saveUninitialized).toBe(false);
-    expect(options.rolling).toBe(true);
+    expect(options.rolling).toBe(false);
     expect(options.cookie).toMatchObject({
       httpOnly: true,
       secure: false,
       sameSite: 'lax',
-      maxAge: 86400 * 1000,
+      maxAge: 1800 * 1000,
     });
   });
 
@@ -131,7 +131,7 @@ describe('sessionMiddleware', () => {
     expect(options.cookie.secure).toBe(true);
   });
 
-  it('RedisStore 使用 sess: 前缀与惰性取得的客户端', () => {
+  it('RedisStore 使用 sess: 前缀、惰性客户端，并关闭普通请求的 TTL 刷新', () => {
     mockSessionFactory.mockReturnValue(jest.fn());
     sessionMiddleware(config, getClient)(
       {} as Request,
@@ -143,6 +143,7 @@ describe('sessionMiddleware', () => {
       client,
       prefix: SESSION_KEY_PREFIX,
       ttl: config.sessionTtl,
+      disableTouch: true,
     });
   });
 });

@@ -17,6 +17,8 @@ function createSessionHandler(cfg: AppConfig, client: Redis): RequestHandler {
       client,
       prefix: SESSION_KEY_PREFIX,
       ttl: cfg.sessionTtl,
+      // 普通请求不刷新 Redis TTL：续期只由登录与心跳显式保存触发
+      disableTouch: true,
     }),
     // 会话签名密钥
     secret: cfg.sessionSecret,
@@ -24,8 +26,8 @@ function createSessionHandler(cfg: AppConfig, client: Redis): RequestHandler {
     resave: false,
     // 未登录的请求不创建空会话
     saveUninitialized: false,
-    // 每次访问续期，活跃用户不掉线
-    rolling: true,
+    // 关闭滚动续期：普通 API 请求不延长空闲窗口，避免后台请求让会话永不过期
+    rolling: false,
     cookie: {
       // 禁止前端脚本读取
       httpOnly: true,

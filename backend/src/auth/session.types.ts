@@ -6,5 +6,6 @@ declare module 'express-session' {
   interface SessionData {
     userId?: number; // 当前登录用户 id
     role?: UserRole; // 当前登录用户角色
+    lastActiveAt?: number; // 最近一次心跳时间（毫秒时间戳）
   }
 }

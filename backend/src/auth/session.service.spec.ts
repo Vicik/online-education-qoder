@@ -10,17 +10,21 @@ import { SessionService } from './session.service';
 interface FakeSession {
   userId?: number; // 会话中的用户 id
   role?: UserRole; // 会话中的角色
+  lastActiveAt?: number; // 最近心跳时间
+  cookie: { maxAge?: number }; // 会话 Cookie 过期时间
   save: jest.Mock; // 保存回调
   destroy: jest.Mock; // 销毁回调
 }
 
-// 构建测试环境：内存 Redis + 固定 TTL 的配置
-function setup() {
+// 构建测试环境：内存 Redis + 可指定 TTL 的配置
+function setup(sessionTtl: number | null = 3600) {
   // 内存 Redis 替身
   const redis = new FakeRedis();
-  // 配置替身：只关心会话 TTL
+  // 配置替身：只关心会话 TTL；null 表示配置缺失
   const config = {
-    get: jest.fn((key: string) => (key === 'sessionTtl' ? 3600 : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'sessionTtl' ? (sessionTtl ?? undefined) : undefined,
+    ),
   };
   // 被测服务
   const service = new SessionService(
@@ -38,6 +42,7 @@ function fakeRequest(session: FakeSession, sessionID = 'sid-1'): Request {
 // 构造可正常保存/销毁的会话
 function okSession(): FakeSession {
   return {
+    cookie: { maxAge: 30_000 },
     save: jest.fn((callback: (error?: unknown) => void) => callback()),
     destroy: jest.fn((callback: (error?: unknown) => void) => callback()),
   };
@@ -65,6 +70,7 @@ describe('SessionService', () => {
       const { redis, service } = setup();
       // 保存时返回错误的会话
       const session: FakeSession = {
+        cookie: { maxAge: 30_000 },
         save: jest.fn((callback: (error?: unknown) => void) =>
           callback(new Error('save failed')),
         ),
@@ -75,6 +81,61 @@ describe('SessionService', () => {
         service.establish(fakeRequest(session), 7, 'user'),
       ).rejects.toThrow('save failed');
       expect(await redis.smembers(userSessionsKey(7))).toEqual([]);
+    });
+  });
+
+  describe('touch', () => {
+    it('记录活跃时间、重置 Cookie 与 Redis TTL，并续期用户会话集合', async () => {
+      const { redis, service } = setup();
+      // 已登录会话
+      const session = okSession();
+      session.userId = 7;
+
+      await service.touch(fakeRequest(session));
+
+      expect(session.lastActiveAt).toEqual(expect.any(Number));
+      expect(session.cookie.maxAge).toBe(3600 * 1000);
+      expect(session.save).toHaveBeenCalledTimes(1);
+      expect(redis.expiries.get(userSessionsKey(7))).toBe(3600);
+    });
+
+    it('未登录会话直接返回，不保存也不续期集合', async () => {
+      const { redis, service } = setup();
+      // 空会话
+      const session = okSession();
+
+      await expect(
+        service.touch(fakeRequest(session)),
+      ).resolves.toBeUndefined();
+      expect(session.save).not.toHaveBeenCalled();
+      expect(redis.expiries.get(userSessionsKey(7))).toBeUndefined();
+    });
+
+    it('保存失败时抛出异常且不续期用户会话集合', async () => {
+      const { redis, service } = setup();
+      // 保存失败的会话
+      const session = okSession();
+      session.userId = 7;
+      session.save.mockImplementation((callback: (error?: unknown) => void) =>
+        callback(new Error('save failed')),
+      );
+
+      await expect(service.touch(fakeRequest(session))).rejects.toThrow(
+        'save failed',
+      );
+      expect(redis.expiries.get(userSessionsKey(7))).toBeUndefined();
+    });
+
+    it('配置缺失时使用 30 分钟默认 TTL', async () => {
+      const { redis, service } = setup(null);
+      // 已登录会话
+      const session = okSession();
+      session.userId = 7;
+
+      await service.touch(fakeRequest(session));
+
+      expect(session.cookie.maxAge).toBe(1800 * 1000);
+      expect(redis.expiries.get(userSessionsKey(7))).toBe(1800);
     });
   });
 

@@ -870,6 +870,13 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
         '401': { $ref: '#/components/responses/Err401' }
+  /auth/heartbeat:
+    post:
+      tags: [auth]
+      summary: 会话心跳（真实交互时续期 30 分钟空闲窗口）
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Err401' }
   /auth/password:
     post:
       tags: [auth]

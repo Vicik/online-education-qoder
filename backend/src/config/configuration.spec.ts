@@ -74,7 +74,7 @@ describe('loadConfig', () => {
 
   it('未设可选项时取默认值', () => {
     const cfg = loadConfig();
-    expect(cfg.sessionTtl).toBe(86400);
+    expect(cfg.sessionTtl).toBe(1800);
     expect(cfg.jobScanIntervalSeconds).toBe(60);
     expect(cfg.corsOrigins).toEqual([]);
     expect(cfg.seedDemoData).toBe(false);
