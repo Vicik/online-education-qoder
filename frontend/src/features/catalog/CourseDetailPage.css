@@ -103,6 +103,11 @@
   background: #0e8a4d !important;
   border-color: #0e8a4d !important;
 }
+/* 禁用态（售罄/未开始/已结束）：保留绿色底，文字用白色 */
+.course-detail-cta.ant-btn:disabled,
+.course-detail-cta.ant-btn.ant-btn-disabled {
+  color: #fff;
+}
 /* 券弹层：加大内边距，贴近参考图的白色面板 */
 .course-coupon-popover .ant-popover-inner {
   padding: 20px 24px;
