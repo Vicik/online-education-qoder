@@ -69,8 +69,14 @@ export function ClaimCouponButton(props: {
     );
   }
 
-  // 已领取：禁用展示
-  if (claimed || props.claimed) return <Button size="small" disabled>已领取</Button>;
+  // 已领取：仅展示文字，去掉禁用态底色与边框
+  if (claimed || props.claimed) {
+    return (
+      <Button size="small" className="claim-coupon-btn-claimed" disabled>
+        已领取
+      </Button>
+    );
+  }
 
   return (
     <ConfirmAction

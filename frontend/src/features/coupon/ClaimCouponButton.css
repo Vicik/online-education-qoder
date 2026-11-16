@@ -10,3 +10,13 @@
   background: #d98c12 !important;
   border-color: #d98c12 !important;
 }
+
+/* 已领取：只保留文字，透明底无边框，配色适配券卡底色 */
+.claim-coupon-btn-claimed.ant-btn.ant-btn,
+.claim-coupon-btn-claimed.ant-btn.ant-btn:disabled,
+.claim-coupon-btn-claimed.ant-btn.ant-btn:hover {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
