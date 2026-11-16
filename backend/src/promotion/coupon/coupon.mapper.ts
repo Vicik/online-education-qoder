@@ -43,9 +43,17 @@ export function toCouponTemplateBrief(
   };
 }
 
+// 领取记录查询字段：模板信息额外带出适用课程名称，避免逐条二次查询
+export const COUPON_CLAIM_TEMPLATE_SELECT = {
+  ...COUPON_TEMPLATE_SELECT,
+  courses: {
+    select: { courseId: true, course: { select: { name: true } } },
+  },
+} as const;
+
 // 领取记录查询字段：含模板信息，避免逐条二次查询
 export const COUPON_CLAIM_INCLUDE = {
-  template: { select: COUPON_TEMPLATE_SELECT },
+  template: { select: COUPON_CLAIM_TEMPLATE_SELECT },
 } as const;
 
 // 领取记录查询结果行类型
@@ -62,6 +70,7 @@ export interface CouponClaim {
   startAt: Date; // 生效时间
   endAt: Date; // 失效时间
   courseIds: number[]; // 适用课程 id
+  courseNames: string[]; // 适用课程名称
   status: CouponClaimStatus; // 领取状态
   claimKey: string | null; // 限领键（invalid 时为 null）
   claimedAt: Date; // 领取时间
@@ -78,6 +87,7 @@ export function toCouponClaim(row: CouponClaimRow): CouponClaim {
     startAt: row.template.startAt,
     endAt: row.template.endAt,
     courseIds: row.template.courses.map((course) => course.courseId),
+    courseNames: row.template.courses.map((course) => course.course.name),
     status: row.status,
     claimKey: row.claimKey,
     claimedAt: row.claimedAt,

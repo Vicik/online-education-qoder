@@ -16,7 +16,7 @@ const TEMPLATE = {
   claimedCount: 50,
   status: 'enabled',
   version: 1,
-  courses: [{ courseId: 1 }],
+  courses: [{ courseId: 1, course: { name: 'TypeScript 系统入门' } }],
 };
 
 const CLAIM_ROW = {
@@ -131,6 +131,7 @@ describe('CouponUserService.claim', () => {
       templateName: '立减券',
       discountCents: 2000,
       courseIds: [1],
+      courseNames: ['TypeScript 系统入门'],
       status: 'unused',
     });
     expect(prisma.couponTemplate.updateMany).toHaveBeenCalledWith({
@@ -246,6 +247,7 @@ describe('CouponUserService.listMine', () => {
     expect(page.items[0]).toMatchObject({
       templateName: '立减券',
       courseIds: [1],
+      courseNames: ['TypeScript 系统入门'],
     });
     expect(prisma.couponClaim.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: 1, status: 'unused' } }),

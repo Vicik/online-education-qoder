@@ -262,6 +262,50 @@ describe('ExamUserService.getResult', () => {
   });
 });
 
+describe('ExamUserService.listMine', () => {
+  it('返回题目总数；未交卷分数、及格状态与交卷时间为空', async () => {
+    const { prisma, service } = setup();
+    prisma.examAttempt.findMany.mockResolvedValue([
+      { ...attemptRow(), exam: examRow() },
+    ]);
+    prisma.examAttempt.count.mockResolvedValue(1);
+
+    const page = await service.listMine(1, { page: 1, pageSize: 20 });
+
+    expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({
+      attemptId: 11,
+      examTitle: '期中测验',
+      questionCount: 2,
+      score: null,
+      totalScore: 15,
+      passScore: 10,
+      passed: null,
+      submittedAt: null,
+    });
+    expect(prisma.examAttempt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 1 }, skip: 0, take: 20 }),
+    );
+  });
+
+  it('已交卷返回得分与及格状态', async () => {
+    const { prisma, service } = setup();
+    const submittedAt = new Date('2026-01-01T01:00:00Z');
+    prisma.examAttempt.findMany.mockResolvedValue([
+      { ...attemptRow({ submittedAt, score: 15 }), exam: examRow() },
+    ]);
+    prisma.examAttempt.count.mockResolvedValue(1);
+
+    const page = await service.listMine(1, {});
+
+    expect(page.items[0]).toMatchObject({
+      score: 15,
+      passed: true,
+      submittedAt,
+    });
+  });
+});
+
 describe('ExamUserService.autoSubmitExpired', () => {
   it('超时未交卷按空答案判分并返回处理数', async () => {
     const { prisma, service } = setup();

@@ -70,6 +70,7 @@ export interface MyExamRecord {
   attemptId: number; // 考试记录 id
   examId: number; // 考试 id
   examTitle: string; // 考试名称
+  questionCount: number; // 题目总数
   score: number | null; // 得分（未交卷为 null）
   totalScore: number; // 总分
   passScore: number; // 及格分
@@ -358,6 +359,7 @@ export class ExamUserService {
         attemptId: attempt.id,
         examId: attempt.examId,
         examTitle: attempt.exam.title,
+        questionCount: toSnapshotItems(attempt.exam).length,
         score: attempt.submittedAt ? score : null,
         totalScore: attempt.exam.totalScore,
         passScore: attempt.exam.passScore,

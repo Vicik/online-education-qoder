@@ -16,6 +16,7 @@ export interface VisitResult {
 export interface StudyRecord {
   courseId: number; // 课程 id
   courseName: string; // 课程名称
+  type: 'video' | 'audio'; // 课程类型：视频/音频
   chapterCount: number; // 课程总章节数
   visitedCount: number; // 已访问章节数
   lastChapterId: number | null; // 最近学习章节 id
@@ -149,7 +150,10 @@ export class LearningService {
     // 课程维度总条数
     const total = ordered.length;
     // 当前页课程分组
-    const pageGroups = ordered.slice((pageNo - 1) * pageSize, pageNo * pageSize);
+    const pageGroups = ordered.slice(
+      (pageNo - 1) * pageSize,
+      pageNo * pageSize,
+    );
     // 当前页无数据时无需后续查询
     if (pageGroups.length === 0) {
       return { items: [], total, page: pageNo, pageSize };
@@ -159,10 +163,10 @@ export class LearningService {
     const courseIds = pageGroups.map((group) => group.courseId);
 
     const [courses, chapterTotals, latestRecords] = await Promise.all([
-      // 课程名称
+      // 课程名称与类型
       this.prisma.course.findMany({
         where: { id: { in: courseIds } },
-        select: { id: true, name: true },
+        select: { id: true, name: true, type: true },
       }),
       // 各课程章节总数
       this.prisma.chapter.groupBy({
@@ -183,10 +187,8 @@ export class LearningService {
       }),
     ]);
 
-    // 课程 id -> 课程名称
-    const courseNameById = new Map(
-      courses.map((course) => [course.id, course.name]),
-    );
+    // 课程 id -> 课程名称与类型
+    const courseById = new Map(courses.map((course) => [course.id, course]));
     // 课程 id -> 章节总数
     const chapterCountByCourse = new Map(
       chapterTotals.map((item) => [item.courseId, item._count._all]),
@@ -216,7 +218,8 @@ export class LearningService {
 
       return {
         courseId: group.courseId,
-        courseName: courseNameById.get(group.courseId) ?? '',
+        courseName: courseById.get(group.courseId)?.name ?? '',
+        type: courseById.get(group.courseId)?.type ?? 'video',
         chapterCount,
         visitedCount,
         lastChapterId: latest?.chapterId ?? null,

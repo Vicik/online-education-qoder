@@ -4305,6 +4305,11 @@ export interface components {
         StudyRecord: {
             courseId?: number;
             courseName?: string;
+            /**
+             * @description 课程类型，用于学习记录类型标签
+             * @enum {string}
+             */
+            type?: "video" | "audio";
             chapterCount?: number;
             visitedCount?: number;
             lastChapterId?: number | null;
@@ -4383,6 +4388,8 @@ export interface components {
             /** Format: date-time */
             endAt?: string;
             courseIds?: number[];
+            /** @description 适用课程名称，与 courseIds 顺序一致 */
+            courseNames?: string[];
             /** @enum {string} */
             status?: "unused" | "used" | "restored" | "invalid" | "expired";
             /** Format: date-time */
@@ -4680,6 +4687,8 @@ export interface components {
             attemptId?: number;
             examId?: number;
             examTitle?: string;
+            /** @description 题目总数 */
+            questionCount?: number;
             score?: number | null;
             totalScore?: number;
             passScore?: number;

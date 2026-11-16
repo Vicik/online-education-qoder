@@ -338,6 +338,7 @@ components:
       properties:
         courseId: { type: integer }
         courseName: { type: string }
+        type: { type: string, enum: [video, audio], description: 课程类型，用于学习记录类型标签 }
         chapterCount: { type: integer }
         visitedCount: { type: integer }
         lastChapterId: { type: integer, nullable: true }
@@ -399,6 +400,7 @@ components:
         startAt: { type: string, format: date-time }
         endAt: { type: string, format: date-time }
         courseIds: { type: array, items: { type: integer } }
+        courseNames: { type: array, items: { type: string }, description: 适用课程名称，与 courseIds 顺序一致 }
         status: { type: string, enum: [unused, used, restored, invalid, expired] }
         claimedAt: { type: string, format: date-time }
         usedAt: { type: string, format: date-time, nullable: true }
@@ -679,6 +681,7 @@ components:
         attemptId: { type: integer }
         examId: { type: integer }
         examTitle: { type: string }
+        questionCount: { type: integer, description: 题目总数 }
         score: { type: integer, nullable: true }
         totalScore: { type: integer }
         passScore: { type: integer }

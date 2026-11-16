@@ -8,6 +8,7 @@ import { IdempotencyService } from '../../common/idempotency/idempotency.service
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   COUPON_CLAIM_INCLUDE,
+  COUPON_CLAIM_TEMPLATE_SELECT,
   COUPON_TEMPLATE_SELECT,
   CouponClaim,
   CouponTemplateView,
@@ -74,7 +75,7 @@ export class CouponUserService {
         // 模板必须存在且启用
         const template = await this.prisma.couponTemplate.findUnique({
           where: { id: templateId },
-          select: COUPON_TEMPLATE_SELECT,
+          select: COUPON_CLAIM_TEMPLATE_SELECT,
         });
         if (!template) {
           throw new BizException(

@@ -91,7 +91,7 @@ describe('LearningService.getStudyRecords', () => {
       { courseId: 1, _max: { visitedAt }, _count: { _all: 2 } },
     ]);
     prisma.course.findMany.mockResolvedValue([
-      { id: 1, name: 'TypeScript 系统入门' },
+      { id: 1, name: 'TypeScript 系统入门', type: 'video' },
     ]);
     prisma.chapter.groupBy.mockResolvedValue([
       { courseId: 1, _count: { _all: 2 } },
@@ -112,6 +112,7 @@ describe('LearningService.getStudyRecords', () => {
         {
           courseId: 1,
           courseName: 'TypeScript 系统入门',
+          type: 'video',
           chapterCount: 2,
           visitedCount: 2,
           lastChapterId: 2,
@@ -144,12 +145,10 @@ describe('LearningService.getStudyRecords', () => {
   it('已购未观看课程纳入学习记录：0% 且最近章节为空', async () => {
     const { prisma, service } = setup();
     const paidAt = new Date('2026-11-09T08:00:00Z');
-    prisma.order.groupBy.mockResolvedValue([
-      { courseId: 2, _max: { paidAt } },
-    ]);
+    prisma.order.groupBy.mockResolvedValue([{ courseId: 2, _max: { paidAt } }]);
     prisma.learningRecord.groupBy.mockResolvedValue([]);
     prisma.course.findMany.mockResolvedValue([
-      { id: 2, name: 'NestJS 实战' },
+      { id: 2, name: 'NestJS 实战', type: 'audio' },
     ]);
     prisma.chapter.groupBy.mockResolvedValue([
       { courseId: 2, _count: { _all: 4 } },
@@ -162,6 +161,7 @@ describe('LearningService.getStudyRecords', () => {
       {
         courseId: 2,
         courseName: 'NestJS 实战',
+        type: 'audio',
         chapterCount: 4,
         visitedCount: 0,
         lastChapterId: null,
