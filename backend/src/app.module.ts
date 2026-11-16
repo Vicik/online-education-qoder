@@ -17,6 +17,7 @@ import { PromotionModule } from './promotion/promotion.module';
 import { TradeModule } from './trade/trade.module';
 import { ExamModule } from './exam/exam.module';
 import { CommunityModule } from './community/community.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { JobsModule } from './jobs/jobs.module';
 import { StorageModule } from './storage/storage.module';
 
@@ -36,6 +37,7 @@ import { StorageModule } from './storage/storage.module';
     TradeModule, // 订单与模拟支付
     ExamModule, // 题库与考试
     CommunityModule, // 学习社区（帖子/评论/点赞/屏蔽词）
+    DashboardModule, // 管理端工作台统计
     StorageModule, // 本地文件上传与媒体签名
     JobsModule, // Worker 定时任务（仅 WORKER_MODE 下启动调度）
   ],
