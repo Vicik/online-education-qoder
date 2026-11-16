@@ -1,23 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Button, message } from 'antd';
-import { Link } from 'react-router';
+import { Button, Pagination, Skeleton, message } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ColumnsType } from 'antd/es/table';
 import { deletePost, listMyPosts } from '@/api/community';
 import { queryKeys } from '@/api/query-keys';
 import type { ApiError } from '@/api/errors';
-import type { PostBrief } from '@/api/types';
-import { AppTable } from '@/components/common/AppTable';
 import { ConfirmAction } from '@/components/common/ConfirmAction';
-import { PageHeader } from '@/components/common/PageHeader';
-import { RichTextViewer } from '@/components/common/RichTextViewer';
+import { EmptyState } from '@/components/common/EmptyState';
 import { usePagination } from '@/hooks/usePagination';
-import { formatShanghai } from '@/lib/datetime';
+import { PostCard } from './PostCard';
+import './FeedPage.css';
+import './MyPostsPage.css';
 
 // 我的帖子每页数量
 const PAGE_SIZE = 10;
 
-// 我的帖子：仅本人发布，可查看与删除
+// 我的帖子：仅本人发布，卡片流与信息流一致，可查看详情与删除
 export default function MyPostsPage() {
   // 查询缓存
   const queryClient = useQueryClient();
@@ -49,63 +46,71 @@ export default function MyPostsPage() {
     }
   };
 
-  // 表格列
-  const columns: ColumnsType<PostBrief> = [
-    {
-      title: '内容',
-      dataIndex: 'content',
-      key: 'content',
-      render: (_: string, record: PostBrief) => (
-        <div style={{ maxHeight: 80, overflow: 'hidden' }}>
-          <RichTextViewer html={record.content ?? ''} />
-        </div>
-      ),
-    },
-    { title: '点赞', dataIndex: 'likeCount', key: 'likeCount' },
-    { title: '评论', dataIndex: 'commentCount', key: 'commentCount' },
-    {
-      title: '发布时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (value: string) => formatShanghai(value),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      render: (_: unknown, record: PostBrief) => (
-        <>
-          <Link to={`/community/${record.id}`}>查看</Link>
-          <ConfirmAction
-            title="删除帖子"
-            content="删除后帖子与全部评论不可恢复，确认删除？"
-            danger
-            onConfirm={() => handleDelete(record.id ?? 0)}
-          >
-            <Button type="link" danger>
-              删除
-            </Button>
-          </ConfirmAction>
-        </>
-      ),
-    },
-  ];
+  // 当前页帖子
+  const items = query.data?.items ?? [];
+
+  // 加载中：保留卡片占位，避免闪现空状态
+  if (query.isLoading) {
+    return (
+      <div className="community-main">
+        <Skeleton active paragraph={{ rows: 4 }} />
+      </div>
+    );
+  }
+
+  // 加载失败：展示错误与重试
+  if (query.error) {
+    return (
+      <div className="community-main">
+        <EmptyState
+          description={(query.error as ApiError).message}
+          action={<Button onClick={() => void query.refetch()}>重试</Button>}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <PageHeader title="我的帖子" />
-      <AppTable
-        columns={columns}
-        dataSource={query.data?.items ?? []}
-        rowKey="id"
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        loading={query.isLoading}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        onPageChange={onChange}
-        emptyText="还没有发布过帖子"
-      />
+    <div className="community-main">
+      {items.length === 0 ? (
+        <EmptyState description="还没有发布过帖子" />
+      ) : (
+        <div className="community-feed">
+          {items.map((item) => (
+            <PostCard
+              key={item.id}
+              post={item}
+              footerExtra={
+                <ConfirmAction
+                  title="删除帖子"
+                  content="删除后帖子与全部评论不可恢复，确认删除？"
+                  danger
+                  onConfirm={() => handleDelete(item.id ?? 0)}
+                >
+                  <Button
+                    type="primary"
+                    danger
+                    autoInsertSpace={false}
+                    className="my-post-delete"
+                  >
+                    删除
+                  </Button>
+                </ConfirmAction>
+              }
+            />
+          ))}
+        </div>
+      )}
+      {total > 0 && (
+        <div className="community-pagination">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={onChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

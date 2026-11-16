@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Input, Space } from 'antd';
+import { Button, Input } from 'antd';
+import './CommentForm.css';
 
 // 评论输入框：内容必填，提交成功后由父组件清空
 export function CommentForm(props: {
   placeholder: string;
   submitting: boolean;
+  submitText?: string;
   onSubmit: (content: string) => Promise<boolean>;
 }) {
   // 当前输入内容
@@ -19,18 +21,24 @@ export function CommentForm(props: {
   }
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }}>
+    <div className="comment-form">
       <Input.TextArea
-        rows={3}
+        autoSize={{ minRows: 3, maxRows: 8 }}
         maxLength={1000}
         showCount
         placeholder={props.placeholder}
         value={content}
         onChange={(event) => setContent(event.target.value)}
       />
-      <Button type="primary" loading={props.submitting} onClick={handleSubmit}>
-        发表评论
+      <Button
+        type="primary"
+        className="comment-form-submit"
+        autoInsertSpace={false}
+        loading={props.submitting}
+        onClick={handleSubmit}
+      >
+        {props.submitText ?? '发表评论'}
       </Button>
-    </Space>
+    </div>
   );
 }

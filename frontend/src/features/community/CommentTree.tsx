@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Space, Typography, message } from 'antd';
+import { Avatar, Button, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { createReply, deleteComment, extractBlockedWords } from '@/api/community';
@@ -11,8 +11,16 @@ import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 import { usePermission } from '@/hooks/usePermission';
 import { formatShanghai } from '@/lib/datetime';
 import { CommentForm } from './CommentForm';
+import './CommentTree.css';
 
-// 两级评论树：一级评论 + 回复；回复目标显示「回复 @昵称」
+// 回复目标：一级评论 id、被回复用户与昵称
+interface ReplyTarget {
+  commentId: number;
+  userId: number;
+  nickname: string;
+}
+
+// 两级评论树：一级评论 + 回复；回复目标显示「@昵称」
 export function CommentTree(props: { post: PostDetail }) {
   // 当前用户
   const { user } = usePermission();
@@ -22,12 +30,21 @@ export function CommentTree(props: { post: PostDetail }) {
   const location = useLocation();
   // 查询缓存
   const queryClient = useQueryClient();
-  // 正在回复的一级评论 id
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  // 正在回复的目标，null 表示未展开回复框
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
 
   // 游客跳登录
   const requireLogin = () => {
     navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`);
+  };
+
+  // 展开回复框：游客先登录
+  const startReply = (target: ReplyTarget) => {
+    if (!user) {
+      requireLogin();
+      return;
+    }
+    setReplyTarget(target);
   };
 
   // 刷新详情
@@ -47,7 +64,7 @@ export function CommentTree(props: { post: PostDetail }) {
     }
   };
 
-  // 回复一级评论：一次用户意图一个幂等键
+  // 回复评论：一次用户意图一个幂等键
   const replyMutation = useIdempotentMutation<
     ReplyView,
     { commentId: number; replyToUserId: number; content: string }
@@ -61,7 +78,7 @@ export function CommentTree(props: { post: PostDetail }) {
     {
       onSuccess: () => {
         message.success('回复成功');
-        setReplyingTo(null);
+        setReplyTarget(null);
         refresh();
       },
       onError: (error) => {
@@ -91,69 +108,117 @@ export function CommentTree(props: { post: PostDetail }) {
   const comments = props.post.comments ?? [];
 
   return (
-    <div>
-      {comments.map((comment) => (
-        <Card key={comment.id} size="small" style={{ marginBottom: 12 }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Space>
-              <Typography.Text strong>{comment.nickname}</Typography.Text>
-              <Typography.Text type="secondary">
-                {formatShanghai(comment.createdAt ?? '')}
-              </Typography.Text>
-            </Space>
-            <RichTextViewer html={comment.content ?? ''} />
-            <Space>
-              <Button
-                type="link"
-                onClick={() => (user ? setReplyingTo(comment.id ?? null) : requireLogin())}
-              >
-                回复
-              </Button>
-              {user?.id === comment.userId && (
-                <ConfirmAction
-                  title="删除评论"
-                  content="删除一级评论会同时删除其全部回复，确认删除？"
-                  danger
-                  onConfirm={() => handleDelete(comment.id ?? 0)}
+    <div className="comment-list">
+      {comments.map((comment) => {
+        // 当前评论的回复列表
+        const replies = comment.replies ?? [];
+        // 当前评论展开的回复框
+        const activeTarget = replyTarget?.commentId === comment.id ? replyTarget : null;
+        return (
+          <div key={comment.id} className="comment-item">
+            <Avatar
+              className="comment-avatar"
+              size={48}
+              src={comment.avatarUrl ?? undefined}
+            >
+              {(comment.nickname ?? '?').slice(0, 1)}
+            </Avatar>
+            <div className="comment-item-main">
+              <div className="comment-item-name">{comment.nickname}</div>
+              <div className="comment-item-time">{formatShanghai(comment.createdAt ?? '')}</div>
+              <RichTextViewer html={comment.content ?? ''} className="comment-item-content" />
+              <div className="comment-item-actions">
+                <Button
+                  size="small"
+                  className="comment-action"
+                  autoInsertSpace={false}
+                  onClick={() =>
+                    startReply({
+                      commentId: comment.id ?? 0,
+                      userId: comment.userId ?? 0,
+                      nickname: comment.nickname ?? '匿名',
+                    })
+                  }
                 >
-                  <Button type="link" danger>
-                    删除评论
-                  </Button>
-                </ConfirmAction>
+                  回复
+                </Button>
+                {user?.id === comment.userId && (
+                  <ConfirmAction
+                    title="删除评论"
+                    content="删除一级评论会同时删除其全部回复，确认删除？"
+                    danger
+                    onConfirm={() => handleDelete(comment.id ?? 0)}
+                  >
+                    <Button size="small" type="text" danger>
+                      删除评论
+                    </Button>
+                  </ConfirmAction>
+                )}
+              </div>
+
+              {replies.length > 0 && (
+                <div className="comment-replies">
+                  {replies.map((reply) => (
+                    <div key={reply.id} className="comment-item comment-item-reply">
+                      <Avatar
+                        className="comment-avatar"
+                        size={32}
+                        src={reply.avatarUrl ?? undefined}
+                      >
+                        {(reply.nickname ?? '?').slice(0, 1)}
+                      </Avatar>
+                      <div className="comment-item-main">
+                        <div className="comment-item-name">{reply.nickname}</div>
+                        <div className="comment-item-time">
+                          {formatShanghai(reply.createdAt ?? '')}
+                        </div>
+                        <div className="comment-reply-line">
+                          {reply.replyToNickname && (
+                            <span className="comment-reply-target">@{reply.replyToNickname}</span>
+                          )}
+                          <RichTextViewer
+                            html={reply.content ?? ''}
+                            className="comment-item-content"
+                          />
+                        </div>
+                        <div className="comment-item-actions">
+                          <Button
+                            size="small"
+                            className="comment-action"
+                            autoInsertSpace={false}
+                            onClick={() =>
+                              startReply({
+                                commentId: comment.id ?? 0,
+                                userId: reply.userId ?? 0,
+                                nickname: reply.nickname ?? '匿名',
+                              })
+                            }
+                          >
+                            回复
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </Space>
 
-            {(comment.replies ?? []).map((reply) => (
-              <Card key={reply.id} size="small" type="inner">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Space>
-                    <Typography.Text strong>{reply.nickname}</Typography.Text>
-                    {reply.replyToNickname && (
-                      <Typography.Text type="secondary">
-                        回复 @{reply.replyToNickname}
-                      </Typography.Text>
-                    )}
-                    <Typography.Text type="secondary">
-                      {formatShanghai(reply.createdAt ?? '')}
-                    </Typography.Text>
-                  </Space>
-                  <RichTextViewer html={reply.content ?? ''} />
-                </Space>
-              </Card>
-            ))}
-
-            {replyingTo === comment.id && (
-              <CommentForm
-                placeholder={`回复 @${comment.nickname}`}
-                submitting={replyMutation.isPending}
-                onSubmit={(content) =>
-                  handleReply(comment.id ?? 0, comment.userId ?? 0, content)
-                }
-              />
-            )}
-          </Space>
-        </Card>
-      ))}
+              {activeTarget && (
+                <div className="comment-reply-form">
+                  <CommentForm
+                    placeholder={`回复 @${activeTarget.nickname}`}
+                    submitText="回复"
+                    submitting={replyMutation.isPending}
+                    onSubmit={(content) =>
+                      handleReply(activeTarget.commentId, activeTarget.userId, content)
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

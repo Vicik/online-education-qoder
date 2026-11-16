@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Button, message } from 'antd';
+import { LikeFilled, LikeOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { likePost, unlikePost } from '@/api/community';
 import type { PostBrief } from '@/api/types';
 import { usePermission } from '@/hooks/usePermission';
+import './LikeButton.css';
 
 // 点赞按钮：游客登录回跳；登录用户按当前状态点赞/取消
 export function LikeButton(props: { post: PostBrief }) {
@@ -43,11 +45,16 @@ export function LikeButton(props: { post: PostBrief }) {
     },
   });
 
+  // 已点赞时的高亮样式
+  const className = liked ? 'community-action community-action-liked' : 'community-action';
+
   // 游客：跳登录并回跳当前地址
   if (!user) {
     return (
       <Button
-        type="link"
+        type="text"
+        className={className}
+        icon={<LikeOutlined aria-hidden />}
         onClick={() =>
           navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
         }
@@ -58,7 +65,13 @@ export function LikeButton(props: { post: PostBrief }) {
   }
 
   return (
-    <Button type="link" loading={mutation.isPending} onClick={() => mutation.mutate()}>
+    <Button
+      type="text"
+      className={className}
+      icon={liked ? <LikeFilled aria-hidden /> : <LikeOutlined aria-hidden />}
+      loading={mutation.isPending}
+      onClick={() => mutation.mutate()}
+    >
       {liked ? '已点赞' : '点赞'} {count}
     </Button>
   );

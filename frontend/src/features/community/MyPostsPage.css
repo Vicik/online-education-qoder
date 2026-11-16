@@ -1,0 +1,6 @@
+/* 删除：红色实心按钮，与点赞/评论胶囊同高 */
+.my-post-delete.ant-btn {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 4px;
+}

@@ -1,0 +1,213 @@
+/* 社区信息流：左侧帖子流 + 右侧发布入口与精品推荐 */
+.community-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* 左侧信息流：整块白色卡片，帖子之间用细分隔线 */
+.community-main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.community-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.community-post + .community-post {
+  border-top: 1px solid #f0f0f0;
+}
+
+.community-post {
+  padding: 24px 0;
+}
+
+.community-post:first-child {
+  padding-top: 0;
+}
+
+.community-post:last-child {
+  padding-bottom: 0;
+}
+
+/* 正文区域：整块可点击进入详情 */
+.community-post-body {
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.community-post-body:focus-visible {
+  outline: 2px solid var(--color-cta);
+  outline-offset: 4px;
+}
+
+/* 正文：与参考图一致的宽松行距 */
+.community-post-content {
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+}
+
+.community-post-content > :first-child {
+  margin-top: 0;
+}
+
+.community-post-content > :last-child {
+  margin-bottom: 0;
+}
+
+.community-post-content p {
+  margin: 0 0 12px;
+}
+
+/* 正文图集：三列方形缩略图 */
+.community-post-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 4px 0 12px;
+}
+
+.community-post-gallery img {
+  display: block;
+  width: calc((100% - 32px) / 3);
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f0f2f5;
+}
+
+/* 单图：限制最大宽度，避免缩略图过小 */
+.community-post-gallery img:only-child {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 4 / 3;
+}
+
+/* 底部操作行：点赞、评论与作者 */
+.community-post-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.community-post-author {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+/* 分页：卡片内居中 */
+.community-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* 右侧栏：发布按钮 + 精品推荐，随页面滚动固定 */
+.community-side {
+  position: sticky;
+  top: calc(var(--layout-nav-height) + 16px);
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  gap: 16px;
+  width: 300px;
+}
+
+/* 发布帖子：与全站 CTA 同色的整宽绿色按钮 */
+.community-publish.ant-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+  border-radius: 4px;
+}
+
+.community-publish.ant-btn:hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}
+
+.community-recommend {
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.community-recommend-title {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.community-recommend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.community-recommend-card {
+  display: block;
+  color: inherit;
+}
+
+.community-recommend-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f0f2f5;
+  border-radius: 4px;
+}
+
+.community-recommend-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.community-recommend-name {
+  display: -webkit-box;
+  margin: 10px 0 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.88);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.community-recommend-card:hover .community-recommend-name {
+  color: #1677ff;
+}
+
+.community-recommend-price {
+  margin-top: 8px;
+}
+
+/* 窄屏：侧栏移到帖子流上方，发布入口保持在首屏 */
+@media (max-width: 960px) {
+  .community-page {
+    flex-direction: column;
+  }
+
+  .community-side {
+    position: static;
+    order: -1;
+    width: 100%;
+    flex-basis: auto;
+  }
+}

@@ -47,7 +47,15 @@ function loginAsUser() {
 }
 
 describe('FeedPage', () => {
-  beforeEach(() => useSessionStore.setState({ user: null }));
+  beforeEach(() => {
+    useSessionStore.setState({ user: null });
+    // 侧栏精品推荐：默认空推荐，避免未处理请求
+    server.use(
+      http.get(/\/api\/v1\/home\/recommendations$/, () =>
+        HttpResponse.json(envelope({ courses: [] })),
+      ),
+    );
+  });
 
   it('展示帖子内容与评论入口', async () => {
     server.use(
@@ -111,6 +119,96 @@ describe('FeedPage', () => {
     renderWithProviders([{ path: '/community', element: <FeedPage /> }], '/community');
     expect(await screen.findByText('还没有帖子，来发第一帖吧')).toBeInTheDocument();
   });
+
+  it('连续图片归入图集容器', async () => {
+    server.use(
+      http.get(/\/api\/v1\/posts$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              post({
+                content:
+                  '<p>图文帖子</p><img src="https://example.com/a.png" alt="图一"><img src="https://example.com/b.png" alt="图二">',
+              }),
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders([{ path: '/community', element: <FeedPage /> }], '/community');
+
+    expect(await screen.findByText('图文帖子')).toBeInTheDocument();
+    expect(document.querySelectorAll('.community-post-gallery img')).toHaveLength(2);
+  });
+
+  it('正文只展示前 100 字，点击正文进入详情', async () => {
+    // 超过预览上限的正文
+    const longText = '字'.repeat(150);
+    server.use(
+      http.get(/\/api\/v1\/posts$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [post({ content: `<p>${longText}</p>` })],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+    const { router } = renderWithProviders(
+      [
+        { path: '/community', element: <FeedPage /> },
+        { path: '/community/:postId', element: <div>post-detail</div> },
+      ],
+      '/community',
+    );
+
+    // 摘要保留前 100 字并补省略号
+    const preview = await screen.findByText(`${'字'.repeat(100)}…`);
+    expect(screen.queryByText(longText)).not.toBeInTheDocument();
+
+    await userEvent.click(preview);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/community/1'));
+  });
+
+  it('点击正文图片在当前页弹窗预览', async () => {
+    server.use(
+      http.get(/\/api\/v1\/posts$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              post({
+                content:
+                  '<p>图文帖子</p><img src="https://example.com/a.png" alt="风景图">',
+              }),
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+    );
+    const { router } = renderWithProviders(
+      [{ path: '/community', element: <FeedPage /> }],
+      '/community',
+    );
+
+    expect(await screen.findByText('图文帖子')).toBeInTheDocument();
+    // 正文中的图片
+    const image = document.querySelector('.community-post-gallery img');
+    expect(image).not.toBeNull();
+    await userEvent.click(image as HTMLImageElement);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/community');
+  });
 });
 
 // 帖子详情桩：一层评论 + 一条回复
@@ -122,6 +220,7 @@ function detail() {
         id: 11,
         userId: 2,
         nickname: '小明',
+        avatarUrl: 'http://localhost:3000/uploadFiles/image/ming.png',
         content: '<p>一级评论</p>',
         createdAt: '2026-11-10T00:00:00.000Z',
         replies: [
@@ -129,6 +228,7 @@ function detail() {
             id: 12,
             userId: 3,
             nickname: '小红',
+            avatarUrl: 'http://localhost:3000/uploadFiles/image/hong.png',
             replyToNickname: '小明',
             content: '<p>回复内容</p>',
             createdAt: '2026-11-10T00:00:00.000Z',
@@ -140,7 +240,15 @@ function detail() {
 }
 
 describe('PostDetailPage', () => {
-  beforeEach(() => useSessionStore.setState({ user: null }));
+  beforeEach(() => {
+    useSessionStore.setState({ user: null });
+    // 侧栏精品推荐：默认空推荐，避免未处理请求
+    server.use(
+      http.get(/\/api\/v1\/home\/recommendations$/, () =>
+        HttpResponse.json(envelope({ courses: [] })),
+      ),
+    );
+  });
 
   it('展示两层评论与回复目标', async () => {
     server.use(http.get(/\/api\/v1\/posts\/1$/, () => HttpResponse.json(envelope(detail()))));
@@ -149,7 +257,16 @@ describe('PostDetailPage', () => {
 
     expect(await screen.findByText('一级评论')).toBeInTheDocument();
     expect(screen.getByText('回复内容')).toBeInTheDocument();
-    expect(screen.getByText('回复 @小明')).toBeInTheDocument();
+    expect(screen.getByText('@小明')).toBeInTheDocument();
+    // 评论与回复都展示评论者头像
+    await waitFor(() =>
+      expect(document.querySelectorAll('.comment-avatar img')).toHaveLength(2),
+    );
+    // 头像地址取自接口返回的 avatarUrl
+    expect(document.querySelectorAll('.comment-avatar img')[0]).toHaveAttribute(
+      'src',
+      'http://localhost:3000/uploadFiles/image/ming.png',
+    );
   });
 
   it('游客发表评论跳登录并回跳', async () => {
@@ -192,8 +309,9 @@ describe('PostDetailPage', () => {
 
     renderWithProviders([{ path: '/community/:postId', element: <PostDetailPage /> }], '/community/1');
 
-    await userEvent.type(await screen.findByPlaceholderText('写下你的评论'), '好文章');
-    await userEvent.click(screen.getByRole('button', { name: '发表评论' }));
+    await userEvent.type(await screen.findByPlaceholderText('说两句吧~'), '好文章');
+    // 第一个「回复」是表单提交按钮，后面才是评论上的回复按钮
+    await userEvent.click(screen.getAllByRole('button', { name: '回复' })[0]);
 
     await waitFor(() => expect(key.length).toBeGreaterThanOrEqual(8));
   });
@@ -254,6 +372,49 @@ describe('NewPostPage', () => {
 
     expect(await screen.findByText(/违禁词/)).toBeInTheDocument();
     expect(screen.getByText(/badword/)).toBeInTheDocument();
+  });
+
+  it('正文按行组装为段落并转义标签', async () => {
+    // 捕获提交的正文
+    let content = '';
+    server.use(
+      http.post(/\/api\/v1\/posts$/, async ({ request }) => {
+        const body = (await request.json()) as { content: string };
+        content = body.content;
+        return HttpResponse.json(envelope(post()), { status: 201 });
+      }),
+    );
+    renderWithProviders(
+      [
+        { path: '/community/new', element: <NewPostPage /> },
+        { path: '/community/:postId', element: <div>post-detail</div> },
+      ],
+      '/community/new',
+    );
+
+    await userEvent.type(await screen.findByRole('textbox'), '第一行{enter}<b>第二行</b>');
+    await userEvent.click(screen.getByRole('button', { name: '发布' }));
+
+    await waitFor(() =>
+      expect(content).toBe('<p>第一行</p><p>&lt;b&gt;第二行&lt;/b&gt;</p>'),
+    );
+  });
+
+  it('正文为空时展示内联错误且不发送', async () => {
+    // 发帖请求次数
+    let posted = 0;
+    server.use(
+      http.post(/\/api\/v1\/posts$/, () => {
+        posted += 1;
+        return HttpResponse.json(envelope(post()), { status: 201 });
+      }),
+    );
+    renderWithProviders([{ path: '/community/new', element: <NewPostPage /> }], '/community/new');
+
+    await userEvent.click(screen.getByRole('button', { name: '发布' }));
+
+    expect(await screen.findByText('帖子内容不能为空')).toBeInTheDocument();
+    expect(posted).toBe(0);
   });
 });
 

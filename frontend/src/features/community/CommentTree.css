@@ -1,0 +1,123 @@
+/* 评论项：头像在左，内容在右，长内容不撑破卡片 */
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* 内容区允许收缩，避免长链接/图片溢出 */
+.comment-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 一级评论之间用分隔线与间距区分 */
+.comment-list > .comment-item + .comment-item {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 无头像时用昵称首字兜底 */
+.comment-avatar.ant-avatar {
+  flex: none;
+  color: #fff;
+  background: #bfbfbf;
+}
+
+/* 评论者昵称与时间 */
+.comment-item-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.comment-item-time {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* 评论正文 */
+.comment-item-content {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+}
+
+.comment-item-content p {
+  margin: 0 0 8px;
+}
+
+.comment-item-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* 操作行：回复与删除评论 */
+.comment-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 回复按钮：浅灰小胶囊，与参考图一致 */
+.comment-action.ant-btn {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  background: #f5f5f5;
+  border: none;
+  border-radius: 2px;
+}
+
+.comment-action.ant-btn:hover {
+  color: var(--color-cta);
+  background: #e8f7ef;
+}
+
+/* 回复列表：整体缩进，与一级评论拉开层级 */
+.comment-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+  padding-left: 4px;
+}
+
+/* 回复层级：头像更小，间距略紧 */
+.comment-item-reply {
+  gap: 10px;
+}
+
+/* 回复目标与正文同一行：@昵称 + 内容 */
+.comment-reply-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.comment-reply-line .comment-item-content {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* @昵称：灰底小标签 */
+.comment-reply-target {
+  flex: none;
+  margin-top: 2px;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 22px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+}
+
+/* 展开的回复输入框 */
+.comment-reply-form {
+  margin-top: 12px;
+}

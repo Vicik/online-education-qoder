@@ -1,0 +1,11 @@
+/* 评论输入框：输入区与提交按钮纵向排列，间距给字数统计留出位置 */
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 提交按钮：默认靠左，详情页按参考图改为靠右 */
+.comment-form-submit.ant-btn {
+  align-self: flex-start;
+}

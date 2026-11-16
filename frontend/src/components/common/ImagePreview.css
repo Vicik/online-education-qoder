@@ -1,0 +1,33 @@
+/* 图片预览弹窗：大图浮在遮罩上，不显示白色卡片背景 */
+.image-preview-img {
+  display: block;
+  max-width: 86vw;
+  max-height: 82vh;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* 透明内容区上的关闭按钮：深色圆底保证在浅色图片上也可见 */
+.image-preview-modal .ant-modal-close {
+  top: -44px;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+}
+
+.image-preview-modal .ant-modal-close:hover {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+/* 正文图片可点击预览；宽度不超过容器，避免撑破详情页卡片 */
+.rich-text-viewer img {
+  max-width: 100%;
+  height: auto;
+  cursor: zoom-in;
+}

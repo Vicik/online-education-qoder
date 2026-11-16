@@ -1,0 +1,107 @@
+/* 面包屑：定位当前帖子 */
+.post-detail-breadcrumb {
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+/* 作者行：方形头像 + 昵称与发布时间 */
+.post-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* 作者头像：无图时用灰底首字兜底 */
+.post-detail-avatar.ant-avatar {
+  flex: none;
+  color: #fff;
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+
+.post-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.post-detail-author {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.post-detail-time {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* 删除入口：靠右，低调的危险按钮 */
+.post-detail-delete.ant-btn {
+  margin-left: auto;
+}
+
+/* 正文：宽松行距，图片居中且不超出卡片 */
+.post-detail-body {
+  padding: 24px 0 8px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+}
+
+.post-detail-body .rich-text-viewer > :first-child {
+  margin-top: 0;
+}
+
+.post-detail-body .rich-text-viewer > :last-child {
+  margin-bottom: 0;
+}
+
+.post-detail-body .rich-text-viewer img {
+  display: block;
+  margin: 12px auto;
+}
+
+/* 点赞行：居中展示，与评论区分隔 */
+.post-detail-like {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* 评论区：输入框在上，精彩评论在下 */
+.post-detail-comments {
+  padding-top: 24px;
+}
+
+/* 详情页输入框：方角浅边框，提交按钮靠右且为全站 CTA 绿 */
+.post-detail .comment-form .ant-input {
+  padding: 12px;
+  border-radius: 2px;
+}
+
+.post-detail .comment-form-submit.ant-btn {
+  align-self: flex-end;
+  min-width: 72px;
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+  border-radius: 2px;
+}
+
+.post-detail .comment-form-submit.ant-btn:hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}
+
+/* 精彩评论：与输入区分隔 */
+.post-detail-comments-title {
+  margin: 24px 0 16px;
+  padding-top: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  border-top: 1px solid #f0f0f0;
+}
