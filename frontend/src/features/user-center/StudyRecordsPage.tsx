@@ -1,19 +1,24 @@
-import { Button, Progress, Tag } from 'antd';
+import { Button, Pagination, Progress, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { listStudyRecords } from '@/api/learning';
 import { queryKeys } from '@/api/query-keys';
-import type { StudyRecord } from '@/api/types';
-import { AppTable } from '@/components/common/AppTable';
+import { EmptyState } from '@/components/common/EmptyState';
 import { PageHeader } from '@/components/common/PageHeader';
-import { formatShanghai } from '@/lib/datetime';
 import { usePagination } from '@/hooks/usePagination';
+import './records.css';
 
 // 学习记录每页数量
 const PAGE_SIZE = 20;
 
-// 学习记录：按课程聚合的进度与最近章节
+// 课程类型 → 卡片标签文案
+const TYPE_LABELS: Record<'video' | 'audio', string> = {
+  video: '视频',
+  audio: '音频',
+};
+
+// 学习记录：按课程聚合的进度与最近章节，卡片流展示
 export default function StudyRecordsPage() {
   // 跳转
   const navigate = useNavigate();
@@ -25,6 +30,7 @@ export default function StudyRecordsPage() {
   const query = useQuery({
     queryKey: queryKeys.studyRecords(page),
     queryFn: () => listStudyRecords(page, pageSize),
+    placeholderData: (previous) => previous,
   });
 
   // 响应总数同步给分页组件
@@ -32,71 +38,88 @@ export default function StudyRecordsPage() {
     setTotal(query.data?.total ?? 0);
   }, [query.data?.total]);
 
+  // 当前页记录
+  const items = query.data?.items ?? [];
+
+  // 卡片列表：加载占位、错误重试、空态与记录卡片
+  let content;
+  if (query.isLoading) {
+    content = (
+      <div className="record-list">
+        {[0, 1, 2].map((key) => (
+          <Skeleton key={key} className="record-card" active />
+        ))}
+      </div>
+    );
+  } else if (query.error) {
+    content = (
+      <EmptyState
+        description="加载失败"
+        action={<Button onClick={() => void query.refetch()}>重试</Button>}
+      />
+    );
+  } else if (items.length === 0) {
+    content = <EmptyState description="暂无学习记录" />;
+  } else {
+    content = (
+      <>
+        <div className="record-list">
+          {items.map((record) => (
+            <article
+              key={record.courseId}
+              className="record-card study-record"
+            >
+              <div className="study-record-progress-label">学习进度</div>
+              <Progress
+                className="study-record-progress"
+                percent={record.progressPercent ?? 0}
+                showInfo={false}
+                status="normal"
+                strokeLinecap="round"
+              />
+              <div className="study-record-main">
+                <span className="study-record-type">
+                  {record.type ? TYPE_LABELS[record.type] : '课程'}
+                </span>
+                <span
+                  className="study-record-name"
+                  title={record.courseName}
+                >
+                  {record.courseName}
+                </span>
+                <Button
+                  type="primary"
+                  className="study-record-action"
+                  onClick={() =>
+                    navigate(
+                      `/learning/${record.courseId}${record.lastChapterId ? `?chapterId=${record.lastChapterId}` : ''}`,
+                    )
+                  }
+                >
+                  继续观看
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+        {total > 0 && (
+          <div className="record-pagination">
+            <Pagination
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={onChange}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="学习记录" />
-      <AppTable<StudyRecord>
-        rowKey="courseId"
-        dataSource={query.data?.items ?? []}
-        loading={query.isLoading}
-        error={query.error}
-        onRetry={() => query.refetch()}
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={onChange}
-        emptyText="暂无学习记录"
-        columns={[
-          { title: '课程', dataIndex: 'courseName' },
-          {
-            title: '进度',
-            dataIndex: 'progressPercent',
-            width: 220,
-            render: (value: number) => (
-              <Progress percent={value} size="small" format={(percent) => `${percent}%`} />
-            ),
-          },
-          {
-            title: '状态',
-            dataIndex: 'completed',
-            width: 100,
-            render: (completed: boolean, record: StudyRecord) =>
-              record.visitedCount === 0 ? (
-                <Tag>未开始</Tag>
-              ) : completed ? (
-                <Tag color="green">已学完</Tag>
-              ) : (
-                <Tag>学习中</Tag>
-              ),
-          },
-          {
-            title: '最近章节',
-            dataIndex: 'lastChapterTitle',
-            render: (title: string | null) => title ?? '—',
-          },
-          {
-            title: '最后学习时间',
-            dataIndex: 'lastVisitedAt',
-            render: (value: string) => formatShanghai(value),
-          },
-          {
-            title: '操作',
-            width: 120,
-            render: (_: unknown, record: StudyRecord) => (
-              <Button
-                type="link"
-                onClick={() =>
-                  navigate(
-                    `/learning/${record.courseId}${record.lastChapterId ? `?chapterId=${record.lastChapterId}` : ''}`,
-                  )
-                }
-              >
-                继续学习
-              </Button>
-            ),
-          },
-        ]}
-      />
+      {content}
     </div>
   );
 }

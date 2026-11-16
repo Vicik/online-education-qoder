@@ -1,0 +1,262 @@
+/* 记录卡片流：学习记录与购买记录共用外框 */
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 单条记录卡片：白底细边框，与参考图一致 */
+.record-card {
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+
+/* 分页：列表下方居中 */
+.record-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* 学习记录：进度标签与通栏进度条 */
+.study-record-progress-label {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.study-record-progress.ant-progress {
+  display: block;
+  margin: 0;
+  line-height: 1;
+}
+
+/* 类型标签 + 课程名 + 继续观看 */
+.study-record-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.study-record-type {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  background: #fafafa;
+  border: 1px solid #ebedf0;
+  border-radius: 2px;
+}
+
+.study-record-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.88);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-record-action.ant-btn {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+  border-radius: 4px;
+}
+
+.study-record-action.ant-btn:hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}
+
+/* 购买记录：时间/订单号、课程名、价格/状态 */
+.order-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.order-record-label {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.order-record-name {
+  margin-top: 16px;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.88);
+  word-break: break-word;
+}
+
+.order-record-bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.order-record-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-price);
+}
+
+.order-record-status {
+  font-size: 14px;
+}
+
+/* 我的收藏：类型标签 + 封面缩略图 + 课程名 + 查看/删除 */
+.favorite-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+}
+
+.favorite-row-type {
+  flex: none;
+  min-width: 48px;
+  padding: 1px 8px;
+  font-size: 13px;
+  color: #1677ff;
+  text-align: center;
+  background: #e0f1ff;
+  border-radius: 2px;
+}
+
+.favorite-row-cover {
+  flex: none;
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.favorite-row-cover-empty {
+  background: #f0f2f5;
+}
+
+.favorite-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.65);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-row-actions {
+  display: flex;
+  flex: none;
+  gap: 12px;
+}
+
+.favorite-row-view.ant-btn,
+.favorite-row-remove.ant-btn {
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.favorite-row-view.ant-btn {
+  background: var(--color-cta);
+}
+
+.favorite-row-view.ant-btn:hover {
+  background: #0e8a4d !important;
+}
+
+.favorite-row-remove.ant-btn {
+  color: #fff;
+  background: #e5404f;
+}
+
+.favorite-row-remove.ant-btn:hover {
+  color: #fff !important;
+  background: #cf3745 !important;
+}
+
+/* 窄屏：收藏行隐藏缩略图，名称独占一行 */
+@media (max-width: 720px) {
+  .favorite-row {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+
+  .favorite-row-cover {
+    display: none;
+  }
+
+  .favorite-row-name {
+    flex-basis: calc(100% - 64px);
+  }
+}
+
+/* 我的考试：标题/状态、题量分数、时间/最终得分 */
+.exam-record-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.exam-record-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.88);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exam-record-title:hover {
+  color: var(--color-cta);
+}
+
+.exam-record-status {
+  flex: none;
+  font-size: 14px;
+}
+
+.exam-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 20px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.exam-record-bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.exam-record-label {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.exam-record-continue {
+  color: #fa8c16;
+}
+
+.exam-record-continue:hover {
+  color: #d46b08;
+}
