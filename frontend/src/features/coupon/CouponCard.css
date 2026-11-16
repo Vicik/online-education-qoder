@@ -1,0 +1,94 @@
+/* 优惠券卡片流：两列网格 */
+.coupon-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+/* 单张券：橙底/灰底白字，右下角放操作区 */
+.coupon-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  padding: 24px;
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* 未使用：橙色可操作 */
+.coupon-card-usable {
+  background: #fe7b10;
+}
+
+/* 已使用/已过期/已失效：灰色只读 */
+.coupon-card-disabled {
+  background: #d1d7dd;
+}
+
+/* 加载占位：保持白底卡片轮廓 */
+.coupon-card-skeleton {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+}
+
+.coupon-card-amount {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.coupon-card-course {
+  margin-top: 16px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.coupon-card-validity {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 底部操作行：贴卡片底部右侧 */
+.coupon-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+/* 立即使用：与领券按钮同色的黄色实心按钮 */
+.coupon-card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 20px;
+  font-size: 14px;
+  color: #fff;
+  background: #f1a11d;
+  border-radius: 2px;
+}
+
+.coupon-card-action:hover {
+  color: #fff;
+  background: #d98c12;
+}
+
+.coupon-card-status {
+  font-size: 14px;
+}
+
+/* 分页：列表下方居中 */
+.coupon-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* 窄屏：单列铺满 */
+@media (max-width: 720px) {
+  .coupon-grid {
+    grid-template-columns: 1fr;
+  }
+}

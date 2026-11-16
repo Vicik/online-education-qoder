@@ -1,4 +1,4 @@
-import { List, Tabs } from 'antd';
+import { Button, Pagination, Skeleton, Tabs } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { listMyCoupons, type CouponStatus } from '@/api/promotion';
@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { PageHeader } from '@/components/common/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 import { CouponCard } from './CouponCard';
+import './CouponCard.css';
 
 // 四个状态页签：与设计框架 §8.3 一致，restored 不展示
 const TABS: Array<{ key: CouponStatus; label: string }> = [
@@ -19,7 +20,7 @@ const TABS: Array<{ key: CouponStatus; label: string }> = [
 // 我的优惠券每页记录数
 const PAGE_SIZE = 10;
 
-// 我的优惠券页面：四状态页签 + 分页
+// 我的优惠券页面：四状态页签 + 卡片流 + 分页
 export default function MyCouponsPage() {
   // 当前状态页签
   const [status, setStatus] = useState<CouponStatus>('unused');
@@ -49,6 +50,49 @@ export default function MyCouponsPage() {
   // 当前页记录
   const items = query.data?.items ?? [];
 
+  // 卡片区：加载占位、错误重试、空态与券卡片
+  let content;
+  if (query.isLoading) {
+    content = (
+      <div className="coupon-grid">
+        {[0, 1, 2, 3].map((key) => (
+          <div key={key} className="coupon-card coupon-card-skeleton">
+            <Skeleton active title={false} paragraph={{ rows: 3 }} />
+          </div>
+        ))}
+      </div>
+    );
+  } else if (query.error) {
+    content = (
+      <EmptyState
+        description="加载失败"
+        action={<Button onClick={() => void query.refetch()}>重试</Button>}
+      />
+    );
+  } else if (items.length === 0) {
+    content = <EmptyState description="暂无优惠券" />;
+  } else {
+    content = (
+      <>
+        <div className="coupon-grid">
+          {items.map((item) => (
+            <CouponCard key={item.id} coupon={item} />
+          ))}
+        </div>
+        {total > 0 && (
+          <div className="coupon-pagination">
+            <Pagination
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={onChange}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="我的优惠券" />
@@ -57,21 +101,7 @@ export default function MyCouponsPage() {
         items={TABS.map((tab) => ({ key: tab.key, label: tab.label }))}
         onChange={handleTabChange}
       />
-      {items.length === 0 && !query.isLoading ? (
-        <EmptyState description="暂无优惠券" />
-      ) : (
-        <List
-          loading={query.isLoading}
-          dataSource={items}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange,
-          }}
-          renderItem={(item) => <CouponCard coupon={item} />}
-        />
-      )}
+      {content}
     </div>
   );
 }
