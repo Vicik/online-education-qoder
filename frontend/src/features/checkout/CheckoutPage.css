@@ -20,7 +20,7 @@
   color: rgba(0, 0, 0, 0.88);
 }
 .checkout-card .checkout-section-title:not(:first-child) {
-  margin-top: 32px;
+  margin-top: 40px;
 }
 
 /* 产品行：封面 + 名称/类型 + 右侧价格 */
@@ -30,11 +30,11 @@
   gap: 24px;
 }
 .checkout-product-cover {
-  flex: 0 0 160px;
-  width: 160px;
-  height: 96px;
+  flex: 0 0 200px;
+  width: 200px;
+  height: 112px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 4px;
   background: #f0f2f5;
 }
 .checkout-product-cover img {
@@ -58,10 +58,10 @@
 }
 .checkout-product-name {
   margin: 0;
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 400;
   line-height: 1.4;
-  color: rgba(0, 0, 0, 0.88);
+  color: rgba(0, 0, 0, 0.75);
 }
 /* 课程类型：名称下方的浅灰小标签 */
 .checkout-product-type {
@@ -75,14 +75,62 @@
 .checkout-product-price {
   flex: none;
   align-self: flex-start;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--color-price);
 }
 
-/* 优惠券：下拉选择或「暂无优惠券」 */
-.checkout-coupon-select {
-  max-width: 380px;
+/* 多课程券：可点击的产品行列表，选中描边强调 */
+.checkout-course-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.checkout-course {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.checkout-course:hover {
+  border-color: #d9d9d9;
+}
+.checkout-course-active,
+.checkout-course-active:hover {
+  border-color: var(--color-cta);
+}
+
+/* 优惠券：可点击的面额块，选中后浅橙底 */
+.checkout-coupons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.checkout-coupon {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.checkout-coupon:hover {
+  color: #595959;
+}
+.checkout-coupon-active,
+.checkout-coupon-active:hover {
+  color: #d46b08;
+  background: #fff3e6;
+  border-color: #ffd591;
+}
+/* 券结算页的固定券：只展示选中样式，不提供取消 */
+.checkout-coupon-fixed {
+  cursor: default;
 }
 .checkout-empty {
   margin: 0;
@@ -106,21 +154,19 @@
 .checkout-pay-hint {
   margin: 16px 0 0;
   font-size: 14px;
-  color: #fa541c;
+  color: #f5222d;
 }
 .checkout-error {
   margin-top: 16px;
 }
 
-/* 底部结算栏：左金额右按钮 */
+/* 底部结算栏：金额行在上，确认按钮居右在下 */
 .checkout-footer {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 24px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
   margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
 }
 .checkout-summary {
   display: flex;
@@ -134,8 +180,14 @@
 }
 .checkout-summary-paid {
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.88);
+  color: #595959;
 }
+/* 券抵扣金额：红色强调 */
+.checkout-summary-discount {
+  margin: 0 2px 0 4px;
+  color: var(--color-price);
+}
+/* 需支付金额：0 元显示「免费」 */
 .checkout-summary-paid strong {
   margin-left: 4px;
   font-size: 20px;
@@ -155,7 +207,7 @@
   border-color: #0e8a4d !important;
 }
 
-/* 窄屏：产品行收窄封面，底部栏换行 */
+/* 窄屏：产品行收窄封面，底部栏保持右对齐 */
 @media (max-width: 720px) {
   .checkout-card {
     padding: 20px;
@@ -168,8 +220,7 @@
     width: 120px;
     height: 72px;
   }
-  .checkout-footer {
-    flex-direction: column;
-    align-items: flex-end;
+  .checkout-product-name {
+    font-size: 18px;
   }
 }

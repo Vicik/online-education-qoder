@@ -12,13 +12,11 @@ const STATUS_TEXT: Record<string, string> = {
   restored: '未使用',
 };
 
-// 券「去使用」目标：仅未使用可用；单课程跳详情，多课程跳列表
+// 券「去使用」目标：仅未使用可用；进入券结算页，适用课程由该页选择
 function couponTarget(coupon: CouponClaim): string | null {
-  // 非未使用状态不提供入口
-  if (coupon.status !== 'unused') return null;
-  // 适用课程 id 列表
-  const courseIds = coupon.courseIds ?? [];
-  return courseIds.length === 1 ? `/courses/${courseIds[0]}` : '/courses';
+  // 非未使用状态或券记录缺失时不提供入口
+  if (coupon.status !== 'unused' || coupon.id === undefined) return null;
+  return `/checkout/coupon/${coupon.id}`;
 }
 
 // 适用课程文案：单课程显示名称，多课程显示首个与总数

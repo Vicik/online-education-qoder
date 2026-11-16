@@ -1,5 +1,4 @@
-import { WechatOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Card, Select } from 'antd';
+import { Alert, App as AntdApp, Button, Card } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -13,6 +12,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { courseTypeLabel } from '@/lib/course';
 import { formatCents } from '@/lib/money';
 import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
+import { CheckoutFooter, CheckoutPayMethod, CheckoutProductRow } from './checkout-blocks';
 import './CheckoutPage.css';
 
 // 结算页：服务端计价；确认后创建订单并进入支付页
@@ -25,14 +25,16 @@ export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   // 既有待支付订单 id（拼团/秒杀预创建）
   const existingOrderId = Number(searchParams.get('orderId')) || null;
-  // 选中的券领取记录 id
-  const [couponId, setCouponId] = useState<number | undefined>();
+  // 选中的券领取记录 id：从我的优惠券「立即使用」进入时由 query 预选
+  const [couponId, setCouponId] = useState<number | undefined>(() => {
+    // query 中的券记录 id
+    const initial = Number(searchParams.get('couponId'));
+    return Number.isInteger(initial) && initial > 0 ? initial : undefined;
+  });
   // 提交后的业务错误（库存/限购等内联提示）
   const [submitError, setSubmitError] = useState<string | null>(null);
   // 已购买标记：展示去学习入口
   const [duplicatePurchase, setDuplicatePurchase] = useState(false);
-  // 封面是否加载失败
-  const [coverFailed, setCoverFailed] = useState(false);
   // 跳转
   const navigate = useNavigate();
   // AntD message
@@ -96,14 +98,11 @@ export default function CheckoutPage() {
   // 按钮文案：0 元为确认报名
   const submitLabel = paidCents === 0 ? '确认报名' : '确认支付';
 
-  // 适用的券选项
-  const couponOptions =
-    couponsQuery.data?.items
-      .filter((coupon) => coupon.id !== undefined && coupon.courseIds?.includes(courseId))
-      .map((coupon) => ({
-        value: coupon.id as number,
-        label: `${coupon.templateName ?? ''}（立减 ${formatCents(coupon.discountCents ?? 0)}）`,
-      })) ?? [];
+  // 适用的券：仅未使用且适用于本课程
+  const applicableCoupons =
+    couponsQuery.data?.items.filter(
+      (coupon) => coupon.id !== undefined && coupon.courseIds?.includes(courseId),
+    ) ?? [];
 
   // 提交：创建（或取既有）订单后进入支付页
   async function handleSubmit(): Promise<void> {
@@ -195,75 +194,56 @@ export default function CheckoutPage() {
     <div className="checkout-page">
       <section className="checkout-card">
         <h2 className="checkout-section-title">产品信息</h2>
-        <div className="checkout-product">
-          <div className="checkout-product-cover">
-            {coverUrl && !coverFailed ? (
-              <img
-                src={coverUrl}
-                alt={courseName}
-                onError={() => setCoverFailed(true)}
-              />
-            ) : (
-              <div className="checkout-product-cover-placeholder" />
-            )}
-          </div>
-          <div className="checkout-product-info">
-            <h3 className="checkout-product-name">{courseName}</h3>
-            {typeLabel && <span className="checkout-product-type">{typeLabel}</span>}
-          </div>
-          <span className="checkout-product-price">{formatCents(currentCents)}</span>
-        </div>
+        <CheckoutProductRow
+          coverUrl={coverUrl}
+          name={courseName}
+          typeLabel={typeLabel}
+          priceLabel={currentCents === 0 ? '免费' : formatCents(currentCents)}
+        />
 
         {existingOrderId === null && (
           <>
             <h2 className="checkout-section-title">优惠券</h2>
-            {couponOptions.length > 0 ? (
-              <Select
-                allowClear
-                className="checkout-coupon-select"
-                placeholder="不使用优惠券"
-                value={couponId}
-                onChange={(value) => setCouponId(value)}
-                options={couponOptions}
-              />
+            {applicableCoupons.length > 0 ? (
+              <div className="checkout-coupons">
+                {applicableCoupons.map((coupon) => {
+                  // 当前券是否已选中
+                  const active = coupon.id === couponId;
+                  return (
+                    <button
+                      key={coupon.id}
+                      type="button"
+                      className={
+                        active ? 'checkout-coupon checkout-coupon-active' : 'checkout-coupon'
+                      }
+                      aria-pressed={active}
+                      onClick={() => setCouponId(active ? undefined : coupon.id)}
+                    >
+                      {formatCents(coupon.discountCents ?? 0)} 优惠券
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
               <p className="checkout-empty">暂无优惠券</p>
             )}
           </>
         )}
 
-        <h2 className="checkout-section-title">支付方式</h2>
-        <div className="checkout-pay-method">
-          <WechatOutlined />
-          <span>微信支付</span>
-        </div>
-        <p className="checkout-pay-hint">请在30分钟内完成支付</p>
+        <CheckoutPayMethod />
 
         {submitError && <Alert type="error" showIcon message={submitError} className="checkout-error" />}
 
-        <div className="checkout-footer">
-          <div className="checkout-summary">
-            {originalCents > currentCents || discountCents > 0 ? (
-              <span className="checkout-summary-origin">
-                原价 {formatCents(originalCents)}
-                {discountCents > 0 && `，已优惠 ${formatCents(discountCents)}`}
-              </span>
-            ) : null}
-            <span className="checkout-summary-paid">
-              需支付 <strong>{formatCents(paidCents)}</strong>
-            </span>
-          </div>
-          <Button
-            type="primary"
-            size="large"
-            className="checkout-submit"
-            disabled={!payable || createMutation.isPending}
-            loading={createMutation.isPending}
-            onClick={handleSubmit}
-          >
-            {submitLabel}
-          </Button>
-        </div>
+        <CheckoutFooter
+          originalCents={originalCents}
+          currentCents={currentCents}
+          discountCents={discountCents}
+          paidCents={paidCents}
+          submitLabel={submitLabel}
+          disabled={!payable || createMutation.isPending}
+          loading={createMutation.isPending}
+          onSubmit={handleSubmit}
+        />
       </section>
     </div>
   );

@@ -137,8 +137,7 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('请在30分钟内完成支付')).toBeInTheDocument();
     expect(screen.getByText(/需支付/)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByText(/新学员立减券/));
+    await userEvent.click(await screen.findByRole('button', { name: '¥20.00 优惠券' }));
     expect(await screen.findByText('¥79.00')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '确认支付' }));
@@ -146,6 +145,50 @@ describe('CheckoutPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/order/1/pay'));
     expect(created).toBe(1);
     expect(idempotencyKey.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('携券进入结算页时预选券并抵扣', async () => {
+    server.use(
+      http.get(/\/api\/v1\/checkout\/1\/preview$/, ({ request }) => {
+        const couponId = new URL(request.url).searchParams.get('couponId');
+        return HttpResponse.json(envelope(preview(couponId ? Number(couponId) : null)));
+      }),
+      http.get(/\/api\/v1\/user\/coupons$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              {
+                id: 9,
+                templateId: 1,
+                templateName: '新学员立减券',
+                discountCents: 2000,
+                startAt: '2026-11-01T00:00:00.000Z',
+                endAt: '2026-12-31T00:00:00.000Z',
+                courseIds: [1],
+                status: 'unused',
+                claimedAt: '2026-11-01T00:00:00.000Z',
+                usedAt: null,
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 100,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(
+      [{ path: '/checkout/:courseId', element: <CheckoutPage /> }],
+      '/checkout/1?couponId=9',
+    );
+
+    expect(await screen.findByText('¥79.00')).toBeInTheDocument();
+    expect(screen.getByText(/优惠券已抵扣/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '¥20.00 优惠券' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('4003 提示已购买并可跳学习页', async () => {
@@ -221,8 +264,7 @@ describe('CheckoutPage', () => {
     );
 
     expect((await screen.findAllByText('¥99.00')).length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByText(/新学员立减券/));
+    await userEvent.click(await screen.findByRole('button', { name: '¥20.00 优惠券' }));
     expect(await screen.findByText('¥79.00')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '确认支付' }));

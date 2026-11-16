@@ -155,7 +155,7 @@ function claim(overrides: Partial<Record<string, unknown>> = {}) {
 describe('MyCouponsPage', () => {
   beforeEach(() => loginAsUser());
 
-  it('四个页签按状态请求，单课程跳详情', async () => {
+  it('四个页签按状态请求，单课程进结算页并带上券', async () => {
     // 捕获状态参数
     const statuses: string[] = [];
     server.use(
@@ -169,15 +169,18 @@ describe('MyCouponsPage', () => {
 
     renderWithProviders([{ path: '/user/coupons', element: <MyCouponsPage /> }], '/user/coupons');
 
-    expect(await screen.findByText('新学员立减券')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '去使用' })).toHaveAttribute('href', '/courses/1');
+    expect(await screen.findByText('¥20.00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '立即使用' })).toHaveAttribute(
+      'href',
+      '/checkout/coupon/21',
+    );
     expect(statuses[0]).toBe('unused');
 
     await userEvent.click(screen.getByRole('tab', { name: '已使用' }));
     await waitFor(() => expect(statuses).toContain('used'));
   });
 
-  it('多课程券去使用跳课程列表，已使用不提供入口', async () => {
+  it('多课程券同样进入券结算页，已使用不提供入口', async () => {
     server.use(
       http.get(/\/api\/v1\/user\/coupons$/, ({ request }) => {
         const status = new URL(request.url).searchParams.get('status');
@@ -197,10 +200,13 @@ describe('MyCouponsPage', () => {
 
     renderWithProviders([{ path: '/user/coupons', element: <MyCouponsPage /> }], '/user/coupons');
 
-    expect(await screen.findByRole('link', { name: '去使用' })).toHaveAttribute('href', '/courses');
+    expect(await screen.findByRole('link', { name: '立即使用' })).toHaveAttribute(
+      'href',
+      '/checkout/coupon/22',
+    );
     await userEvent.click(screen.getByRole('tab', { name: '已使用' }));
     await waitFor(() =>
-      expect(screen.queryByRole('link', { name: '去使用' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('link', { name: '立即使用' })).not.toBeInTheDocument(),
     );
   });
 });
