@@ -120,12 +120,12 @@ describe('exam form', () => {
 
     await userEvent.type(screen.getByLabelText('考试名称'), '期中考试');
     await userEvent.type(screen.getByLabelText('考试说明'), '覆盖前四章');
+    // 说明框高度自适应，不再固定行数
+    expect(screen.getByLabelText('考试说明')).not.toHaveAttribute('rows');
 
-    // 选择两道题
-    await userEvent.click(screen.getByRole('combobox', { name: '组卷题目' }));
-    await userEvent.click(await screen.findByText('第一题（5 分）'));
-    await userEvent.click(await screen.findByText('第二题（10 分）'));
-    await userEvent.keyboard('{Escape}');
+    // 勾选两道题
+    await userEvent.click(await screen.findByRole('checkbox', { name: /第一题/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /第二题/ }));
 
     expect(screen.getByTestId('exam-total')).toHaveTextContent('试卷总分：15 分');
 
@@ -218,6 +218,34 @@ describe('exam form', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText('考试名称')).toBeDisabled();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
+    // 只读态不渲染选题列表，只保留有序题目列表
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    const firstRow = await screen.findByTestId('question-order-2');
+    expect(within(firstRow).getByText(/第二题/)).toBeInTheDocument();
+  });
+
+  it('选题列表按题干搜索过滤', async () => {
+    server.use(poolHandler);
+
+    renderWithProviders(routes, '/admin/exams/create');
+
+    const search = await screen.findByPlaceholderText('搜索题干');
+    await userEvent.type(search, '第二');
+
+    expect(
+      screen.queryByRole('checkbox', { name: /第一题/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: /第二题/ }),
+    ).toBeInTheDocument();
+
+    // 勾选后进入已选列表，再取消勾选即移除
+    await userEvent.click(screen.getByRole('checkbox', { name: /第二题/ }));
+    expect(await screen.findByTestId('question-order-2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: /第二题/ }));
+    await waitFor(() =>
+      expect(screen.queryByTestId('question-order-2')).not.toBeInTheDocument(),
+    );
   });
 
   it('保存遇 409：弹出刷新提示，点刷新重取详情', async () => {

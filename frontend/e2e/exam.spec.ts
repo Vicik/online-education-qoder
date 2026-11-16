@@ -36,14 +36,12 @@ test('管理员组卷发布，学员作答后看到成绩与解析', async ({ br
   await adminPage.getByLabel('考试名称').fill(examName);
   await adminPage.getByLabel('考试说明').fill('E2E 自动组卷');
   await adminPage.getByLabel('考试时长（分钟）').fill('30');
-  const questionPicker = adminPage.getByRole('combobox', { name: '组卷题目' });
-  await questionPicker.click();
-  // 搜索题干后回车选中，避免点击虚拟列表中的不可见选项
-  await questionPicker.fill(stemFirst);
-  await adminPage.keyboard.press('Enter');
-  await questionPicker.fill(stemSecond);
-  await adminPage.keyboard.press('Enter');
-  await adminPage.keyboard.press('Escape');
+  // 搜索题干后勾选，避免长列表滚动定位
+  const questionSearch = adminPage.getByPlaceholder('搜索题干');
+  await questionSearch.fill(stemFirst);
+  await adminPage.getByRole('checkbox', { name: stemFirst }).check();
+  await questionSearch.fill(stemSecond);
+  await adminPage.getByRole('checkbox', { name: stemSecond }).check();
   await adminPage.getByLabel('及格分').fill('6');
   await adminPage.getByRole('button', { name: '创建考试' }).click();
   await adminPage.getByRole('button', { name: '确认创建' }).click();
