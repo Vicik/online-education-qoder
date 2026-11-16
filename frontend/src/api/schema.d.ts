@@ -679,6 +679,8 @@ export interface paths {
                     /** @description 每页条数，默认 20 最大 100 */
                     pageSize?: components["parameters"]["PageSize"];
                     status?: "draft" | "published" | "unpublished";
+                    /** @description 为 true 时仅返回当前没有未开始/进行中拼团或秒杀活动的课程 */
+                    withoutActivePromotion?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -4689,6 +4691,10 @@ export interface components {
             id?: number;
             userId?: number;
             nickname?: string;
+            /** @description 回复人头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
+            avatarKey?: string | null;
+            /** @description 回复人头像展示地址：key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
+            avatarUrl?: string | null;
             replyToNickname?: string | null;
             /** @description img 的 src 已换公开 URL，data-key 保留 */
             content?: string;
@@ -4699,6 +4705,10 @@ export interface components {
             id?: number;
             userId?: number;
             nickname?: string;
+            /** @description 评论人头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null */
+            avatarKey?: string | null;
+            /** @description 评论人头像展示地址：key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 */
+            avatarUrl?: string | null;
             /** @description img 的 src 已换公开 URL，data-key 保留 */
             content?: string;
             /** Format: date-time */

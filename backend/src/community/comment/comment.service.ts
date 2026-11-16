@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { BizException } from '../../common/exceptions/biz.exception';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service';
+import { isStorageKey } from '../../common/utils/media.util';
 import { sanitizeRichHtml } from '../../common/utils/sanitize.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../../storage/storage.service';
@@ -16,7 +17,7 @@ interface CreatedCommentRow {
   content: string; // 内容
   createdAt: Date; // 创建时间
   replyToUserId: number | null; // 回复目标用户 id
-  user: { nickname: string }; // 评论人
+  user: { nickname: string; avatarUrl: string | null }; // 评论人
 }
 
 // 评论服务：一级评论、回复（仅两层）与删除
@@ -49,13 +50,17 @@ export class CommentService {
       async () => {
         const created = (await this.prisma.comment.create({
           data: { postId, userId, content, parentId: null },
-          include: { user: { select: { nickname: true } } },
+          include: { user: { select: { nickname: true, avatarUrl: true } } },
         })) as CreatedCommentRow;
 
         return {
           id: created.id,
           userId: created.userId,
           nickname: created.user.nickname,
+          avatarKey: isStorageKey(created.user.avatarUrl)
+            ? created.user.avatarUrl
+            : null,
+          avatarUrl: await this.storage.resolveUrl(created.user.avatarUrl),
           content: await this.storage.resolveRichHtml(created.content),
           createdAt: created.createdAt,
           replies: [],
@@ -101,7 +106,7 @@ export class CommentService {
             parentId: parent.id,
             replyToUserId: dto.replyToUserId ?? null,
           },
-          include: { user: { select: { nickname: true } } },
+          include: { user: { select: { nickname: true, avatarUrl: true } } },
         })) as CreatedCommentRow;
 
         // 被回复人昵称：未指定目标时为 null
@@ -119,6 +124,10 @@ export class CommentService {
           id: created.id,
           userId: created.userId,
           nickname: created.user.nickname,
+          avatarKey: isStorageKey(created.user.avatarUrl)
+            ? created.user.avatarUrl
+            : null,
+          avatarUrl: await this.storage.resolveUrl(created.user.avatarUrl),
           replyToNickname,
           content: await this.storage.resolveRichHtml(created.content),
           createdAt: created.createdAt,

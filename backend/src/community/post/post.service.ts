@@ -30,6 +30,8 @@ export interface ReplyView {
   id: number; // 回复 id
   userId: number; // 回复人 id
   nickname: string; // 回复人昵称
+  avatarKey: string | null; // 回复人头像图片 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 回复人头像展示地址（key 为公开 URL）
   replyToNickname: string | null; // 被回复人昵称（未指定时 null）
   content: string; // 回复内容
   createdAt: Date; // 回复时间
@@ -40,6 +42,8 @@ export interface CommentView {
   id: number; // 评论 id
   userId: number; // 评论人 id
   nickname: string; // 评论人昵称
+  avatarKey: string | null; // 评论人头像图片 key（历史 http 数据为 null）
+  avatarUrl: string | null; // 评论人头像展示地址（key 为公开 URL）
   content: string; // 评论内容
   createdAt: Date; // 评论时间
   replies: ReplyView[]; // 该评论下的全部回复
@@ -78,7 +82,7 @@ interface ReplyRow {
   content: string; // 回复内容
   createdAt: Date; // 回复时间
   replyToUserId: number | null; // 被回复人 id
-  user: { nickname: string }; // 回复人
+  user: { nickname: string; avatarUrl: string | null }; // 回复人
 }
 
 // 一级评论行：含回复列表
@@ -87,7 +91,7 @@ interface CommentRow {
   userId: number; // 评论人 id
   content: string; // 评论内容
   createdAt: Date; // 评论时间
-  user: { nickname: string }; // 评论人
+  user: { nickname: string; avatarUrl: string | null }; // 评论人
   replies: ReplyRow[]; // 回复列表
 }
 
@@ -161,10 +165,10 @@ export class PostService {
       where: { postId, parentId: null },
       orderBy: { createdAt: 'asc' },
       include: {
-        user: { select: { nickname: true } },
+        user: { select: { nickname: true, avatarUrl: true } },
         replies: {
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: { nickname: true } } },
+          include: { user: { select: { nickname: true, avatarUrl: true } } },
         },
       },
     })) as unknown as CommentRow[];
@@ -207,6 +211,10 @@ export class PostService {
         id: comment.id,
         userId: comment.userId,
         nickname: comment.user.nickname,
+        avatarKey: isStorageKey(comment.user.avatarUrl)
+          ? comment.user.avatarUrl
+          : null,
+        avatarUrl: await this.storage.resolveUrl(comment.user.avatarUrl),
         content: await this.storage.resolveRichHtml(comment.content),
         createdAt: comment.createdAt,
         replies: await Promise.all(
@@ -214,6 +222,10 @@ export class PostService {
             id: reply.id,
             userId: reply.userId,
             nickname: reply.user.nickname,
+            avatarKey: isStorageKey(reply.user.avatarUrl)
+              ? reply.user.avatarUrl
+              : null,
+            avatarUrl: await this.storage.resolveUrl(reply.user.avatarUrl),
             replyToNickname:
               reply.replyToUserId === null
                 ? null

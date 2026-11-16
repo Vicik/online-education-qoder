@@ -691,6 +691,8 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
+        avatarKey: { type: string, nullable: true, description: 回复人头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: 回复人头像展示地址：key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         replyToNickname: { type: string, nullable: true }
         content: { type: string, description: img 的 src 已换公开 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
@@ -700,6 +702,8 @@ components:
         id: { type: integer }
         userId: { type: integer }
         nickname: { type: string }
+        avatarKey: { type: string, nullable: true, description: 评论人头像图片 key（image/YYYY/MM/DD/uuid.ext）；历史 http(s) 数据为 null }
+        avatarUrl: { type: string, nullable: true, description: 评论人头像展示地址：key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         content: { type: string, description: img 的 src 已换公开 URL，data-key 保留 }
         createdAt: { type: string, format: date-time }
         replies:
