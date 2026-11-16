@@ -60,7 +60,6 @@ export const ROUTES: RouteMeta[] = [
   { path: '/admin/exams/create', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/exams/ExamCreatePage') },
   { path: '/admin/exams/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/exams/ExamEditPage') },
   { path: '/admin/coupons', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/coupons/CouponListPage') },
-  { path: '/admin/coupons/:id', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/coupons/CouponEditPage') },
   { path: '/admin/blocked-words', layout: 'admin', requiresAuth: true, roles: ['admin'], lazy: () => import('@/features/admin/blocked-words/BlockedWordListPage') },
 ];
 

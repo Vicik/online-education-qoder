@@ -203,6 +203,162 @@ describe('CouponListPage', () => {
     );
   });
 
+  it(
+    '点编辑打开弹窗：详情回填表单字段',
+    async () => {
+      server.use(
+        coursesHandler,
+        listHandler(),
+        http.get(/\/api\/v1\/admin\/coupons\/9$/, () =>
+          HttpResponse.json(envelope(disabledTemplate)),
+        ),
+      );
+
+      renderWithProviders(
+        [{ path: '/admin/coupons', element: <CouponListPage /> }],
+        '/admin/coupons',
+      );
+
+      const row = (await screen.findByText('满 100 减 20')).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: '编辑' }));
+
+      expect(await screen.findByText('编辑优惠券')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByLabelText('券名称')).toHaveValue('满 100 减 20'),
+      );
+      expect(screen.getByLabelText('发放总量')).toHaveValue('100');
+      // InputNumber 按 precision 格式化，接受 20 与 20.00 两种渲染
+      expect(
+        (screen.getByPlaceholderText('面额（元）') as HTMLInputElement).value,
+      ).toMatch(/^20(\.00)?$/);
+      expect(screen.getByRole('button', { name: '保存' })).toBeEnabled();
+    },
+    60_000,
+  );
+
+  it(
+    '编辑保存：携带详情 version，成功后刷新列表',
+    async () => {
+      // 编辑请求体
+      let body: Record<string, unknown> | null = null;
+      server.use(
+        coursesHandler,
+        listHandler(),
+        http.get(/\/api\/v1\/admin\/coupons\/9$/, () =>
+          HttpResponse.json(envelope(disabledTemplate)),
+        ),
+        http.put(/\/api\/v1\/admin\/coupons\/9$/, async ({ request }) => {
+          body = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(
+            envelope({ ...disabledTemplate, name: '改名券', version: 4 }),
+          );
+        }),
+      );
+
+      renderWithProviders(
+        [{ path: '/admin/coupons', element: <CouponListPage /> }],
+        '/admin/coupons',
+      );
+
+      const row = (await screen.findByText('满 100 减 20')).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: '编辑' }));
+
+      const nameInput = await screen.findByLabelText('券名称');
+      await waitFor(() => expect(nameInput).toHaveValue('满 100 减 20'));
+      fireEvent.change(nameInput, { target: { value: '改名券' } });
+      await clickButton('保存');
+      await clickButton('确认保存');
+
+      await waitFor(() => expect(body).not.toBeNull(), { timeout: 10_000 });
+      expect(body).toMatchObject({ version: 3, name: '改名券' });
+      expect(await screen.findByText('优惠券模板已保存')).toBeInTheDocument();
+    },
+    60_000,
+  );
+
+  it(
+    '启用态编辑：弹窗只读并提示先停用',
+    async () => {
+      server.use(
+        coursesHandler,
+        listHandler(),
+        http.get(/\/api\/v1\/admin\/coupons\/10$/, () =>
+          HttpResponse.json(envelope(enabledTemplate)),
+        ),
+      );
+
+      renderWithProviders(
+        [{ path: '/admin/coupons', element: <CouponListPage /> }],
+        '/admin/coupons',
+      );
+
+      const row = (await screen.findByText('满 200 减 50')).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: '编辑' }));
+
+      expect(
+        await screen.findByText('模板已启用，请先停用后再编辑'),
+      ).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByLabelText('券名称')).toBeDisabled(),
+      );
+      expect(screen.getByRole('button', { name: '保存' })).toBeDisabled();
+    },
+    60_000,
+  );
+
+  it(
+    '编辑保存遇 409：弹出刷新提示，点刷新重取详情',
+    async () => {
+      // 详情请求次数
+      let detailCount = 0;
+      // 当前详情版本（刷新后变 4）
+      let currentVersion = 3;
+      server.use(
+        coursesHandler,
+        listHandler(),
+        http.get(/\/api\/v1\/admin\/coupons\/9$/, () => {
+          detailCount += 1;
+          return HttpResponse.json(
+            envelope({ ...disabledTemplate, version: currentVersion }),
+          );
+        }),
+        http.put(/\/api\/v1\/admin\/coupons\/9$/, () => {
+          currentVersion = 4;
+          return HttpResponse.json(
+            {
+              code: 4004,
+              message: '数据已被修改，请刷新后重试',
+              data: null,
+              requestId: 'r-conflict',
+            },
+            { status: 409 },
+          );
+        }),
+      );
+
+      renderWithProviders(
+        [{ path: '/admin/coupons', element: <CouponListPage /> }],
+        '/admin/coupons',
+      );
+
+      const row = (await screen.findByText('满 100 减 20')).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: '编辑' }));
+      await waitFor(() =>
+        expect(screen.getByLabelText('券名称')).toHaveValue('满 100 减 20'),
+      );
+      await clickButton('保存');
+      await clickButton('确认保存');
+
+      expect(
+        (await screen.findAllByText('内容已在其他页面被修改')).length,
+      ).toBeGreaterThan(0);
+      expect(detailCount).toBe(1);
+      await clickButton('刷新');
+      await waitFor(() => expect(detailCount).toBe(2), { timeout: 10_000 });
+    },
+    60_000,
+  );
+
   it('启用模板：二次确认后调用启用接口', async () => {
     // 启用访问的 URL
     let enableUrl = '';

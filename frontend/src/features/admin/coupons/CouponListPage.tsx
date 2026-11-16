@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { App as AntdApp, Button, Select, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   disableCouponTemplate,
@@ -18,6 +17,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { formatShanghai } from '@/lib/datetime';
 import { usePagination } from '@/hooks/usePagination';
+import { CouponEditModal } from './CouponEditModal';
 import { CouponFormModal } from './CouponFormModal';
 
 // 列表每页数量
@@ -44,6 +44,8 @@ export default function CouponListPage() {
   const { page, pageSize, onChange } = usePagination(total, PAGE_SIZE);
   // 创建弹窗开关
   const [createOpen, setCreateOpen] = useState(false);
+  // 编辑弹窗目标模板，null 表示关闭
+  const [editTemplateId, setEditTemplateId] = useState<number | null>(null);
 
   // 模板列表查询：状态与分页共同决定缓存键
   const query = useQuery({
@@ -123,7 +125,13 @@ export default function CouponListPage() {
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: AdminCouponTemplate) => (
-        <Link to={`/admin/coupons/${record.id ?? 0}`}>{name}</Link>
+        <Button
+          type="link"
+          style={{ padding: 0, height: 'auto' }}
+          onClick={() => setEditTemplateId(record.id ?? 0)}
+        >
+          {name}
+        </Button>
       ),
     },
     {
@@ -157,7 +165,12 @@ export default function CouponListPage() {
       key: 'actions',
       render: (_: unknown, record: AdminCouponTemplate) => (
         <Space>
-          <Link to={`/admin/coupons/${record.id ?? 0}`}>编辑</Link>
+          <Button
+            type="link"
+            onClick={() => setEditTemplateId(record.id ?? 0)}
+          >
+            编辑
+          </Button>
           {record.status === 'disabled' ? (
             <ConfirmAction
               title="启用优惠券"
@@ -222,6 +235,10 @@ export default function CouponListPage() {
         emptyText="还没有优惠券模板"
       />
       <CouponFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CouponEditModal
+        templateId={editTemplateId}
+        onClose={() => setEditTemplateId(null)}
+      />
     </div>
   );
 }
