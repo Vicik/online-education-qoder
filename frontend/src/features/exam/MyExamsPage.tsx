@@ -73,6 +73,8 @@ export default function MyExamsPage() {
                   <Link
                     className="exam-record-title"
                     to={`/exams/${record.examId}`}
+                    // 已交卷携带记录 id：详情页直接展示题目解析，不再重新开始
+                    state={submitted ? { attemptId: record.attemptId } : undefined}
                   >
                     {record.examTitle}
                   </Link>

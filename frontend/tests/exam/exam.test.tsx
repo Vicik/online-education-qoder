@@ -1,15 +1,31 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExamDetailPage from '@/features/exam/ExamDetailPage';
 import ExamListPage from '@/features/exam/ExamListPage';
 import MyExamsPage from '@/features/exam/MyExamsPage';
+import { useSessionStore } from '@/stores/session';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../utils/render';
 
 // 成功信封
 function envelope<T>(data: T) {
   return { code: 0, message: 'ok', data, requestId: 'r-exam' };
+}
+
+// 登录普通用户：列表页据此拉取已参加记录
+function loginAsUser() {
+  useSessionStore.setState({
+    user: {
+      id: 1,
+      email: 'u@example.com',
+      nickname: '学员',
+      role: 'user',
+      avatarKey: null,
+      avatarUrl: null,
+      gender: 'secret',
+    },
+  });
 }
 
 // 考试摘要桩
@@ -28,8 +44,22 @@ function examBrief(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+// 每个用例默认：登录 + 空推荐 + 无考试记录，避免未处理请求
+beforeEach(() => {
+  loginAsUser();
+  server.use(
+    http.get(/\/api\/v1\/home\/recommendations$/, () =>
+      HttpResponse.json(envelope({ courses: [] })),
+    ),
+    http.get(/\/api\/v1\/user\/exams$/, () =>
+      HttpResponse.json(envelope({ items: [], total: 0, page: 1, pageSize: 100 })),
+    ),
+  );
+});
+afterEach(() => useSessionStore.setState({ user: null }));
+
 describe('ExamListPage', () => {
-  it('展示考试关键信息与入口', async () => {
+  it('展示考试关键信息与参加入口', async () => {
     server.use(
       http.get(/\/api\/v1\/exams$/, () =>
         HttpResponse.json(envelope({ items: [examBrief()], total: 1, page: 1, pageSize: 12 })),
@@ -39,10 +69,82 @@ describe('ExamListPage', () => {
     renderWithProviders([{ path: '/exams', element: <ExamListPage /> }], '/exams');
 
     expect(await screen.findByText('期中测验')).toBeInTheDocument();
-    expect(screen.getByText('时长：60 分钟')).toBeInTheDocument();
-    expect(screen.getByText('题数：2')).toBeInTheDocument();
-    expect(screen.getByText('及格分 6 / 总分 10')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '进入考试' })).toHaveAttribute('href', '/exams/1');
+    expect(screen.getByText('时长：60分钟')).toBeInTheDocument();
+    expect(screen.getByText('题目总数：2')).toBeInTheDocument();
+    expect(screen.getByText('总分数：10')).toBeInTheDocument();
+    expect(screen.getByText('及格分：6')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '立即考试' })).toBeInTheDocument();
+  });
+
+  it('确认参加后进入答题页并自动开始计时', async () => {
+    server.use(
+      http.get(/\/api\/v1\/exams$/, () =>
+        HttpResponse.json(envelope({ items: [examBrief()], total: 1, page: 1, pageSize: 12 })),
+      ),
+      http.get(/\/api\/v1\/exams\/1$/, () => HttpResponse.json(envelope(examBrief()))),
+      http.post(/\/api\/v1\/exams\/1\/attempts$/, () =>
+        HttpResponse.json(envelope(startData()), { status: 201 }),
+      ),
+      http.get(/\/api\/v1\/exams\/1\/attempts\/7\/result$/, () => unsubmittedResponse()),
+    );
+
+    const { router } = renderWithProviders(
+      [
+        { path: '/exams', element: <ExamListPage /> },
+        { path: '/exams/:id', element: <ExamDetailPage /> },
+      ],
+      '/exams',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '立即考试' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText('是否要参加该场考试？', {
+        selector: '.ant-modal-confirm-title',
+      }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: '立即考试' }));
+
+    expect(await screen.findByText('单选题干')).toBeInTheDocument();
+    expect(screen.getByText('剩余时间')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/exams/1');
+  });
+
+  it('已参加的考试展示不可点击的已参加按钮', async () => {
+    server.use(
+      http.get(/\/api\/v1\/exams$/, () =>
+        HttpResponse.json(envelope({ items: [examBrief()], total: 1, page: 1, pageSize: 12 })),
+      ),
+      http.get(/\/api\/v1\/user\/exams$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              {
+                attemptId: 7,
+                examId: 1,
+                examTitle: '期中测验',
+                questionCount: 2,
+                score: null,
+                totalScore: 10,
+                passScore: 6,
+                passed: null,
+                submittedAt: null,
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 100,
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders([{ path: '/exams', element: <ExamListPage /> }], '/exams');
+
+    const joined = await screen.findByRole('button', { name: '已参加' });
+    expect(joined).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '立即考试' })).not.toBeInTheDocument();
   });
 
   it('无考试时显示空态', async () => {
@@ -167,14 +269,19 @@ describe('ExamDetailPage', () => {
     renderWithProviders(detailRoutes, '/exams/1');
 
     expect(await screen.findByText('期中测验')).toBeInTheDocument();
-    expect(screen.getByText('时长：60 分钟')).toBeInTheDocument();
-    expect(screen.getByText('题数：2')).toBeInTheDocument();
+    expect(screen.getByText('题目总数：2')).toBeInTheDocument();
+    expect(screen.getByText('总分数：10')).toBeInTheDocument();
+    expect(screen.getByText('及格分：6')).toBeInTheDocument();
+    expect(screen.getByText('时间：60分钟')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '开始考试' }));
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     expect(await screen.findByText('单选题干')).toBeInTheDocument();
     expect(screen.getByText('多选题干')).toBeInTheDocument();
+    expect(screen.getByText('剩余时间')).toBeInTheDocument();
+    expect(screen.getByText('第1题 单选题')).toBeInTheDocument();
+    expect(screen.getByText('第2题 多选题')).toBeInTheDocument();
   });
 
   it('单选渲染 Radio、多选渲染 Checkbox，且不展示答案', async () => {
@@ -379,7 +486,7 @@ describe('ExamDetailPage', () => {
 });
 
 describe('MyExamsPage', () => {
-  it('已交卷记录展示成绩与查看成绩入口', async () => {
+  it('已交卷记录展示成绩与考试入口', async () => {
     server.use(
       http.get(/\/api\/v1\/user\/exams$/, () =>
         HttpResponse.json(
@@ -389,6 +496,7 @@ describe('MyExamsPage', () => {
                 attemptId: 9,
                 examId: 5,
                 examTitle: '期中测验',
+                questionCount: 2,
                 score: 8,
                 totalScore: 10,
                 passScore: 6,
@@ -406,10 +514,61 @@ describe('MyExamsPage', () => {
 
     renderWithProviders([{ path: '/user/exams', element: <MyExamsPage /> }], '/user/exams');
 
-    expect(await screen.findByText('期中测验')).toBeInTheDocument();
-    expect(screen.getByText('8 / 10')).toBeInTheDocument();
-    expect(screen.getByText('及格')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '查看成绩' })).toHaveAttribute('href', '/exams/5');
+    expect(await screen.findByRole('link', { name: '期中测验' })).toHaveAttribute(
+      'href',
+      '/exams/5',
+    );
+    expect(screen.getByText('考试完成')).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '继续考试' })).not.toBeInTheDocument();
+  });
+
+  it('已交卷记录点击标题直接查看题目解析', async () => {
+    server.use(
+      http.get(/\/api\/v1\/user\/exams$/, () =>
+        HttpResponse.json(
+          envelope({
+            items: [
+              {
+                attemptId: 9,
+                examId: 5,
+                examTitle: '期中测验',
+                questionCount: 2,
+                score: 8,
+                totalScore: 10,
+                passScore: 6,
+                passed: true,
+                submittedAt: '2026-11-10T00:05:00.000Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        ),
+      ),
+      http.get(/\/api\/v1\/exams\/5$/, () =>
+        HttpResponse.json(envelope(examBrief({ id: 5 }))),
+      ),
+      http.get(/\/api\/v1\/exams\/5\/attempts\/9\/result$/, () =>
+        HttpResponse.json(envelope(resultData())),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      [
+        { path: '/user/exams', element: <MyExamsPage /> },
+        { path: '/exams/:id', element: <ExamDetailPage /> },
+      ],
+      '/user/exams',
+    );
+
+    await user.click(await screen.findByRole('link', { name: '期中测验' }));
+
+    expect(await screen.findByText('成绩：期中测验')).toBeInTheDocument();
+    expect(screen.getByText(/单选解析/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '返回我的考试' })).toBeInTheDocument();
   });
 
   it('未交卷记录展示继续考试', async () => {
@@ -422,6 +581,7 @@ describe('MyExamsPage', () => {
                 attemptId: 9,
                 examId: 5,
                 examTitle: '期中测验',
+                questionCount: 2,
                 score: null,
                 totalScore: 10,
                 passScore: 6,
@@ -439,7 +599,8 @@ describe('MyExamsPage', () => {
 
     renderWithProviders([{ path: '/user/exams', element: <MyExamsPage /> }], '/user/exams');
 
-    expect(await screen.findByText('未交卷')).toBeInTheDocument();
+    expect(await screen.findByText('进行中')).toBeInTheDocument();
+    expect(screen.getByText('尚未交卷')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '继续考试' })).toHaveAttribute('href', '/exams/5');
   });
 });

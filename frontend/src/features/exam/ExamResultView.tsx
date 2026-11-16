@@ -7,6 +7,8 @@ import { formatShanghai } from '@/lib/datetime';
 export function ExamResultView(props: {
   result: AttemptResultData;
   onBack: () => void;
+  // 返回按钮文案：默认返回考试列表，从我的考试进入时为返回我的考试
+  backText?: string;
 }) {
   // 成绩数据
   const { result } = props;
@@ -17,7 +19,7 @@ export function ExamResultView(props: {
     <div>
       <PageHeader
         title={`成绩：${result.examTitle}`}
-        extra={<Button onClick={props.onBack}>返回考试列表</Button>}
+        extra={<Button onClick={props.onBack}>{props.backText ?? '返回考试列表'}</Button>}
       />
       <Card style={{ marginBottom: 16 }}>
         <Space size={24} wrap>

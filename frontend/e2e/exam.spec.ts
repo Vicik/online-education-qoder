@@ -73,7 +73,7 @@ test('管理员组卷发布，学员作答后看到成绩与解析', async ({ br
   await expect(userPage.getByText(stemFirst)).toBeVisible();
 
   // 两题都选 A
-  const correctOptions = userPage.getByRole('radio', { name: 'A. 正确选项' });
+  const correctOptions = userPage.getByRole('radio', { name: 'A 正确选项' });
   await correctOptions.nth(0).check();
   await correctOptions.nth(1).check();
 

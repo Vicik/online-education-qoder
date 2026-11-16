@@ -1,0 +1,21 @@
+/* 考试页共用：主按钮沿用全站绿色 CTA */
+.exam-cta.ant-btn-primary {
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+}
+
+.exam-cta.ant-btn-primary:not(:disabled):hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}
+
+/* 确认弹窗的确认按钮：参考图为绿色 */
+.exam-confirm-ok.ant-btn-primary {
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+}
+
+.exam-confirm-ok.ant-btn-primary:not(:disabled):hover {
+  background: #0e8a4d !important;
+  border-color: #0e8a4d !important;
+}

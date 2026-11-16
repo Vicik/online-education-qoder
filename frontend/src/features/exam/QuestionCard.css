@@ -1,0 +1,99 @@
+/* 单题卡片：灰色题干头 + 白色作答区 */
+.exam-question {
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  /* 题号跳转时避开吸顶导航 */
+  scroll-margin-top: calc(var(--layout-nav-height) + 16px);
+}
+
+.exam-question-head {
+  padding: 14px 20px;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.85);
+  background: #f7f8fa;
+}
+
+.exam-question-body {
+  padding: 20px;
+}
+
+.exam-question-stem {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
+  color: rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* 答案：参考图为浅灰小号标签 */
+.exam-question-label {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.exam-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 整行选项框：边框 + 悬停与选中的蓝色反馈 */
+.exam-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.exam-option:hover {
+  border-color: #91d5ff;
+}
+
+/* 键盘聚焦时整框显示焦点环 */
+.exam-option:focus-within {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+
+.exam-option-checked {
+  background: #f3f9fd;
+  border-color: #7cc8ea;
+}
+
+.exam-option-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.exam-option-key {
+  flex: none;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.exam-option-checked .exam-option-key {
+  color: #1677ff;
+}
+
+.exam-option-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+}

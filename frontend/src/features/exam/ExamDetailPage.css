@@ -1,0 +1,189 @@
+/* 答题页：左侧题目卡 + 右侧计时与交卷面板 */
+.exam-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.exam-answer-main {
+  flex: 1;
+  min-width: 0;
+  padding: 32px 24px 24px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+/* 标题居中，整行分割线 */
+.exam-answer-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1f1f1f;
+  text-align: center;
+  word-break: break-word;
+}
+
+.exam-answer-divider {
+  margin-top: 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 题目总数 / 总分数 / 时间：居中一行 */
+.exam-answer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 40px;
+  padding: 24px 0 8px;
+  font-size: 16px;
+  color: #595959;
+}
+
+.exam-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 右侧答题卡：随页面滚动固定 */
+.exam-answer-side {
+  position: sticky;
+  top: calc(var(--layout-nav-height) + 16px);
+  flex: 0 0 300px;
+  width: 300px;
+}
+
+.exam-side-panel {
+  padding: 24px 16px 20px;
+  text-align: center;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.exam-side-caption {
+  margin: 0;
+  font-size: 16px;
+  color: #595959;
+}
+
+/* 剩余时间：参考图为大号蓝字 */
+.exam-timer {
+  margin: 10px 0 24px;
+  font-size: 40px;
+  line-height: 1.2;
+  color: #2b7fd0;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 题号格子：四列，已作答为浅绿 */
+.exam-number-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.exam-number {
+  height: 36px;
+  padding: 0;
+  font-size: 14px;
+  color: #595959;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.exam-number:hover {
+  color: var(--color-cta);
+  border-color: var(--color-cta);
+}
+
+.exam-number-answered {
+  color: #12a05c;
+  background: #eefaf3;
+  border-color: #a9dfc2;
+}
+
+.exam-side-divider {
+  margin: 24px 0 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.exam-submit.ant-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  border-radius: 2px;
+}
+
+/* 介绍页：单张居中卡片 */
+.exam-intro {
+  display: flex;
+  justify-content: center;
+}
+
+.exam-intro-card {
+  width: 100%;
+  max-width: 860px;
+  padding: 40px 32px 32px;
+  text-align: center;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.exam-intro-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1f1f1f;
+  word-break: break-word;
+}
+
+.exam-intro-desc {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #595959;
+  word-break: break-word;
+}
+
+.exam-intro-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.exam-intro-start.ant-btn {
+  min-width: 160px;
+  height: 44px;
+  font-size: 16px;
+  border-radius: 2px;
+}
+
+.exam-intro-back.ant-btn {
+  color: #8c8c8c;
+}
+
+/* 窄屏：答题卡移到题目上方，内容区撑满宽度 */
+@media (max-width: 960px) {
+  .exam-answer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exam-answer-side {
+    position: static;
+    order: -1;
+    width: 100%;
+    flex-basis: auto;
+  }
+}

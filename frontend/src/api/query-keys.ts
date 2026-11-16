@@ -47,6 +47,10 @@ export const queryKeys = {
   myPosts: (page: number) => ['user', 'posts', page] as const,
   // 用户中心
   myExams: (page: number) => ['user', 'exams', page] as const,
+  // 我的考试域失效前缀：开始/交卷后刷新各分页与已参加标记
+  myExamsRoot: ['user', 'exams'] as const,
+  // 全部考试记录：列表页判断是否已参加，独立于我的考试分页缓存
+  myExamsAll: ['user', 'exams', 'all'] as const,
   profile: ['user', 'profile'] as const,
   overview: ['user', 'overview'] as const,
   // 管理端
