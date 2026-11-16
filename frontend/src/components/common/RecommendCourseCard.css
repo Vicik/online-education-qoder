@@ -1,0 +1,39 @@
+/* 侧栏精品课程卡：大封面 + 两行名称 + 价格 */
+.recommend-card {
+  display: block;
+  color: inherit;
+}
+
+.recommend-card-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f0f2f5;
+  border-radius: 4px;
+}
+
+.recommend-card-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recommend-card-name {
+  display: -webkit-box;
+  margin: 10px 0 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.88);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recommend-card:hover .recommend-card-name {
+  color: #1677ff;
+}
+
+.recommend-card-price {
+  margin-top: 8px;
+}

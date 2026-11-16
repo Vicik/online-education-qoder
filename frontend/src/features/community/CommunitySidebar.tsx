@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { getRecommendations } from '@/api/catalog';
 import { queryKeys } from '@/api/query-keys';
+import { RecommendCourseCard } from '@/components/common/RecommendCourseCard';
 import { usePermission } from '@/hooks/usePermission';
-import { RecommendCourseCard } from './RecommendCourseCard';
 
 // 侧栏精品推荐展示数量
 const RECOMMEND_SIZE = 4;
