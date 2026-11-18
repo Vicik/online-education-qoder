@@ -9,7 +9,7 @@ const { Content, Footer } = Layout;
 // 用户端布局：顶部导航 + 1200px 居中内容 + 页脚
 export default function UserLayout() {
   return (
-    <Layout>
+    <Layout className="user-layout">
       <SkipLink />
       <UserHeader />
       <Content className="user-content">

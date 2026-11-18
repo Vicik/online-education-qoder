@@ -99,6 +99,15 @@
   max-width: var(--layout-content-width);
   margin: 24px auto;
 }
+
+/* 用户端布局：整页至少一屏高，内容不足时页脚仍固定在页面底部 */
+.user-layout {
+  min-height: 100vh;
+}
+
+.user-layout > .user-content {
+  flex: 1 0 auto;
+}
 /* 用户中心/管理端：220px 侧栏 + 内容 */
 .side-layout {
   min-height: 100vh;
