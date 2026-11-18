@@ -17,6 +17,7 @@ import {
   CourseBrief,
   CourseDetail,
   CourseService,
+  PROMOTION_LIMIT,
   toCourseBrief,
 } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -135,6 +136,8 @@ export class CourseAdminService {
         select: {
           ...COURSE_BRIEF_SELECT,
           isRecommended: true,
+          isPromoted: true,
+          promotionOrder: true,
           _count: { select: { chapters: true } },
         },
         skip: (pageNo - 1) * pageSize,
@@ -169,12 +172,19 @@ export class CourseAdminService {
       rows.map(async ({ _count, ...course }) => ({
         ...(await toCourseBrief(course, this.storage)),
         isRecommended: course.isRecommended,
+        isPromoted: course.isPromoted,
+        promotionOrder: course.promotionOrder,
         chapterCount: _count.chapters,
         enrollmentCount: enrollmentByCourse.get(course.id) ?? 0,
       })),
     );
 
     return { items, total, page: pageNo, pageSize };
+  }
+
+  // 宣传位课程列表：与首页 banner 同源（已发布且宣传，按序号升序，最多 5 门）
+  async listPromotion(): Promise<CourseBrief[]> {
+    return this.courses.listBanners();
   }
 
   // 创建课程：落草稿态，写审计
@@ -381,7 +391,7 @@ export class CourseAdminService {
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
   }
 
-  // 下架：仅已发布可执行；openapi 无请求体，可选按 version 条件更新
+  // 下架：仅已发布可执行；openapi 无请求体，可选按 version 条件更新；同时清除推荐与宣传标记
   async unpublish(
     courseId: number,
     version?: number,
@@ -409,7 +419,13 @@ export class CourseAdminService {
         status: 'published',
         ...(version === undefined ? {} : { version }),
       },
-      data: { status: 'unpublished', version: { increment: 1 } },
+      data: {
+        status: 'unpublished',
+        version: { increment: 1 },
+        isRecommended: false,
+        isPromoted: false,
+        promotionOrder: 0,
+      },
     });
     if (count === 0) {
       throw new BizException(
@@ -423,8 +439,16 @@ export class CourseAdminService {
       action: 'course.unpublish',
       targetType: 'course',
       targetId: courseId,
-      before: { status: course.status },
-      after: { status: 'unpublished' },
+      before: {
+        status: course.status,
+        isRecommended: course.isRecommended,
+        isPromoted: course.isPromoted,
+      },
+      after: {
+        status: 'unpublished',
+        isRecommended: false,
+        isPromoted: false,
+      },
     });
 
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
@@ -524,5 +548,171 @@ export class CourseAdminService {
     });
 
     return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
+  }
+
+  // 设为首页宣传（banner）：仅已发布课程可标记，重复标记 422，宣传位满 5 门 422，序号追加到末尾
+  async promote(courseId: number, context?: AuditContext): Promise<Course> {
+    // 当前课程：不存在统一按 404 处理
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (course.status !== 'published') {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '仅已发布的课程可设为宣传',
+        422,
+      );
+    }
+    if (course.isPromoted) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '课程已在宣传位，无需重复操作',
+        422,
+      );
+    }
+
+    // 当前宣传课程的序号集合：长度即已占用宣传位数量
+    const promoted = await this.prisma.course.findMany({
+      where: { isPromoted: true },
+      select: { promotionOrder: true },
+    });
+    if (promoted.length >= PROMOTION_LIMIT) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        `首页宣传位最多 ${PROMOTION_LIMIT} 门课程，请先取消其他课程的宣传`,
+        422,
+      );
+    }
+    // 新序号：现有最大序号 + 1（无宣传课程时为 1）
+    const nextOrder =
+      promoted.reduce((max, row) => Math.max(max, row.promotionOrder), 0) + 1;
+
+    // 条件更新：并发下已被他人标记时按冲突处理
+    const { count } = await this.prisma.course.updateMany({
+      where: { id: courseId, isPromoted: false },
+      data: { isPromoted: true, promotionOrder: nextOrder },
+    });
+    if (count === 0) {
+      throw new BizException(
+        ErrorCode.IDEMPOTENCY_CONFLICT,
+        VERSION_CONFLICT_MESSAGE,
+        409,
+      );
+    }
+
+    await recordAudit(this.audit, context, {
+      action: 'course.promote',
+      targetType: 'course',
+      targetId: courseId,
+      before: { isPromoted: false },
+      after: { isPromoted: true, promotionOrder: nextOrder },
+    });
+
+    return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
+  }
+
+  // 取消首页宣传：仅已发布课程可操作，重复取消 422，序号一并归零
+  async unpromote(courseId: number, context?: AuditContext): Promise<Course> {
+    // 当前课程：不存在统一按 404 处理
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    if (course.status !== 'published') {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '仅已发布的课程可取消宣传',
+        422,
+      );
+    }
+    if (!course.isPromoted) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '课程不在宣传位，无需重复操作',
+        422,
+      );
+    }
+
+    // 条件更新：并发下已被他人取消时按冲突处理
+    const { count } = await this.prisma.course.updateMany({
+      where: { id: courseId, isPromoted: true },
+      data: { isPromoted: false, promotionOrder: 0 },
+    });
+    if (count === 0) {
+      throw new BizException(
+        ErrorCode.IDEMPOTENCY_CONFLICT,
+        VERSION_CONFLICT_MESSAGE,
+        409,
+      );
+    }
+
+    await recordAudit(this.audit, context, {
+      action: 'course.unpromote',
+      targetType: 'course',
+      targetId: courseId,
+      before: { isPromoted: true },
+      after: { isPromoted: false },
+    });
+
+    return this.prisma.course.findUniqueOrThrow({ where: { id: courseId } });
+  }
+
+  // 宣传位排序：courseIds 必须是当前宣传课程的完整排列，按下标写回 1..n 序号
+  async reorderPromotion(
+    courseIds: number[],
+    context?: AuditContext,
+  ): Promise<Course[]> {
+    // 排列合法性：非空、全为整数、无重复
+    if (
+      !Array.isArray(courseIds) ||
+      courseIds.length === 0 ||
+      courseIds.some((id) => !Number.isInteger(id)) ||
+      new Set(courseIds).size !== courseIds.length
+    ) {
+      throw new BizException(ErrorCode.PARAM_INVALID, '排序参数不合法', 422);
+    }
+
+    // 当前宣传课程 id 集合（按现有顺序）
+    const promoted = await this.prisma.course.findMany({
+      where: { isPromoted: true },
+      select: { id: true },
+    });
+    // 数量一致且每个 id 都在集合内才算完整排列
+    if (
+      promoted.length !== courseIds.length ||
+      courseIds.some((id) => !promoted.some((row) => row.id === id))
+    ) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '排序列表必须与当前宣传课程完全一致',
+        422,
+      );
+    }
+
+    // 按下标写回新序号（序号从 1 开始）
+    for (const [index, id] of courseIds.entries()) {
+      await this.prisma.course.updateMany({
+        where: { id },
+        data: { promotionOrder: index + 1 },
+      });
+    }
+
+    await recordAudit(this.audit, context, {
+      action: 'course.promotion-reorder',
+      targetType: 'course',
+      targetId: courseIds[0],
+      before: { courseIds: promoted.map((row) => row.id) },
+      after: { courseIds },
+    });
+
+    return this.prisma.course.findMany({
+      where: { isPromoted: true },
+      orderBy: { promotionOrder: 'asc' },
+    });
   }
 }

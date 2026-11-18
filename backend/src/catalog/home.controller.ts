@@ -14,4 +14,11 @@ export class HomeController {
   async recommendations() {
     return { courses: await this.courses.listRecommendations() };
   }
+
+  // 首页宣传位 banner（公开）：最多 5 门已发布的宣传课程，按宣传位顺序升序
+  @Public()
+  @Get('banners')
+  async banners() {
+    return { courses: await this.courses.listBanners() };
+  }
 }

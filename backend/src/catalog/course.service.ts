@@ -16,6 +16,8 @@ import { StorageService } from '../storage/storage.service';
 
 // 首页推荐课程数量
 const RECOMMENDATION_LIMIT = 8;
+// 首页宣传位（banner）课程数量上限：管理端 promote 校验与用户端查询共用
+export const PROMOTION_LIMIT = 5;
 
 // 视为「当前有效」的活动状态：未开始与进行中；已结束/已取消不再占用普通课程列表
 const ACTIVE_ACTIVITY_STATUSES: GrouponActivityStatus[] = [
@@ -206,6 +208,17 @@ export class CourseService {
       select: COURSE_BRIEF_SELECT,
       take: RECOMMENDATION_LIMIT,
       orderBy: { createdAt: 'desc' },
+    });
+    return Promise.all(rows.map((row) => toCourseBrief(row, this.storage)));
+  }
+
+  // 首页宣传位（banner）：管理员设为宣传且已发布的课程，按宣传位顺序升序，最多 5 门
+  async listBanners(): Promise<CourseBrief[]> {
+    const rows = await this.prisma.course.findMany({
+      where: { status: 'published', isPromoted: true },
+      select: COURSE_BRIEF_SELECT,
+      take: PROMOTION_LIMIT,
+      orderBy: { promotionOrder: 'asc' },
     });
     return Promise.all(rows.map((row) => toCourseBrief(row, this.storage)));
   }

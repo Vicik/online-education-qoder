@@ -49,6 +49,8 @@ const DRAFT = {
   type: 'video',
   status: 'draft',
   isRecommended: false,
+  isPromoted: false,
+  promotionOrder: 0,
   version: 3,
   originalCents: 19900,
   saleCents: 9900,
@@ -420,6 +422,42 @@ describe('CourseAdminService.publish / unpublish', () => {
 
     await expect(service.unpublish(1)).rejects.toMatchObject({ status: 409 });
   });
+
+  it('unpublish 同时清除推荐与宣传标记', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      ...PUBLISHED,
+      isRecommended: true,
+      isPromoted: true,
+      promotionOrder: 2,
+    });
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue(UNPUBLISHED);
+
+    await expect(service.unpublish(1, undefined, CTX)).resolves.toBeDefined();
+
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, status: 'published' },
+      data: {
+        status: 'unpublished',
+        version: { increment: 1 },
+        isRecommended: false,
+        isPromoted: false,
+        promotionOrder: 0,
+      },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'course.unpublish',
+        before: expect.objectContaining({ isPromoted: true }),
+        after: expect.objectContaining({
+          status: 'unpublished',
+          isRecommended: false,
+          isPromoted: false,
+        }),
+      }),
+    );
+  });
 });
 
 describe('CourseAdminService.recommend / unrecommend', () => {
@@ -495,6 +533,183 @@ describe('CourseAdminService.recommend / unrecommend', () => {
     prisma.course.findUnique.mockResolvedValue({ ...DRAFT, isRecommended: true });
     await expect(service.unrecommend(1)).rejects.toMatchObject({ status: 422 });
     expect(prisma.course.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('CourseAdminService.promote / unpromote / reorderPromotion', () => {
+  it('promote 追加到宣传位末尾并写审计', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: false });
+    prisma.course.findMany.mockResolvedValue([
+      { promotionOrder: 1 },
+      { promotionOrder: 3 },
+    ]);
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue({
+      ...PUBLISHED,
+      isPromoted: true,
+      promotionOrder: 4,
+    });
+
+    await expect(service.promote(1, CTX)).resolves.toMatchObject({
+      isPromoted: true,
+      promotionOrder: 4,
+    });
+
+    expect(prisma.course.findMany).toHaveBeenCalledWith({
+      where: { isPromoted: true },
+      select: { promotionOrder: true },
+    });
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isPromoted: false },
+      data: { isPromoted: true, promotionOrder: 4 },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'course.promote',
+        targetId: 1,
+        after: expect.objectContaining({ promotionOrder: 4 }),
+      }),
+    );
+  });
+
+  it('promote 无宣传课程时序号为 1', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: false });
+    prisma.course.findMany.mockResolvedValue([]);
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue({
+      ...PUBLISHED,
+      isPromoted: true,
+      promotionOrder: 1,
+    });
+
+    await service.promote(1);
+
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isPromoted: false },
+      data: { isPromoted: true, promotionOrder: 1 },
+    });
+  });
+
+  it('promote 宣传位满 5 个返回 422 且不更新', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: false });
+    prisma.course.findMany.mockResolvedValue([1, 2, 3, 4, 5].map((order) => ({
+      promotionOrder: order,
+    })));
+
+    await expect(service.promote(1)).rejects.toMatchObject({
+      status: 422,
+      message: '首页宣传位最多 5 门课程，请先取消其他课程的宣传',
+    });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('promote 已宣传返回 422、草稿返回 422、不存在返回 404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: true });
+    await expect(service.promote(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue({ ...DRAFT, isPromoted: false });
+    await expect(service.promote(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue(null);
+    await expect(service.promote(99)).rejects.toMatchObject({ status: 404 });
+    expect(prisma.course.findMany).not.toHaveBeenCalled();
+  });
+
+  it('promote 条件更新失败视为冲突 409', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: false });
+    prisma.course.findMany.mockResolvedValue([]);
+    prisma.course.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.promote(1)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('unpromote 清宣传标记与序号并写审计', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      ...PUBLISHED,
+      isPromoted: true,
+      promotionOrder: 2,
+    });
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue(UNPUBLISHED);
+
+    await expect(service.unpromote(1, CTX)).resolves.toBeDefined();
+
+    expect(prisma.course.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isPromoted: true },
+      data: { isPromoted: false, promotionOrder: 0 },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'course.unpromote', targetId: 1 }),
+    );
+  });
+
+  it('unpromote 未宣传返回 422、非已发布返回 422、条件更新失败 409', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: false });
+    await expect(service.unpromote(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue({ ...DRAFT, isPromoted: true });
+    await expect(service.unpromote(1)).rejects.toMatchObject({ status: 422 });
+
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED, isPromoted: true });
+    prisma.course.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.unpromote(1)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('reorderPromotion 按数组下标写回序号并返回排序结果', async () => {
+    const { prisma, audit, service } = setup();
+    prisma.course.findMany
+      .mockResolvedValueOnce([{ id: 2 }, { id: 1 }])
+      .mockResolvedValueOnce([
+        { ...PUBLISHED, id: 1, isPromoted: true, promotionOrder: 1 },
+        { ...PUBLISHED, id: 2, isPromoted: true, promotionOrder: 2 },
+      ]);
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(service.reorderPromotion([1, 2], CTX)).resolves.toMatchObject([
+      { id: 1, promotionOrder: 1 },
+      { id: 2, promotionOrder: 2 },
+    ]);
+
+    expect(prisma.course.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: 1 },
+      data: { promotionOrder: 1 },
+    });
+    expect(prisma.course.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: 2 },
+      data: { promotionOrder: 2 },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'course.promotion-reorder',
+        before: { courseIds: [2, 1] },
+        after: { courseIds: [1, 2] },
+      }),
+    );
+  });
+
+  it('reorderPromotion 列表与当前宣传集合不一致返回 422', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findMany.mockResolvedValue([{ id: 2 }]);
+
+    await expect(service.reorderPromotion([1])).rejects.toMatchObject({ status: 422 });
+    await expect(service.reorderPromotion([1, 2])).rejects.toMatchObject({ status: 422 });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('reorderPromotion 空数组、非整数与重复 id 返回 422', async () => {
+    const { service, prisma } = setup();
+
+    await expect(service.reorderPromotion([])).rejects.toMatchObject({ status: 422 });
+    await expect(service.reorderPromotion([1.5])).rejects.toMatchObject({ status: 422 });
+    await expect(service.reorderPromotion([1, 1])).rejects.toMatchObject({ status: 422 });
+    expect(prisma.course.findMany).not.toHaveBeenCalled();
   });
 });
 

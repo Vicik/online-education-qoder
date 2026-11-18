@@ -336,6 +336,230 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     }
   });
 
+  it('宣传位：设为宣传进入首页 banner，可手动排序，下架清标记', async () => {
+    const agent = await adminAgent();
+    // 起始清空宣传位，避免受其他用例影响
+    await prisma.course.updateMany({
+      where: { isPromoted: true },
+      data: { isPromoted: false, promotionOrder: 0 },
+    });
+
+    const createdIds: number[] = [];
+
+    // 创建并发布一门音频课，返回课程 id
+    async function createPublished(name: string): Promise<number> {
+      const created = await agent
+        .post('/api/v1/admin/courses')
+        .send({
+          name,
+          type: 'audio',
+          originalCents: 1000,
+          saleCents: 900,
+          instructor: '王老师',
+          coverUrl: 'image/2026-11-12/00000000-0000-0000-0000-000000000003.png',
+        })
+        .expect(201);
+      const courseId = created.body.data.id as number;
+      createdIds.push(courseId);
+      await agent
+        .post(`/api/v1/admin/courses/${courseId}/chapters`)
+        .send({
+          title: '第一节',
+          contentType: 'audio',
+          content: 'audio/2026-11-12/00000000-0000-0000-0000-000000000003.mp3',
+        })
+        .expect(201);
+      await agent.post(`/api/v1/admin/courses/${courseId}/publish`).expect(200);
+      return courseId;
+    }
+
+    // 首页 banner 当前课程 id 顺序
+    async function bannerIds(): Promise<number[]> {
+      const banners = await request(app.getHttpServer())
+        .get('/api/v1/home/banners')
+        .expect(200);
+      return banners.body.data.courses.map((row: { id: number }) => row.id);
+    }
+
+    const first = await createPublished('集成测试宣传课一');
+    const second = await createPublished('集成测试宣传课二');
+
+    try {
+      // 草稿不可宣传
+      const draft = await agent
+        .post('/api/v1/admin/courses')
+        .send({
+          name: '集成测试宣传草稿',
+          type: 'audio',
+          originalCents: 1000,
+          saleCents: 900,
+          instructor: '王老师',
+          coverUrl: 'image/2026-11-12/00000000-0000-0000-0000-000000000003.png',
+        })
+        .expect(201);
+      createdIds.push(draft.body.data.id);
+      await agent
+        .post(`/api/v1/admin/courses/${draft.body.data.id}/promote`)
+        .expect(422);
+
+      // 设为宣传：序号从 1 开始追加
+      const promotedFirst = await agent
+        .post(`/api/v1/admin/courses/${first}/promote`)
+        .expect(200);
+      expect(promotedFirst.body.data).toMatchObject({
+        isPromoted: true,
+        promotionOrder: 1,
+      });
+      // 重复宣传 422
+      await agent.post(`/api/v1/admin/courses/${first}/promote`).expect(422);
+
+      const promotedSecond = await agent
+        .post(`/api/v1/admin/courses/${second}/promote`)
+        .expect(200);
+      expect(promotedSecond.body.data).toMatchObject({ promotionOrder: 2 });
+
+      // 管理端列表带回宣传标记
+      const list = await agent
+        .get('/api/v1/admin/courses?pageSize=100')
+        .expect(200);
+      const firstItem = list.body.data.items.find(
+        (row: { id: number }) => row.id === first,
+      );
+      expect(firstItem).toMatchObject({ isPromoted: true, promotionOrder: 1 });
+
+      // banner 顺序与设置顺序一致
+      expect(await bannerIds()).toEqual([first, second]);
+
+      // 管理端宣传位列表与 banner 同源
+      const promotionList = await agent
+        .get('/api/v1/admin/courses/promotion')
+        .expect(200);
+      expect(
+        promotionList.body.data.map((row: { id: number }) => row.id),
+      ).toEqual([first, second]);
+
+      // 非法排序：与当前宣传集合不一致
+      await agent
+        .post('/api/v1/admin/courses/promotion/reorder')
+        .send({ courseIds: [first] })
+        .expect(422);
+      // 非法排序：空数组按参数错误
+      await agent
+        .post('/api/v1/admin/courses/promotion/reorder')
+        .send({ courseIds: [] })
+        .expect(400);
+
+      // 手动排序：第二门排到最前
+      const reordered = await agent
+        .post('/api/v1/admin/courses/promotion/reorder')
+        .send({ courseIds: [second, first] })
+        .expect(200);
+      expect(reordered.body.data.map((row: { id: number }) => row.id)).toEqual([
+        second,
+        first,
+      ]);
+      expect(await bannerIds()).toEqual([second, first]);
+
+      // 取消宣传：标记与序号一并清除
+      const unpromoted = await agent
+        .post(`/api/v1/admin/courses/${second}/unpromote`)
+        .expect(200);
+      expect(unpromoted.body.data).toMatchObject({
+        isPromoted: false,
+        promotionOrder: 0,
+      });
+      // 未宣传时取消 422
+      await agent
+        .post(`/api/v1/admin/courses/${second}/unpromote`)
+        .expect(422);
+      expect(await bannerIds()).toEqual([first]);
+
+      // 下架：宣传与推荐标记同时清除，banner 不再返回
+      await agent.post(`/api/v1/admin/courses/${first}/recommend`).expect(200);
+      await agent.post(`/api/v1/admin/courses/${first}/unpublish`).expect(200);
+      const unpublished = await prisma.course.findUniqueOrThrow({
+        where: { id: first },
+      });
+      expect(unpublished).toMatchObject({
+        status: 'unpublished',
+        isPromoted: false,
+        promotionOrder: 0,
+        isRecommended: false,
+      });
+      expect(await bannerIds()).toEqual([]);
+    } finally {
+      await prisma.course.updateMany({
+        where: { isPromoted: true },
+        data: { isPromoted: false, promotionOrder: 0 },
+      });
+      await prisma.course.deleteMany({ where: { id: { in: createdIds } } });
+    }
+  });
+
+  it('宣传位上限 5：第 6 门设为宣传返回 422', async () => {
+    const agent = await adminAgent();
+    await prisma.course.updateMany({
+      where: { isPromoted: true },
+      data: { isPromoted: false, promotionOrder: 0 },
+    });
+
+    // 本用例创建的课程 id
+    const createdIds: number[] = [];
+
+    try {
+      // 依次创建并发布 6 门课程，前 5 门宣传成功，第 6 门被上限拒绝
+      for (let index = 1; index <= 6; index += 1) {
+        const created = await agent
+          .post('/api/v1/admin/courses')
+          .send({
+            name: `宣传上限课${index}`,
+            type: 'audio',
+            originalCents: 1000,
+            saleCents: 900,
+            instructor: '王老师',
+            coverUrl: 'image/2026-11-12/00000000-0000-0000-0000-000000000003.png',
+          })
+          .expect(201);
+        const courseId = created.body.data.id as number;
+        createdIds.push(courseId);
+        await agent
+          .post(`/api/v1/admin/courses/${courseId}/chapters`)
+          .send({
+            title: '第一节',
+            contentType: 'audio',
+            content: 'audio/2026-11-12/00000000-0000-0000-0000-000000000003.mp3',
+          })
+          .expect(201);
+        await agent
+          .post(`/api/v1/admin/courses/${courseId}/publish`)
+          .expect(200);
+
+        if (index <= 5) {
+          await agent
+            .post(`/api/v1/admin/courses/${courseId}/promote`)
+            .expect(200);
+        } else {
+          const limited = await agent
+            .post(`/api/v1/admin/courses/${courseId}/promote`)
+            .expect(422);
+          expect(limited.body.message).toContain('最多 5');
+        }
+      }
+
+      // banner 最多返回 5 门
+      const banners = await request(app.getHttpServer())
+        .get('/api/v1/home/banners')
+        .expect(200);
+      expect(banners.body.data.courses).toHaveLength(5);
+    } finally {
+      await prisma.course.updateMany({
+        where: { isPromoted: true },
+        data: { isPromoted: false, promotionOrder: 0 },
+      });
+      await prisma.course.deleteMany({ where: { id: { in: createdIds } } });
+    }
+  });
+
   it('每次管理端写操作产生审计记录', async () => {
     const count = await prisma.auditLog.count({
       where: { action: { startsWith: 'course.' } },

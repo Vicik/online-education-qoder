@@ -318,6 +318,22 @@ describe('CourseService.listRecommendations', () => {
   });
 });
 
+describe('CourseService.listBanners', () => {
+  it('listBanners 仅取已发布的宣传课程，按宣传位顺序升序且最多 5 条', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findMany.mockResolvedValue([courseRow]);
+
+    await expect(service.listBanners()).resolves.toEqual([courseBrief]);
+    expect(prisma.course.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: 'published', isPromoted: true },
+        take: 5,
+        orderBy: { promotionOrder: 'asc' },
+      }),
+    );
+  });
+});
+
 describe('CourseService.getChapterContent', () => {
   it('getChapterContent 未购抛 3002/403', async () => {
     const { service } = setup();

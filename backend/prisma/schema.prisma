@@ -156,7 +156,9 @@ model Course {
   originalCents Int
   saleCents     Int // 售价 ≤ 原价（应用层校验）
   status        CourseStatus @default(draft)
-  isRecommended Boolean      @default(false) // 首页推荐：仅已发布课程可标记，首页仅展示已发布的推荐课程
+  isRecommended Boolean      @default(false) // 首页推荐：仅已发布课程可标记，下架时清除
+  isPromoted    Boolean      @default(false) // 首页宣传位（banner）：仅已发布课程可标记，下架时清除，最多 5 门
+  promotionOrder Int         @default(0) // 宣传位顺序，数字越小越靠前；管理员手动排序，取消或下架后归零
   version       Int          @default(1)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

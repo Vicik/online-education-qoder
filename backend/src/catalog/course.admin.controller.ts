@@ -25,6 +25,7 @@ import { AdminCourseListQuery } from './dto/admin-course-list-query.dto';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { ReorderChaptersDto } from './dto/reorder-chapters.dto';
+import { ReorderPromotionDto } from './dto/reorder-promotion.dto';
 import { UpdateChapterDto } from './dto/update-chapter.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 
@@ -56,6 +57,12 @@ export class CourseAdminController {
     @Req() req: Request,
   ) {
     return this.courses.create(dto, this.auditContext(user, req));
+  }
+
+  // 宣传位课程列表（排序条数据源）：静态路由须先于 :courseId 声明，否则会被详情路由吞掉
+  @Get('promotion')
+  promotion() {
+    return this.courses.listPromotion();
   }
 
   // 课程详情（含草稿/下架）
@@ -121,6 +128,42 @@ export class CourseAdminController {
     @Req() req: Request,
   ) {
     return this.courses.unrecommend(courseId, this.auditContext(user, req));
+  }
+
+  // 设为首页宣传（banner）
+  @Post(':courseId/promote')
+  @HttpCode(HttpStatus.OK)
+  promote(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Req() req: Request,
+  ) {
+    return this.courses.promote(courseId, this.auditContext(user, req));
+  }
+
+  // 取消首页宣传
+  @Post(':courseId/unpromote')
+  @HttpCode(HttpStatus.OK)
+  unpromote(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Req() req: Request,
+  ) {
+    return this.courses.unpromote(courseId, this.auditContext(user, req));
+  }
+
+  // 宣传位手动排序
+  @Post('promotion/reorder')
+  @HttpCode(HttpStatus.OK)
+  reorderPromotion(
+    @Body() dto: ReorderPromotionDto,
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Req() req: Request,
+  ) {
+    return this.courses.reorderPromotion(
+      dto.courseIds,
+      this.auditContext(user, req),
+    );
   }
 
   // 新增章节（草稿/已下架）
