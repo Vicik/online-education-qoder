@@ -4,10 +4,14 @@ import { Link, useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listAdminCourses,
+  listPromotionCourses,
+  promoteCourse,
   publishCourse,
   recommendCourse,
+  reorderPromotion,
   unpublishCourse,
   unrecommendCourse,
+  unpromoteCourse,
 } from '@/api/admin/courses';
 import { queryKeys } from '@/api/query-keys';
 import type { AdminCourseListItem, CourseStatus } from '@/api/types';
@@ -17,6 +21,10 @@ import { MoneyText } from '@/components/common/MoneyText';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusTag } from '@/components/common/StatusTag';
 import { usePagination } from '@/hooks/usePagination';
+import {
+  PROMOTION_LIMIT,
+  PromotionOrderBar,
+} from './PromotionOrderBar';
 
 // 列表每页数量
 const PAGE_SIZE = 10;
@@ -51,7 +59,7 @@ export default function CourseListPage() {
       listAdminCourses(page, pageSize, status === 'all' ? undefined : status),
   });
 
-  // 执行发布/下架/推荐操作：成功后提示并刷新受影响的缓存
+  // 执行发布/下架/推荐/宣传操作：成功后提示并刷新受影响的缓存
   async function runCourseAction(
     courseId: number,
     action: () => Promise<unknown>,
@@ -65,6 +73,39 @@ export default function CourseListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.course(courseId) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.homeLatest }),
       queryClient.invalidateQueries({ queryKey: queryKeys.homeRecommendations }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeBanners }),
+    ]);
+  }
+
+  // 宣传位列表查询：排序条数据源，同时用于判断宣传位是否已满
+  const promotion = useQuery({
+    queryKey: queryKeys.adminCoursePromotion,
+    queryFn: listPromotionCourses,
+  });
+  // 当前宣传课程（按序号升序）：契约字段可选，仅保留 id 与名称齐全的行
+  const promotionItems = (promotion.data ?? []).flatMap((item) =>
+    item.id === undefined || item.name === undefined
+      ? []
+      : [{ id: item.id, name: item.name }],
+  );
+  // 宣传位是否已满：满员时未宣传的课程不可再加入
+  const isPromotionFull = promotionItems.length >= PROMOTION_LIMIT;
+
+  // 移动宣传位：本地换序后整序提交
+  async function movePromotion(from: number, to: number) {
+    // 当前顺序的课程 id 列表
+    const orderedIds = promotionItems.map((item) => item.id);
+    // 交换后的新顺序
+    const nextIds = [...orderedIds];
+    // 被移动的课程 id
+    const [movedId] = nextIds.splice(from, 1);
+    nextIds.splice(to, 0, movedId);
+
+    await reorderPromotion(nextIds);
+    message.success('宣传位顺序已更新');
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminCoursePromotion }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeBanners }),
     ]);
   }
 
@@ -129,7 +170,7 @@ export default function CourseListPage() {
           {record.status === 'published' ? (
             <ConfirmAction
               title="下架课程"
-              content={`下架后学员将无法购买《${record.name}》，确定下架？`}
+              content={`下架后学员将无法购买《${record.name}》，同时移出首页推荐位与宣传位，确定下架？`}
               danger
               onConfirm={() =>
                 runCourseAction(courseId, () => unpublishCourse(courseId), '课程已下架')
@@ -187,6 +228,41 @@ export default function CourseListPage() {
                 </Button>
               </ConfirmAction>
             ))}
+          {record.status === 'published' &&
+            (record.isPromoted ? (
+              <ConfirmAction
+                title="取消宣传"
+                content={`取消后《${record.name}》的封面将不再出现在首页 banner，确定取消？`}
+                onConfirm={() =>
+                  runCourseAction(courseId, () => unpromoteCourse(courseId), '已取消宣传')
+                }
+              >
+                <Button type="link" size="small" autoInsertSpace={false}>
+                  取消宣传
+                </Button>
+              </ConfirmAction>
+            ) : isPromotionFull ? (
+              // 宣传位已满：禁用按钮并在悬浮时说明原因
+              <Tooltip title="首页宣传位最多 5 门课程，请先取消其他课程的宣传">
+                <span style={{ cursor: 'not-allowed' }}>
+                  <Button type="link" size="small" autoInsertSpace={false} disabled>
+                    宣传
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <ConfirmAction
+                title="设为宣传"
+                content={`宣传后《${record.name}》的封面会进入首页 banner，确定宣传？`}
+                onConfirm={() =>
+                  runCourseAction(courseId, () => promoteCourse(courseId), '已设为宣传')
+                }
+              >
+                <Button type="link" size="small" autoInsertSpace={false}>
+                  宣传
+                </Button>
+              </ConfirmAction>
+            ))}
         </Space>
         );
       },
@@ -217,6 +293,10 @@ export default function CourseListPage() {
             </Button>
           </Space>
         }
+      />
+      <PromotionOrderBar
+        items={promotionItems}
+        onMove={(from, to) => void movePromotion(from, to)}
       />
       <AppTable
         columns={columns}

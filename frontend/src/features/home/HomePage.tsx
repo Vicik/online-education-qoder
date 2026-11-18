@@ -1,16 +1,21 @@
-import { Typography } from 'antd';
+import { Skeleton, Typography } from 'antd';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
-import { getRecommendations, listCourses } from '@/api/catalog';
+import { getBanners, getRecommendations, listCourses } from '@/api/catalog';
 import { CourseGrid, CourseGridSkeleton } from '@/features/catalog/CourseGrid';
-import { EmptyState } from '@/components/common/EmptyState';
+import { HomeBanner } from './HomeBanner';
 
 // 首页最新课程展示数量
 const LATEST_SIZE = 8;
 
-// 首页：推荐 + 最新，两块独立请求，互不阻塞
+// 首页：宣传 banner + 推荐 + 最新，三块独立请求，互不阻塞
 export default function HomePage() {
+  // 宣传位 banner 课程
+  const banners = useQuery({
+    queryKey: queryKeys.homeBanners,
+    queryFn: getBanners,
+  });
   // 推荐课程
   const recommendations = useQuery({
     queryKey: queryKeys.homeRecommendations,
@@ -24,9 +29,17 @@ export default function HomePage() {
 
   // 有推荐数据才渲染推荐区块，空推荐整块隐藏
   const hasRecommendations = (recommendations.data?.length ?? 0) > 0;
+  // 有宣传课程才渲染 banner，空宣传位整块隐藏
+  const hasBanners = (banners.data?.length ?? 0) > 0;
 
   return (
     <div>
+      {banners.isLoading ? (
+        <Skeleton.Image active style={{ width: '100%', height: 280 }} />
+      ) : hasBanners ? (
+        <HomeBanner courses={banners.data ?? []} />
+      ) : null}
+
       {recommendations.isLoading ? (
         <>
           <Typography.Title level={4} style={{ marginTop: 0 }}>
@@ -43,30 +56,33 @@ export default function HomePage() {
         </>
       ) : null}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: 32,
-          // 与推荐课程标题的默认下边距对齐，保证标题到课程网格的间距一致
-          marginBottom: 10,
-        }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          最新课程
-        </Typography.Title>
-        {latest.data && latest.data.items.length > 0 && (
-          <Link to="/courses">查看全部</Link>
-        )}
-      </div>
-      {latest.isLoading ? (
-        <CourseGridSkeleton />
-      ) : latest.data && latest.data.items.length > 0 ? (
-        <CourseGrid courses={latest.data.items} />
-      ) : (
-        <EmptyState description="暂无课程" />
-      )}
+      {/* 有最新课程数据或加载中才渲染该区块，空课程整块隐藏（与推荐课程一致） */}
+      {latest.isLoading || (latest.data?.items.length ?? 0) > 0 ? (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 32,
+              // 与推荐课程标题的默认下边距对齐，保证标题到课程网格的间距一致
+              marginBottom: 10,
+            }}
+          >
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              最新课程
+            </Typography.Title>
+            {latest.data && latest.data.items.length > 0 && (
+              <Link to="/courses">查看全部</Link>
+            )}
+          </div>
+          {latest.isLoading ? (
+            <CourseGridSkeleton />
+          ) : (
+            <CourseGrid courses={latest.data?.items ?? []} />
+          )}
+        </>
+      ) : null}
     </div>
   );
 }

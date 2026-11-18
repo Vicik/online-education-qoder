@@ -1,0 +1,24 @@
+/* 首页宣传位 banner：封面铺满内容宽度，固定高度裁切 */
+.home-banner {
+  margin-bottom: 24px;
+}
+
+.home-banner img,
+.home-banner .home-banner-fallback {
+  display: block;
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+
+.home-banner .home-banner-fallback {
+  background: #f0f2f5;
+}
+
+/* 窄屏降低 banner 高度，避免挤占首屏课程区 */
+@media (max-width: 768px) {
+  .home-banner img,
+  .home-banner .home-banner-fallback {
+    height: 160px;
+  }
+}

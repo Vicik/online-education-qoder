@@ -375,6 +375,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/home/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 首页宣传位 banner（已发布的宣传课程，按宣传位顺序升序，最多 5 门） */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: { courses: [CourseBrief] } */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/courses": {
         parameters: {
             query?: never;
@@ -898,7 +934,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 下架课程（下架后禁止新购买，已购用户仍可学习） */
+        /** 下架课程（下架后禁止新购买，已购用户仍可学习；同时清除首页推荐与宣传标记） */
         post: {
             parameters: {
                 query?: never;
@@ -1026,6 +1062,160 @@ export interface paths {
                 404: components["responses"]["Err404"];
                 409: components["responses"]["Err409"];
                 /** @description 课程未发布或不在推荐位 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 设为首页宣传（仅已发布课程可标记，宣传位满 5 门时拒绝，序号追加到末尾） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    courseId: components["parameters"]["courseId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+                409: components["responses"]["Err409"];
+                /** @description 课程未发布、已在宣传位或宣传位已满 5 门 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/unpromote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消首页宣传（仅已发布课程可操作，宣传序号一并归零） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    courseId: components["parameters"]["courseId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: CourseAdminWriteResult */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+                409: components["responses"]["Err409"];
+                /** @description 课程未发布或不在宣传位 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/promotion/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 宣传位手动排序（courseIds 必须是当前宣传课程的完整排列） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PromotionReorderRequest"];
+                };
+            };
+            responses: {
+                /** @description data: [CourseAdminWriteResult]，按新顺序返回宣传课程 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                409: components["responses"]["Err409"];
+                /** @description 排序列表与当前宣传课程不一致 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -4237,8 +4427,12 @@ export interface components {
             chapterCount?: number;
             /** @description 仅管理端返回 */
             enrollmentCount?: number;
-            /** @description 仅管理端返回；管理员手动推荐标记 */
+            /** @description 仅管理端返回；管理员手动推荐标记，下架时清除 */
             isRecommended?: boolean;
+            /** @description 仅管理端返回；首页宣传位（banner）标记，下架时清除，全站最多 5 门 */
+            isPromoted?: boolean;
+            /** @description 仅管理端返回；宣传位顺序，数字越小越靠前，未宣传为 0 */
+            promotionOrder?: number;
         };
         ChapterBrief: {
             id?: number;
@@ -4323,6 +4517,10 @@ export interface components {
         ChapterReorderRequest: {
             /** @description 全部章节 id 的新顺序；保存后从 1 连续编号 */
             orderedChapterIds: number[];
+        };
+        PromotionReorderRequest: {
+            /** @description 当前全部宣传课程 id 的新顺序；必须是宣传集合的完整排列，序号从 1 连续编号 */
+            courseIds: number[];
         };
         /** @description 管理端课程写操作返回（课程行摘要），前端消费 id/status/version */
         CourseAdminWriteResult: {

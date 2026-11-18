@@ -32,6 +32,16 @@ export async function getRecommendations(): Promise<CourseBrief[]> {
   return data.courses;
 }
 
+// 首页宣传位 banner 课程：后端返回 { courses }，此处只暴露数组（按宣传位顺序升序，最多 5 门）
+export async function getBanners(): Promise<CourseBrief[]> {
+  // 原始响应数据
+  const data = await request<{ courses: CourseBrief[] }>({
+    url: '/home/banners',
+    method: 'GET',
+  });
+  return data.courses;
+}
+
 // 课程详情：未发布或不存在时后端抛 3001
 export function getCourseDetail(courseId: number): Promise<CourseDetail> {
   return request<CourseDetail>({

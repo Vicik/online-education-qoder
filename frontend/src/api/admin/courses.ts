@@ -5,6 +5,7 @@ import type {
   AdminCourseListItem,
   ChapterCreateInput,
   ChapterUpdateInput,
+  CourseBrief,
   CourseCreateInput,
   CourseStatus,
   CourseUpdateInput,
@@ -93,6 +94,41 @@ export function unrecommendCourse(courseId: number): Promise<CourseWriteResult> 
   return request<CourseWriteResult>({
     url: `/admin/courses/${courseId}/unrecommend`,
     method: 'POST',
+  });
+}
+
+// 设为首页宣传（banner）：仅已发布课程，宣传位满 5 门时后端返回 422
+export function promoteCourse(courseId: number): Promise<CourseWriteResult> {
+  return request<CourseWriteResult>({
+    url: `/admin/courses/${courseId}/promote`,
+    method: 'POST',
+  });
+}
+
+// 取消首页宣传
+export function unpromoteCourse(courseId: number): Promise<CourseWriteResult> {
+  return request<CourseWriteResult>({
+    url: `/admin/courses/${courseId}/unpromote`,
+    method: 'POST',
+  });
+}
+
+// 宣传位课程列表：按宣传位序号升序，最多 5 门（排序条数据源）
+export function listPromotionCourses(): Promise<CourseBrief[]> {
+  return request<CourseBrief[]>({
+    url: '/admin/courses/promotion',
+    method: 'GET',
+  });
+}
+
+// 宣传位排序：courseIds 为当前全部宣传课程的新顺序
+export function reorderPromotion(
+  courseIds: number[],
+): Promise<CourseWriteResult[]> {
+  return request<CourseWriteResult[]>({
+    url: '/admin/courses/promotion/reorder',
+    method: 'POST',
+    data: { courseIds },
   });
 }
 

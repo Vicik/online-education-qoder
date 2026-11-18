@@ -4,6 +4,8 @@ export const queryKeys = {
   authMe: ['auth', 'me'] as const,
   // 首页
   homeRecommendations: ['home', 'recommendations'] as const,
+  // 首页宣传位 banner
+  homeBanners: ['home', 'banners'] as const,
   // 首页最新课程（独立于课程列表分页缓存）
   homeLatest: ['home', 'latest'] as const,
   // 课程
@@ -55,6 +57,8 @@ export const queryKeys = {
   overview: ['user', 'overview'] as const,
   // 管理端
   adminCourses: (params: string) => ['admin', 'courses', params] as const,
+  // 管理端宣传位列表（排序条数据源）
+  adminCoursePromotion: ['admin', 'courses', 'promotion'] as const,
   adminCourse: (id: number) => ['admin', 'courses', id] as const,
   adminGroupons: (page: number) => ['admin', 'groupons', page] as const,
   adminFlashSales: (page: number) => ['admin', 'flash-sales', page] as const,

@@ -22,9 +22,27 @@ const row = {
   saleCents: 9900,
   status: 'draft',
   isRecommended: false,
+  isPromoted: false,
+  promotionOrder: 0,
   chapterCount: 2,
   enrollmentCount: 3,
 };
+
+// 宣传位列表项工厂（排序条消费 id 与 name）
+function promoted(id: number, name: string) {
+  return { ...row, id, name, status: 'published', isPromoted: true };
+}
+
+// 课程列表接口桩：单条已发布课程
+function mockList(items: Record<string, unknown>[]) {
+  server.use(
+    http.get(/\/api\/v1\/admin\/courses$/, () =>
+      HttpResponse.json(
+        envelope({ items, total: items.length, page: 1, pageSize: 10 }),
+      ),
+    ),
+  );
+}
 
 describe('CourseListPage', () => {
   it('展示课程列并链接工作区', async () => {
@@ -350,5 +368,164 @@ describe('CourseListPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(unrecommendCalls).toBe(1));
+  });
+
+  it('已发布未宣传的课程可设为宣传', async () => {
+    // 设为宣传请求次数
+    let promoteCalls = 0;
+    mockList([{ ...row, status: 'published', isPromoted: false }]);
+    server.use(
+      http.post(/\/api\/v1\/admin\/courses\/1\/promote$/, () => {
+        promoteCalls += 1;
+        return HttpResponse.json(
+          envelope({ id: 1, status: 'published', isPromoted: true, promotionOrder: 1 }),
+        );
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '宣传' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(promoteCalls).toBe(1));
+  });
+
+  it('已宣传的课程显示取消宣传并调用接口', async () => {
+    // 取消宣传请求次数
+    let unpromoteCalls = 0;
+    mockList([{ ...row, status: 'published', isPromoted: true, promotionOrder: 1 }]);
+    server.use(
+      http.post(/\/api\/v1\/admin\/courses\/1\/unpromote$/, () => {
+        unpromoteCalls += 1;
+        return HttpResponse.json(
+          envelope({ id: 1, status: 'published', isPromoted: false, promotionOrder: 0 }),
+        );
+      }),
+    );
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    expect(
+      screen.queryByRole('button', { name: '宣传' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: '取消宣传' }));
+    await userEvent.click(await screen.findByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(unpromoteCalls).toBe(1));
+  });
+
+  it('草稿课程没有宣传入口', async () => {
+    mockList([{ ...row, status: 'draft' }]);
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    const draftRow = (await screen.findByText(row.name)).closest(
+      'tr',
+    ) as HTMLElement;
+    expect(
+      within(draftRow).queryByRole('button', { name: '宣传' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('宣传位满 5 门时宣传按钮禁用并提示原因', async () => {
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses\/promotion$/, () =>
+        HttpResponse.json(
+          envelope(
+            [1, 2, 3, 4, 5].map((id) => promoted(id, `宣传课${id}`)),
+          ),
+        ),
+      ),
+    );
+    mockList([{ ...row, id: 9, name: '待宣传课', status: 'published', isPromoted: false }]);
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    const targetRow = (await screen.findByText('待宣传课')).closest(
+      'tr',
+    ) as HTMLElement;
+    const promoteButton = within(targetRow).getByRole('button', { name: '宣传' });
+    expect(promoteButton).toBeDisabled();
+    await userEvent.hover(promoteButton.parentElement as HTMLElement);
+    expect(
+      await screen.findByText('首页宣传位最多 5 门课程，请先取消其他课程的宣传'),
+    ).toBeInTheDocument();
+  });
+
+  it('排序条按上下移动提交完整宣传课程顺序', async () => {
+    // 排序请求次数与最后一次请求体
+    let reorderCalls = 0;
+    // 最近一次排序请求体
+    let lastPayload: { courseIds?: number[] } = {};
+    // 服务端视角的宣传顺序，随排序请求变化
+    let orderIds = [1, 2];
+    // 课程 id 对应的中文序号名，便于断言按钮可访问名
+    const nameById: Record<number, string> = { 1: '宣传课一', 2: '宣传课二' };
+    server.use(
+      http.get(/\/api\/v1\/admin\/courses\/promotion$/, () =>
+        HttpResponse.json(
+          envelope(orderIds.map((id) => promoted(id, nameById[id]))),
+        ),
+      ),
+      http.post(/\/api\/v1\/admin\/courses\/promotion\/reorder$/, async ({ request }) => {
+        reorderCalls += 1;
+        lastPayload = (await request.json()) as { courseIds?: number[] };
+        orderIds = lastPayload.courseIds ?? orderIds;
+        return HttpResponse.json(envelope([]));
+      }),
+    );
+    mockList([{ ...row, id: 1, status: 'published', isPromoted: true, promotionOrder: 1 }]);
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    // 首位不能上移，末位才能上移
+    expect(
+      await screen.findByRole('button', { name: '上移《宣传课一》' }),
+    ).toBeDisabled();
+    await userEvent.click(
+      await screen.findByRole('button', { name: '上移《宣传课二》' }),
+    );
+    await waitFor(() => expect(reorderCalls).toBe(1));
+    expect(lastPayload.courseIds).toEqual([2, 1]);
+
+    // 刷新后课二排首位：上移禁用，可下移回到原顺序
+    expect(
+      await screen.findByRole('button', { name: '上移《宣传课二》' }),
+    ).toBeDisabled();
+    await userEvent.click(
+      await screen.findByRole('button', { name: '下移《宣传课二》' }),
+    );
+    await waitFor(() => expect(reorderCalls).toBe(2));
+    expect(lastPayload.courseIds).toEqual([1, 2]);
+  });
+
+  it('下架确认提示同时移出推荐位与宣传位', async () => {
+    mockList([{ ...row, status: 'published', isRecommended: true, isPromoted: true }]);
+
+    renderWithProviders(
+      [{ path: '/admin/courses', element: <CourseListPage /> }],
+      '/admin/courses',
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: '下架' }));
+    expect(
+      await screen.findByText(/同时移出首页推荐位与宣传位/),
+    ).toBeInTheDocument();
   });
 });
