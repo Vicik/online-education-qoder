@@ -20,9 +20,13 @@ import { CourseCouponList } from './CourseCouponList';
 import { FavoriteButton } from './FavoriteButton';
 import './CourseDetailPage.css';
 
-// 详情页主按钮：游客与未购用户先购买，已购用户进入学习
-function resolveCourseCta(courseId: number, purchased = false): { label: string; to: string } {
-  if (purchased) return { label: '立即学习', to: `/learning/${courseId}` };
+// 详情页主按钮：免费课程或已购用户进入学习，其余购买
+function resolveCourseCta(
+  courseId: number,
+  purchased = false,
+  isFree = false,
+): { label: string; to: string } {
+  if (isFree || purchased) return { label: '立即学习', to: `/learning/${courseId}` };
   return { label: '立即购买', to: `/checkout/${courseId}` };
 }
 
@@ -96,6 +100,8 @@ export default function CourseDetailPage() {
   const course: CourseDetail = query.data;
   // 课程 id：详情响应缺省时回退路由参数
   const detailId = course.id ?? courseId;
+  // 是否免费课程：售价为 0
+  const isFree = (course.saleCents ?? 0) === 0;
   // 是否已购买：存在该课程的已支付订单
   const purchased = Boolean(
     ordersQuery.data?.items.some(
@@ -103,7 +109,7 @@ export default function CourseDetailPage() {
     ),
   );
   // 主按钮文案与目标
-  const cta = resolveCourseCta(detailId, purchased);
+  const cta = resolveCourseCta(detailId, purchased, isFree);
   // 展示价：普通课程售价，不含秒杀/拼团活动价
   const displayPriceCents = course.saleCents ?? 0;
   // 可领优惠券
@@ -116,8 +122,6 @@ export default function CourseDetailPage() {
   );
   // 课程类型中文名
   const typeLabel = courseTypeLabel(course.type);
-  // 是否免费课程
-  const isFree = (course.saleCents ?? 0) === 0;
   // 推荐位：排除当前课程，最多三条
   const recommendItems = (recommendations.data ?? [])
     .filter((item) => item.id !== detailId)
@@ -156,7 +160,7 @@ export default function CourseDetailPage() {
               <span className="course-detail-free">免费</span>
             )}
           </div>
-          {coupons.length > 0 && (
+          {coupons.length > 0 && !isFree && (
             <Popover
               trigger="click"
               placement="bottomLeft"
@@ -189,25 +193,14 @@ export default function CourseDetailPage() {
             </Popover>
           )}
           <div className="course-detail-actions">
-            {purchased ? (
-              <Button
-                type="primary"
-                size="large"
-                className="course-detail-cta"
-                onClick={() => navigate(`/learning/${detailId}`)}
-              >
-                立即学习
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                size="large"
-                className="course-detail-cta"
-                onClick={() => navigate(cta.to)}
-              >
-                {cta.label}
-              </Button>
-            )}
+            <Button
+              type="primary"
+              size="large"
+              className="course-detail-cta"
+              onClick={() => navigate(cta.to)}
+            >
+              {cta.label}
+            </Button>
           </div>
         </div>
       </div>
@@ -235,7 +228,18 @@ export default function CourseDetailPage() {
               {
                 key: 'chapters',
                 label: '章节目录',
-                children: <CourseChapterList chapters={course.chapters ?? []} />,
+                children: (
+                  <CourseChapterList
+                    chapters={course.chapters ?? []}
+                    courseId={detailId}
+                    courseFree={isFree}
+                    purchased={purchased}
+                    accessReady={!user || Boolean(ordersQuery.isFetched)}
+                    onSelect={(chapterId) =>
+                      navigate(`/learning/${detailId}?chapterId=${chapterId}`)
+                    }
+                  />
+                ),
               },
             ]}
           />

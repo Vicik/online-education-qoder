@@ -26,8 +26,8 @@ function detail(overrides: Record<string, unknown> = {}) {
     intro: '从零开始',
     detailRich: '<p>详细介绍</p>',
     chapters: [
-      { id: 11, title: '第一章 类型系统', contentType: 'video', sortOrder: 1 },
-      { id: 12, title: '第二章 泛型', contentType: 'video', sortOrder: 2 },
+      { id: 11, title: '第一章 类型系统', contentType: 'video', sortOrder: 1, isFree: true },
+      { id: 12, title: '第二章 泛型', contentType: 'video', sortOrder: 2, isFree: false },
     ],
     groupon: {
       id: 3,
@@ -334,6 +334,66 @@ describe('CourseDetailPage', () => {
 
     await userEvent.click(cta);
     await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
+  });
+
+  it('游客点击免费章节进入学习页并携带章节 id', async () => {
+    mockDetail();
+    const { router } = renderWithProviders(
+      [
+        { path: '/courses/:id', element: <CourseDetailPage /> },
+        { path: '/learning/:courseId', element: <div>learning-page</div> },
+      ],
+      '/courses/1',
+    );
+
+    await userEvent.click(await screen.findByRole('tab', { name: '章节目录' }));
+    expect(await screen.findByText('试看')).toBeInTheDocument();
+    expect(screen.getByText('购买后学习')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/第一章 类型系统/));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
+    expect(router.state.location.search).toBe('?chapterId=11');
+  });
+
+  it('免费课程展示立即学习且隐藏领券入口', async () => {
+    mockDetail({ saleCents: 0 });
+    const { router } = renderWithProviders(
+      [
+        { path: '/courses/:id', element: <CourseDetailPage /> },
+        { path: '/learning/:courseId', element: <div>learning-page</div> },
+      ],
+      '/courses/1',
+    );
+
+    const cta = await screen.findByRole('button', { name: '立即学习' });
+    expect(screen.queryByRole('button', { name: '领取优惠券' })).not.toBeInTheDocument();
+    await userEvent.click(cta);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
+  });
+
+  it('登录未购用户章节列表展示锁定态', async () => {
+    mockDetail();
+    mockFavoriteIds();
+    mockOrders([]);
+    useSessionStore.getState().setUser({
+      id: 2,
+      email: 'user@example.com',
+      nickname: '学员',
+      avatarKey: null,
+      avatarUrl: null,
+      gender: 'secret',
+      role: 'user',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    } as never);
+
+    renderWithProviders(
+      [{ path: '/courses/:id', element: <CourseDetailPage /> }],
+      '/courses/1',
+    );
+
+    await userEvent.click(await screen.findByRole('tab', { name: '章节目录' }));
+    expect(await screen.findByText('购买后学习')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '立即购买' })).toBeInTheDocument();
   });
 
   it('3001 显示课程不存在空态', async () => {
