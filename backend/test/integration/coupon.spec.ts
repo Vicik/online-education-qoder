@@ -169,4 +169,40 @@ describe('优惠券（CI 集成，基于种子）', () => {
       .expect(201);
     expect(reclaim.body.data.status).toBe('unused');
   });
+
+  it('免费课程不可关联优惠券（422/1001）', async () => {
+    const freeCourse = await prisma.course.create({
+      data: {
+        name: `免费营销课-${Date.now()}`,
+        type: 'audio',
+        originalCents: 0,
+        saleCents: 0,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+    const admin = await loginAdmin();
+
+    try {
+      const res = await admin
+        .post('/api/v1/admin/coupons')
+        .send({
+          name: `免费课券-${Date.now()}`,
+          discountCents: 1000,
+          startAt: new Date().toISOString(),
+          endAt: new Date(Date.now() + 86400000).toISOString(),
+          totalQty: 10,
+          perUserLimit: 1,
+          courseIds: [freeCourse.id],
+        })
+        .expect(422);
+      expect(res.body).toMatchObject({
+        code: 1001,
+        message: '免费课程不可关联优惠券',
+      });
+    } finally {
+      await prisma.course.delete({ where: { id: freeCourse.id } });
+    }
+  });
 });

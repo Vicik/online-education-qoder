@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { TrimmingValidationPipe } from '../../src/common/validation/trimming-validation.pipe';
 import { Test } from '@nestjs/testing';
+import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { sessionMiddleware } from '../../src/auth/session.middleware';
@@ -15,6 +17,7 @@ const TEST_PASSWORD = 'Passw0rd1';
 
 describe('学习与收藏（CI 集成）', () => {
   let app: INestApplication;
+  let prisma: PrismaClient;
   let agent: ReturnType<typeof request.agent>;
 
   beforeAll(async () => {
@@ -37,6 +40,8 @@ describe('学习与收藏（CI 集成）', () => {
     app.setGlobalPrefix('api/v1');
     await app.init();
 
+    prisma = new PrismaClient();
+
     // 注册并登录一个全新学员（无订单、无学习记录）
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
@@ -57,6 +62,7 @@ describe('学习与收藏（CI 集成）', () => {
 
   afterAll(async () => {
     await app.close();
+    await prisma.$disconnect();
   });
 
   it('未登录访问学习记录返回 401', async () => {
@@ -73,9 +79,9 @@ describe('学习与收藏（CI 集成）', () => {
     });
   });
 
-  it('未购访问 /learning 403（code=3002）', async () => {
+  it('未购访问 /learning 付费章节 403（code=3002）', async () => {
     const res = await agent
-      .post(`/api/v1/learning/${COURSE_TYPESCRIPT.id}/chapters/1/visit`)
+      .post(`/api/v1/learning/${COURSE_TYPESCRIPT.id}/chapters/2/visit`)
       .expect(403);
     expect(res.body.code).toBe(3002);
   });
@@ -168,5 +174,49 @@ describe('学习与收藏（CI 集成）', () => {
       completed: false,
       lastVisitedAt: paid.body.data.paidAt,
     });
+  });
+
+  it('未购登录用户可上报试看章节并进入学习记录', async () => {
+    const email = `learning-trial-${Date.now()}@test.com`;
+    // 直接创建登录用户，避免走注册限流等旁路依赖
+    const user = await prisma.user.create({
+      data: {
+        email,
+        nickname: '试看学员',
+        passwordHash: await bcrypt.hash(TEST_PASSWORD, 4),
+      },
+    });
+    try {
+      const trial = request.agent(app.getHttpServer());
+      await trial
+        .post('/api/v1/auth/login')
+        .send({ email, password: TEST_PASSWORD })
+        .expect(200);
+
+      // 未购用户访问免费试看章节：允许并正常记录进度
+      const visit = await trial
+        .post(`/api/v1/learning/${COURSE_TYPESCRIPT.id}/chapters/1/visit`)
+        .expect(200);
+      expect(visit.body.data).toEqual({
+        progressPercent: 50,
+        completed: false,
+      });
+
+      // 试看记录进入学习记录列表
+      const records = await trial
+        .get('/api/v1/user/study-records')
+        .expect(200);
+      expect(records.body.data.items[0]).toMatchObject({
+        courseId: COURSE_TYPESCRIPT.id,
+        visitedCount: 1,
+        lastChapterId: 1,
+        lastChapterTitle: COURSE_TYPESCRIPT.chapters[0].title,
+        progressPercent: 50,
+        completed: false,
+      });
+    } finally {
+      await prisma.learningRecord.deleteMany({ where: { userId: user.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+    }
   });
 });

@@ -142,11 +142,13 @@ export async function seedDemoData(
         contentType: COURSE_TYPESCRIPT.type, // 与课程类型一致：video
         content: chapter.content, // 媒体 key
         sortOrder, // 章节序号
+        isFree: chapter.isFree ?? false, // 是否免费试看
       },
       update: {
         title: chapter.title, // 章节标题
         contentType: COURSE_TYPESCRIPT.type, // 与课程类型一致：video
         content: chapter.content, // 媒体 key
+        isFree: chapter.isFree ?? false, // 是否免费试看
       },
     });
   }

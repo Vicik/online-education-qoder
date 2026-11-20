@@ -222,4 +222,38 @@ describe('秒杀（CI 集成，基于种子）', () => {
       .expect(200);
     expect(detail.body.data.remaining).toBe(2);
   });
+
+  it('免费课程不可创建秒杀活动（422/1001）', async () => {
+    const freeCourse = await prisma.course.create({
+      data: {
+        name: `免费营销课-${SUFFIX}`,
+        type: 'audio',
+        originalCents: 0,
+        saleCents: 0,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+
+    try {
+      const res = await admin
+        .post('/api/v1/admin/flash-sales')
+        .send({
+          courseId: freeCourse.id,
+          name: `免费课秒杀-${SUFFIX}`,
+          priceCents: 1000,
+          stock: 10,
+          startAt: new Date(Date.now() + HOUR_MS).toISOString(),
+          endAt: new Date(Date.now() + 2 * HOUR_MS).toISOString(),
+        })
+        .expect(422);
+      expect(res.body).toMatchObject({
+        code: 1001,
+        message: '免费课程不可创建秒杀活动',
+      });
+    } finally {
+      await prisma.course.delete({ where: { id: freeCourse.id } });
+    }
+  });
 });

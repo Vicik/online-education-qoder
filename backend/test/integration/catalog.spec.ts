@@ -235,9 +235,15 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     }
   });
 
-  it('游客访问章节正文 401', async () => {
-    await request(app.getHttpServer())
+  it('游客可读取免费试看章节正文，付费章节仍 401', async () => {
+    const free = await request(app.getHttpServer())
       .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
+      .expect(200);
+    expect(free.body.data.title).toBe(COURSE_TYPESCRIPT.chapters[0].title);
+    expect(free.body.data.content).toBeNull();
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/2/content`)
       .expect(401);
   });
 
@@ -270,6 +276,14 @@ describe('课程浏览（CI 集成，基于种子）', () => {
     expect(before.body.data.chapters).toHaveLength(2);
     before.body.data.chapters.forEach((chapter: { visited?: boolean }) => {
       expect(typeof chapter.visited).toBe('boolean');
+    });
+    expect(before.body.data.chapters[0]).toMatchObject({
+      id: 1,
+      isFree: true,
+    });
+    expect(before.body.data.chapters[1]).toMatchObject({
+      id: 2,
+      isFree: false,
     });
 
     // 上报本章访问后，详情对应章节 visited=true
@@ -304,9 +318,9 @@ describe('课程浏览（CI 集成，基于种子）', () => {
       })
       .expect(200);
 
-    // 独立拼团演示账号仅有待成团拼团订单，未成团不可学习
+    // 独立拼团演示账号仅有待成团拼团订单，未成团不可学习；选付费章节验证购买门槛
     const res = await agent
-      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/1/content`)
+      .get(`/api/v1/courses/${COURSE_TYPESCRIPT.id}/chapters/2/content`)
       .expect(403);
     expect(res.body.code).toBe(3002);
   });

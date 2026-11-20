@@ -260,8 +260,8 @@ describe('订单与支付（CI 集成，基于种子）', () => {
     expect(target!.user?.email).toBe(mainEmail);
   });
 
-  it('实付 0 元订单仍可支付（确认报名）', async () => {
-    // 自建 0 价已发布课程
+  it('免费课程不可预览与下单（422/1001）', async () => {
+    // 自建 0 价已发布课程：应直接走免费学习，不再进入交易链路
     const freeCourse = await prisma.course.create({
       data: {
         name: `0元课-${SUFFIX}`,
@@ -275,23 +275,29 @@ describe('订单与支付（CI 集成，基于种子）', () => {
     });
     const agent = await registerAndLogin(`trade-free-${SUFFIX}@test.com`);
 
-    // 实付 0 元下单
-    const created = await agent
-      .post('/api/v1/orders')
-      .set('Idempotency-Key', `itg-trade-free-${SUFFIX}`)
-      .send({ courseId: freeCourse.id })
-      .expect(201);
-    expect(created.body.data.paidCents).toBe(0);
+    try {
+      // 预览被拒绝
+      const preview = await agent
+        .get(`/api/v1/checkout/${freeCourse.id}/preview`)
+        .expect(422);
+      expect(preview.body).toMatchObject({
+        code: 1001,
+        message: '免费课程无需购买',
+      });
 
-    // 0 元仍生成支付台账并置为已支付
-    const paid = await agent
-      .post(`/api/v1/orders/${created.body.data.id}/pay`)
-      .expect(200);
-    expect(paid.body.data.status).toBe('paid');
-    const payment = await prisma.payment.findUnique({
-      where: { orderId: created.body.data.id },
-    });
-    expect(payment).toMatchObject({ amountCents: 0, channel: 'mock' });
+      // 下单被兜底拒绝，且不产生订单
+      const created = await agent
+        .post('/api/v1/orders')
+        .set('Idempotency-Key', `itg-trade-free-${SUFFIX}`)
+        .send({ courseId: freeCourse.id })
+        .expect(422);
+      expect(created.body.code).toBe(1001);
+      expect(
+        await prisma.order.count({ where: { courseId: freeCourse.id } }),
+      ).toBe(0);
+    } finally {
+      await prisma.course.delete({ where: { id: freeCourse.id } });
+    }
   });
 
   it('预览与下单的边界校验', async () => {

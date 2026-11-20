@@ -234,4 +234,38 @@ describe('拼团（CI 集成，基于种子）', () => {
       .expect(200);
     expect(cancelled.body.data.status).toBe('cancelled');
   });
+
+  it('免费课程不可创建拼团活动（422/1001）', async () => {
+    const freeCourse = await prisma.course.create({
+      data: {
+        name: `免费营销课-${SUFFIX}`,
+        type: 'audio',
+        originalCents: 0,
+        saleCents: 0,
+        instructor: '测试讲师',
+        coverUrl: '',
+        status: 'published',
+      },
+    });
+
+    try {
+      const res = await admin
+        .post('/api/v1/admin/groupons')
+        .send({
+          courseId: freeCourse.id,
+          name: `免费课团-${SUFFIX}`,
+          priceCents: 1000,
+          targetSize: 2,
+          startAt: new Date(Date.now() + HOUR_MS).toISOString(),
+          endAt: new Date(Date.now() + 2 * HOUR_MS).toISOString(),
+        })
+        .expect(422);
+      expect(res.body).toMatchObject({
+        code: 1001,
+        message: '免费课程不可创建拼团活动',
+      });
+    } finally {
+      await prisma.course.delete({ where: { id: freeCourse.id } });
+    }
+  });
 });

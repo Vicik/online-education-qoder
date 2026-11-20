@@ -39,8 +39,8 @@ export const COURSE_TYPESCRIPT = {
   detailRich: '<p>课程详细介绍（净化后 HTML）</p>', // 详情富文本
   chapters: [
     // 章节正文由管理员上传媒体后写入；种子不指向不存在的文件
-    { title: '第一章 类型基础', content: null },
-    { title: '第二章 泛型进阶', content: null },
+    { title: '第一章 类型基础', content: null, isFree: true }, // 第一章作为免费试看章节
+    { title: '第二章 泛型进阶', content: null, isFree: false }, // 第二章为付费章节
   ],
 };
 

@@ -560,6 +560,148 @@ describe('课程管理端（CI 集成，基于种子）', () => {
     }
   });
 
+  it('章节可创建/编辑为免费试看并回读', async () => {
+    const agent = await adminAgent();
+    const created = await agent
+      .post('/api/v1/admin/courses')
+      .send({
+        name: `试看课-${Date.now()}`,
+        type: 'video',
+        originalCents: 9900,
+        saleCents: 4900,
+        instructor: '王老师',
+        coverUrl: 'image/2026/11/12/00000000-0000-0000-0000-000000000002.png',
+      })
+      .expect(201);
+    const courseId = created.body.data.id;
+
+    try {
+      const chapter = await agent
+        .post(`/api/v1/admin/courses/${courseId}/chapters`)
+        .send({
+          title: '试看章节',
+          contentType: 'video',
+          content: 'video/2026/11/12/trial.mp4',
+          isFree: true,
+        })
+        .expect(201);
+      expect(chapter.body.data.isFree).toBe(true);
+
+      const detail = await agent
+        .get(`/api/v1/admin/courses/${courseId}`)
+        .expect(200);
+      expect(detail.body.data.chapters[0]).toMatchObject({
+        id: chapter.body.data.id,
+        isFree: true,
+      });
+
+      const updated = await agent
+        .put(
+          `/api/v1/admin/courses/${courseId}/chapters/${chapter.body.data.id}`,
+        )
+        .send({ isFree: false })
+        .expect(200);
+      expect(updated.body.data.isFree).toBe(false);
+    } finally {
+      await prisma.course.delete({ where: { id: courseId } });
+    }
+  });
+
+  it('免费课程改价护栏：无关联允许，券关联与未结束活动拒绝', async () => {
+    const agent = await adminAgent();
+    const base = {
+      type: 'video',
+      originalCents: 9900,
+      saleCents: 4900,
+      instructor: '王老师',
+      coverUrl: 'image/2026/11/12/00000000-0000-0000-0000-000000000003.png',
+    };
+
+    const clean = await agent
+      .post('/api/v1/admin/courses')
+      .send({ ...base, name: `免费改价-${Date.now()}` })
+      .expect(201);
+    const couponBlocked = await agent
+      .post('/api/v1/admin/courses')
+      .send({ ...base, name: `券关联-${Date.now()}` })
+      .expect(201);
+    const activityBlocked = await agent
+      .post('/api/v1/admin/courses')
+      .send({ ...base, name: `活动关联-${Date.now()}` })
+      .expect(201);
+
+    let templateId: number | undefined;
+    let activityId: number | undefined;
+
+    try {
+      await agent
+        .put(`/api/v1/admin/courses/${clean.body.data.id}`)
+        .send({ version: clean.body.data.version, saleCents: 0 })
+        .expect(200);
+
+      const template = await prisma.couponTemplate.create({
+        data: {
+          name: `改价券-${Date.now()}`,
+          discountCents: 1000,
+          startAt: new Date(),
+          endAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          totalQty: 10,
+          status: 'disabled',
+        },
+      });
+      templateId = template.id;
+      await prisma.couponTemplateCourse.create({
+        data: {
+          templateId: template.id,
+          courseId: couponBlocked.body.data.id,
+        },
+      });
+      const couponRes = await agent
+        .put(`/api/v1/admin/courses/${couponBlocked.body.data.id}`)
+        .send({ version: couponBlocked.body.data.version, saleCents: 0 })
+        .expect(422);
+      expect(couponRes.body.message).toBe('免费课程不可关联优惠券，请先解除关联');
+
+      const activity = await prisma.grouponActivity.create({
+        data: {
+          courseId: activityBlocked.body.data.id,
+          name: '未结束拼团',
+          priceCents: 1000,
+          targetSize: 2,
+          startAt: new Date(),
+          endAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          status: 'not_started',
+        },
+      });
+      activityId = activity.id;
+      const activityRes = await agent
+        .put(`/api/v1/admin/courses/${activityBlocked.body.data.id}`)
+        .send({ version: activityBlocked.body.data.version, saleCents: 0 })
+        .expect(422);
+      expect(activityRes.body.message).toBe(
+        '该课程存在未结束的拼团/秒杀活动，请先结束或取消',
+      );
+    } finally {
+      if (activityId !== undefined) {
+        await prisma.grouponActivity.delete({ where: { id: activityId } });
+      }
+      if (templateId !== undefined) {
+        await prisma.couponTemplate.delete({ where: { id: templateId } });
+      }
+      await prisma.course.deleteMany({
+        where: {
+          id: {
+            in: [
+              clean.body.data.id,
+              couponBlocked.body.data.id,
+              activityBlocked.body.data.id,
+            ],
+          },
+        },
+      });
+    }
+  });
+
   it('每次管理端写操作产生审计记录', async () => {
     const count = await prisma.auditLog.count({
       where: { action: { startsWith: 'course.' } },
