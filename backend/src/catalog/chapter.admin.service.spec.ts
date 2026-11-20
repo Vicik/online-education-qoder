@@ -93,9 +93,29 @@ describe('ChapterAdminService.addChapter', () => {
         contentType: 'video',
         content: 'videos/2026/11/a.mp4',
         sortOrder: 3,
+        isFree: false,
       }),
     });
     expect(created.sortOrder).toBe(3);
+  });
+
+  it('新增章节可标记免费试看', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(VIDEO_DRAFT);
+    prisma.chapter.aggregate.mockResolvedValue({ _max: { sortOrder: 0 } });
+    prisma.chapter.create.mockImplementation(({ data }) => Promise.resolve(data));
+
+    const created = await service.addChapter(1, {
+      title: '试看章节',
+      contentType: 'video',
+      content: 'videos/trial.mp4',
+      isFree: true,
+    });
+
+    expect(prisma.chapter.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ isFree: true }),
+    });
+    expect(created).toMatchObject({ isFree: true });
   });
 
   it('首个章节新增后写审计', async () => {
@@ -160,6 +180,31 @@ describe('ChapterAdminService.updateChapter', () => {
       expect.objectContaining({ action: 'chapter.update', targetId: 2 }),
     );
   });
+
+  it('编辑章节可设置或取消免费试看', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(VIDEO_DRAFT);
+    prisma.chapter.findFirst.mockResolvedValue({
+      id: 1,
+      courseId: 1,
+      title: '第一章',
+      contentType: 'video',
+      content: 'videos/a.mp4',
+      sortOrder: 1,
+      isFree: false,
+    });
+    prisma.chapter.update.mockImplementation(({ data }) =>
+      Promise.resolve({ id: 1, isFree: false, ...data }),
+    );
+
+    const updated = await service.updateChapter(1, 1, { isFree: true });
+
+    expect(prisma.chapter.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { isFree: true },
+    });
+    expect(updated.isFree).toBe(true);
+  });
 });
 
 describe('ChapterAdminService.deleteChapter', () => {
@@ -193,17 +238,25 @@ describe('ChapterAdminService.deleteChapter', () => {
     );
   });
 
-  it('已下架课程可删除章节', async () => {
+  it('已下架课程可删除章节，目录回读包含 isFree', async () => {
     const { prisma, service } = setup();
     prisma.course.findUnique.mockResolvedValue({
       ...VIDEO_DRAFT,
       status: 'unpublished',
     });
     prisma.chapter.findFirst.mockResolvedValue({ id: 2 });
-    prisma.chapter.findMany.mockResolvedValue([]);
-    prisma.chapter.updateMany.mockResolvedValue({ count: 0 });
+    prisma.chapter.findMany.mockResolvedValue([
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, isFree: true },
+    ]);
+    prisma.chapter.updateMany.mockResolvedValue({ count: 1 });
 
     await expect(service.deleteChapter(1, 2)).resolves.toBeUndefined();
+
+    expect(prisma.chapter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ isFree: true }),
+      }),
+    );
   });
 });
 

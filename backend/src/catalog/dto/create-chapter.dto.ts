@@ -1,5 +1,12 @@
 import { CourseType } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 // 新增章节请求：对应 openapi ChapterCreateRequest
 export class CreateChapterDto {
@@ -17,4 +24,9 @@ export class CreateChapterDto {
   @IsString()
   @IsNotEmpty()
   content!: string;
+
+  // 是否免费试看：默认 false
+  @IsOptional()
+  @IsBoolean()
+  isFree?: boolean;
 }

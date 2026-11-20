@@ -31,4 +31,13 @@ describe('UpdateChapterDto', () => {
     await expect(validate(build({ content: null }))).resolves.not.toHaveLength(0);
     await expect(validate(build({ content: '' }))).resolves.not.toHaveLength(0);
   });
+
+  it('isFree 缺省或布尔值均可通过', async () => {
+    await expect(validate(build())).resolves.toHaveLength(0);
+    await expect(validate(build({ isFree: true }))).resolves.toHaveLength(0);
+  });
+
+  it('isFree 非布尔值被拒', async () => {
+    await expect(validate(build({ isFree: 1 }))).resolves.not.toHaveLength(0);
+  });
 });

@@ -41,4 +41,13 @@ describe('CreateChapterDto', () => {
       validate(build({ contentType: 'unknown' })),
     ).resolves.not.toHaveLength(0);
   });
+
+  it('isFree 为布尔值时通过', async () => {
+    await expect(validate(build({ isFree: true }))).resolves.toHaveLength(0);
+    await expect(validate(build({ isFree: false }))).resolves.toHaveLength(0);
+  });
+
+  it('isFree 非布尔值被拒', async () => {
+    await expect(validate(build({ isFree: 'yes' }))).resolves.not.toHaveLength(0);
+  });
 });

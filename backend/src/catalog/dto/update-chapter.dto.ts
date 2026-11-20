@@ -1,5 +1,7 @@
 import {
+  IsBoolean,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
   ValidateIf,
@@ -19,4 +21,9 @@ export class UpdateChapterDto {
   @IsString()
   @IsNotEmpty()
   content?: string;
+
+  // 是否免费试看：传入即设置
+  @IsOptional()
+  @IsBoolean()
+  isFree?: boolean;
 }

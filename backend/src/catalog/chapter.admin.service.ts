@@ -21,6 +21,7 @@ interface ChapterBriefRow {
   title: string; // 章节标题
   contentType: CourseType; // 内容类型
   sortOrder: number; // 序号
+  isFree: boolean; // 是否免费试看
 }
 
 // 章节管理服务：增删改、类型锁定与两阶段重编号
@@ -66,7 +67,7 @@ export class ChapterAdminService {
     // 新章节追加到末尾
     const sortOrder = (aggregate._max.sortOrder ?? 0) + 1;
 
-    // 落库新章节（正文必填）
+    // 落库新章节（正文必填，试看标记缺省为 false）
     const created = await this.prisma.chapter.create({
       data: {
         courseId,
@@ -74,6 +75,7 @@ export class ChapterAdminService {
         contentType: dto.contentType,
         content: dto.content,
         sortOrder,
+        isFree: dto.isFree ?? false,
       },
     });
 
@@ -112,6 +114,7 @@ export class ChapterAdminService {
       data: {
         ...(dto.title === undefined ? {} : { title: dto.title }),
         ...(dto.content === undefined ? {} : { content: dto.content }),
+        ...(dto.isFree === undefined ? {} : { isFree: dto.isFree }),
       },
     });
 
@@ -248,6 +251,7 @@ export class ChapterAdminService {
         title: true,
         contentType: true,
         sortOrder: true,
+        isFree: true,
       },
       orderBy: { sortOrder: 'asc' },
     });
