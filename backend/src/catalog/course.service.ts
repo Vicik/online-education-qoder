@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  Chapter,
   CourseStatus,
   CourseType,
   CouponTemplateStatus,
@@ -47,7 +48,8 @@ export interface ChapterBrief {
   title: string; // 章节标题
   contentType: CourseType; // 章节内容类型
   sortOrder: number; // 章节序号
-  visited?: boolean; // 是否已学完：仅已登录已购用户返回
+  isFree: boolean; // 免费试看：免费课程的章节同样可看
+  visited?: boolean; // 是否已学完：已登录用户返回
   content?: string | null; // 媒体 key：仅管理端详情返回，用于编辑回填
 }
 
@@ -100,6 +102,12 @@ export interface ChapterContent {
   sortOrder: number; // 章节序号
 }
 
+// 章节访问结果：命中的章节与访问来源
+export interface ChapterAccessResult {
+  chapter: Chapter; // 命中的章节
+  access: 'free' | 'paid'; // free=免费开放；paid=已购开放
+}
+
 // 课程详情：基础信息 + 活动 + 可领券 + 章节目录
 export interface CourseDetail extends CourseBrief {
   version: number; // 乐观锁版本：管理端编辑回传，用户端忽略
@@ -129,6 +137,7 @@ const CHAPTER_BRIEF_SELECT = {
   title: true,
   contentType: true,
   sortOrder: true,
+  isFree: true,
 } as const;
 
 // 管理端章节目录查询字段：附带正文 key，供编辑回填
@@ -243,67 +252,67 @@ export class CourseService {
 
     // 服务端当前时间：用于过滤进行中活动与有效期内的券
     const now = new Date();
-    // 是否返回章节已学标记：仅登录且已购用户
-    const canSeeVisited =
-      userId !== undefined && (await this.hasPaidAccess(userId, courseId));
-    // 可查询已学记录的用户 id：未登录或未购时为空
-    const visitedViewerId = canSeeVisited ? userId : undefined;
+    // 是否返回章节已学标记：所有登录用户均返回（有记录才显示）
+    const visitedViewerId = userId;
 
-    const [chapters, groupon, flashSale, coupons, visitedRecords] =
-      await Promise.all([
-        // 章节目录：用户端仅名称与类型；管理端附带正文 key 供编辑回填
-        this.prisma.chapter.findMany({
-          where: { courseId },
-          select: includeUnpublished ? CHAPTER_ADMIN_SELECT : CHAPTER_BRIEF_SELECT,
-          orderBy: { sortOrder: 'asc' },
-        }),
-        // 进行中的拼团活动
-        this.prisma.grouponActivity.findFirst({
-          where: {
-            courseId,
-            status: 'ongoing',
-            endAt: { gt: now },
-          },
-          orderBy: { startAt: 'desc' },
-        }),
-        // 进行中的秒杀活动
-        this.prisma.flashSaleActivity.findFirst({
-          where: {
-            courseId,
-            status: 'ongoing',
-            endAt: { gt: now },
-          },
-          orderBy: { startAt: 'desc' },
-        }),
-        // 可领券：启用且在有效期内、适用于本课程的模板
-        this.prisma.couponTemplate.findMany({
-          where: {
-            status: 'enabled',
-            startAt: { lte: now },
-            endAt: { gte: now },
-            courses: { some: { courseId } },
-          },
-          select: {
-            id: true,
-            name: true,
-            discountCents: true,
-            startAt: true,
-            endAt: true,
-            totalQty: true,
-            claimedCount: true,
-            status: true,
-            courses: { select: { courseId: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        }),
-        // 已学章节记录：仅已登录且已购用户
-        visitedViewerId !== undefined
-          ? this.prisma.learningRecord.findMany({
-              where: { userId: visitedViewerId, courseId },
-              select: { chapterId: true },
-            })
-          : Promise.resolve([] as { chapterId: number }[]),
-      ]);
+    const [chapters, groupon, flashSale, visitedRecords] = await Promise.all([
+      // 章节目录：用户端仅名称与类型；管理端附带正文 key 供编辑回填
+      this.prisma.chapter.findMany({
+        where: { courseId },
+        select: includeUnpublished ? CHAPTER_ADMIN_SELECT : CHAPTER_BRIEF_SELECT,
+        orderBy: { sortOrder: 'asc' },
+      }),
+      // 进行中的拼团活动
+      this.prisma.grouponActivity.findFirst({
+        where: {
+          courseId,
+          status: 'ongoing',
+          endAt: { gt: now },
+        },
+        orderBy: { startAt: 'desc' },
+      }),
+      // 进行中的秒杀活动
+      this.prisma.flashSaleActivity.findFirst({
+        where: {
+          courseId,
+          status: 'ongoing',
+          endAt: { gt: now },
+        },
+        orderBy: { startAt: 'desc' },
+      }),
+      // 已学章节记录：仅已登录用户
+      visitedViewerId !== undefined
+        ? this.prisma.learningRecord.findMany({
+            where: { userId: visitedViewerId, courseId },
+            select: { chapterId: true },
+          })
+        : Promise.resolve([] as { chapterId: number }[]),
+    ]);
+
+    // 免费课程不展示可领券，避免出现无法使用的营销入口
+    const coupons =
+      course.saleCents === 0
+        ? []
+        : await this.prisma.couponTemplate.findMany({
+            where: {
+              status: 'enabled',
+              startAt: { lte: now },
+              endAt: { gte: now },
+              courses: { some: { courseId } },
+            },
+            select: {
+              id: true,
+              name: true,
+              discountCents: true,
+              startAt: true,
+              endAt: true,
+              totalQty: true,
+              claimedCount: true,
+              status: true,
+              courses: { select: { courseId: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
 
     // 已学章节 id 集合
     const visitedChapterIds = new Set(
@@ -383,25 +392,60 @@ export class CourseService {
     return order !== null;
   }
 
-  // 章节正文：需已购买；下架课程的已购用户仍可访问
+  // 解析章节访问权限：未授权按 404/401/3002 抛出，不泄露付费章节是否存在
+  async resolveChapterAccess(
+    userId: number | null,
+    courseId: number,
+    chapterId: number,
+  ): Promise<ChapterAccessResult> {
+    // 并行读取课程基础信息与目标章节
+    const [course, chapter] = await Promise.all([
+      this.prisma.course.findUnique({
+        where: { id: courseId },
+        select: { id: true, status: true, saleCents: true },
+      }),
+      this.prisma.chapter.findFirst({ where: { id: chapterId, courseId } }),
+    ]);
+    // 课程不存在
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    // 已购用户：不受课程状态与试看标记限制
+    if (userId !== null && (await this.hasPaidAccess(userId, courseId))) {
+      if (!chapter) {
+        throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
+      }
+      return { chapter, access: 'paid' };
+    }
+    // 免费开放：已发布且（免费课程或免费试看章节）
+    const freeOpen =
+      course.status === 'published' &&
+      (course.saleCents === 0 || chapter?.isFree === true);
+    if (freeOpen) {
+      if (!chapter) {
+        throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
+      }
+      return { chapter, access: 'free' };
+    }
+    // 游客引导登录；登录未购引导购买
+    if (userId === null) {
+      throw new BizException(ErrorCode.UNAUTHORIZED, '请先登录', 401);
+    }
+    throw new BizException(ErrorCode.NOT_PURCHASED, '请先购买课程', 403);
+  }
+
+  // 章节正文：免费章节/免费课程公开；付费章节需登录且已购买；下架课程的已购用户仍可访问
   async getChapterContent(
-    userId: number,
+    userId: number | null,
     courseId: number,
     chapterId: number,
   ): Promise<ChapterContent> {
-    // 先校验购买权限，避免未购用户探测章节是否存在
-    if (!(await this.hasPaidAccess(userId, courseId))) {
-      throw new BizException(ErrorCode.NOT_PURCHASED, '请先购买课程', 403);
-    }
-
-    // 校验章节归属，防止跨课程读取正文
-    const chapter = await this.prisma.chapter.findFirst({
-      where: { id: chapterId, courseId },
-    });
-    // 章节不存在
-    if (!chapter) {
-      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
-    }
+    // 统一访问判定：命中章节随结果返回
+    const { chapter } = await this.resolveChapterAccess(
+      userId,
+      courseId,
+      chapterId,
+    );
 
     // 视频/音频 key 换签名地址，历史 http 原样
     const content =

@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CourseService } from '../catalog/course.service';
-import { ErrorCode } from '../common/constants/error-codes';
 import { PageQuery } from '../common/dto/page-query.dto';
 import { PageResult } from '../common/dto/page-result';
-import { BizException } from '../common/exceptions/biz.exception';
 import { PrismaService } from '../prisma/prisma.service';
 
 // 章节访问结果：进度百分比与是否已学完
@@ -29,37 +27,23 @@ export interface StudyRecord {
 // 学习服务：章节访问记录、学习进度与学习记录
 @Injectable()
 export class LearningService {
-  // 构造函数：注入 Prisma 服务与课程服务（复用购买权限判定）
+  // 构造函数：注入 Prisma 与课程服务（复用章节访问判定）
   constructor(
     private readonly prisma: PrismaService,
     private readonly courseService: CourseService,
   ) {}
 
-  // 记录章节访问并重算进度：需已购
+  // 记录章节访问并重算进度：需已购或免费开放
   async recordVisit(
     userId: number,
     courseId: number,
     chapterId: number,
   ): Promise<VisitResult> {
-    // 未购买（含拼团未成团）不可学习
-    if (!(await this.courseService.hasPaidAccess(userId, courseId))) {
-      throw new BizException(ErrorCode.NOT_PURCHASED, '请先购买课程', 403);
-    }
-
-    // 校验章节归属，防止跨课程记录进度
-    const chapter = await this.prisma.chapter.findFirst({
-      where: { id: chapterId, courseId },
-      select: { id: true },
-    });
-    if (!chapter) {
-      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
-    }
+    // 统一访问判定：游客/未购/锁定章节在此抛出 401/3002
+    await this.courseService.resolveChapterAccess(userId, courseId, chapterId);
 
     // 课程总章节数
     const total = await this.prisma.chapter.count({ where: { courseId } });
-    if (total === 0) {
-      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '章节不存在', 404);
-    }
 
     // 首次访问插入记录，重复访问只刷新时间（复合主键幂等）
     await this.prisma.learningRecord.upsert({

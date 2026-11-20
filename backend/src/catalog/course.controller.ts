@@ -30,13 +30,18 @@ export class CourseController {
     return this.courses.getDetail(courseId, false, user?.userId);
   }
 
-  // 章节正文（登录 + 已购；未购 403）
+  // 章节正文（免费章节/免费课程公开；付费章节需登录且已购买）
+  @Public()
   @Get(':courseId/chapters/:cid/content')
   content(
     @CurrentUser() user: CurrentUserInfo | null,
     @Param('courseId', ParseIntPipe) courseId: number,
     @Param('cid', ParseIntPipe) chapterId: number,
   ) {
-    return this.courses.getChapterContent(user!.userId, courseId, chapterId);
+    return this.courses.getChapterContent(
+      user?.userId ?? null,
+      courseId,
+      chapterId,
+    );
   }
 }

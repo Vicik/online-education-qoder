@@ -5,7 +5,7 @@ import { LearningService } from './learning.service';
 // 构建被测服务及 Prisma/课程服务替身
 function setup() {
   const prisma = {
-    chapter: { count: jest.fn(), findFirst: jest.fn(), groupBy: jest.fn() },
+    chapter: { count: jest.fn(), groupBy: jest.fn() },
     learningRecord: {
       upsert: jest.fn(),
       count: jest.fn(),
@@ -16,7 +16,12 @@ function setup() {
     // 已购课程聚合：默认无已支付订单
     order: { groupBy: jest.fn().mockResolvedValue([]) },
   };
-  const courseService = { hasPaidAccess: jest.fn().mockResolvedValue(true) };
+  const courseService = {
+    resolveChapterAccess: jest.fn().mockResolvedValue({
+      chapter: { id: 1 },
+      access: 'paid',
+    }),
+  };
   const service = new LearningService(
     prisma as unknown as PrismaService,
     courseService as unknown as CourseService,
@@ -26,8 +31,7 @@ function setup() {
 
 describe('LearningService.recordVisit', () => {
   it('recordVisit 首次访问记录并返回 1/N 进度', async () => {
-    const { prisma, service } = setup();
-    prisma.chapter.findFirst.mockResolvedValue({ id: 1 });
+    const { prisma, courseService, service } = setup();
     prisma.chapter.count.mockResolvedValue(2);
     prisma.learningRecord.upsert.mockResolvedValue({});
     prisma.learningRecord.count.mockResolvedValue(1);
@@ -36,10 +40,7 @@ describe('LearningService.recordVisit', () => {
       progressPercent: 50,
       completed: false,
     });
-    expect(prisma.chapter.findFirst).toHaveBeenCalledWith({
-      where: { id: 1, courseId: 1 },
-      select: { id: true },
-    });
+    expect(courseService.resolveChapterAccess).toHaveBeenCalledWith(1, 1, 1);
     expect(prisma.learningRecord.upsert).toHaveBeenCalledWith({
       where: { userId_chapterId: { userId: 1, chapterId: 1 } },
       create: { userId: 1, courseId: 1, chapterId: 1 },
@@ -49,7 +50,6 @@ describe('LearningService.recordVisit', () => {
 
   it('全部章节访问后 completed=true', async () => {
     const { prisma, service } = setup();
-    prisma.chapter.findFirst.mockResolvedValue({ id: 2 });
     prisma.chapter.count.mockResolvedValue(2);
     prisma.learningRecord.upsert.mockResolvedValue({});
     prisma.learningRecord.count.mockResolvedValue(2);
@@ -62,7 +62,10 @@ describe('LearningService.recordVisit', () => {
 
   it('未购访问抛 3002/403', async () => {
     const { prisma, courseService, service } = setup();
-    courseService.hasPaidAccess.mockResolvedValue(false);
+    courseService.resolveChapterAccess.mockRejectedValue({
+      bizCode: 3002,
+      status: 403,
+    });
 
     await expect(service.recordVisit(1, 1, 1)).rejects.toMatchObject({
       bizCode: 3002,
@@ -72,14 +75,35 @@ describe('LearningService.recordVisit', () => {
   });
 
   it('章节不属于该课程抛 3001/404', async () => {
-    const { prisma, service } = setup();
-    prisma.chapter.findFirst.mockResolvedValue(null);
+    const { prisma, courseService, service } = setup();
+    courseService.resolveChapterAccess.mockRejectedValue({
+      bizCode: 3001,
+      status: 404,
+    });
 
     await expect(service.recordVisit(1, 1, 99)).rejects.toMatchObject({
       bizCode: 3001,
       status: 404,
     });
     expect(prisma.learningRecord.upsert).not.toHaveBeenCalled();
+  });
+
+  it('试看章节可上报并计入进度', async () => {
+    const { prisma, courseService, service } = setup();
+    courseService.resolveChapterAccess.mockResolvedValue({
+      chapter: { id: 1 },
+      access: 'free',
+    });
+    prisma.chapter.count.mockResolvedValue(2);
+    prisma.learningRecord.upsert.mockResolvedValue({});
+    prisma.learningRecord.count.mockResolvedValue(1);
+
+    await expect(service.recordVisit(9, 1, 1)).resolves.toEqual({
+      progressPercent: 50,
+      completed: false,
+    });
+    expect(courseService.resolveChapterAccess).toHaveBeenCalledWith(9, 1, 1);
+    expect(prisma.learningRecord.upsert).toHaveBeenCalled();
   });
 });
 

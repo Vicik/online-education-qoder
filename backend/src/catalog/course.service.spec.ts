@@ -6,7 +6,12 @@ import { CourseService } from './course.service';
 function setup() {
   const prisma = {
     order: { findFirst: jest.fn() },
-    course: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+    course: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+    },
     chapter: { findMany: jest.fn(), findFirst: jest.fn() },
     grouponActivity: { findFirst: jest.fn() },
     flashSaleActivity: { findFirst: jest.fn() },
@@ -132,7 +137,7 @@ describe('CourseService.getDetail', () => {
         '<p>详情</p><img data-key="zhixu/2026/11/detail.png" src="zhixu/2026/11/detail.png" />',
     });
     prisma.chapter.findMany.mockResolvedValue([
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, isFree: false },
     ]);
     prisma.grouponActivity.findFirst.mockResolvedValue({
       id: 1,
@@ -173,6 +178,7 @@ describe('CourseService.getDetail', () => {
       title: '第一章',
       contentType: 'video',
       sortOrder: 1,
+      isFree: false,
     });
     expect(detail.groupon).toMatchObject({
       name: '双人团',
@@ -194,6 +200,7 @@ describe('CourseService.getDetail', () => {
           title: true,
           contentType: true,
           sortOrder: true,
+          isFree: true,
         },
         orderBy: { sortOrder: 'asc' },
       }),
@@ -218,6 +225,7 @@ describe('CourseService.getDetail', () => {
         title: '第一章',
         contentType: 'video',
         sortOrder: 1,
+        isFree: false,
         content: 'video/2026/11/12/a.mp4',
       },
     ]);
@@ -234,6 +242,7 @@ describe('CourseService.getDetail', () => {
           title: true,
           contentType: true,
           sortOrder: true,
+          isFree: true,
           content: true,
         },
       }),
@@ -257,8 +266,8 @@ describe('CourseService.getDetail', () => {
     const { prisma, service } = setup();
     prisma.course.findFirst.mockResolvedValue({ ...courseRow, detailRich: null });
     prisma.chapter.findMany.mockResolvedValue([
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
-      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2 },
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, isFree: false },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, isFree: false },
     ]);
     prisma.grouponActivity.findFirst.mockResolvedValue(null);
     prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
@@ -273,8 +282,22 @@ describe('CourseService.getDetail', () => {
       select: { chapterId: true },
     });
     expect(detail.chapters).toEqual([
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, visited: false },
-      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, visited: true },
+      {
+        id: 1,
+        title: '第一章',
+        contentType: 'video',
+        sortOrder: 1,
+        isFree: false,
+        visited: false,
+      },
+      {
+        id: 2,
+        title: '第二章',
+        contentType: 'video',
+        sortOrder: 2,
+        isFree: false,
+        visited: true,
+      },
     ]);
 
     // 游客视角不查询学习记录
@@ -284,21 +307,44 @@ describe('CourseService.getDetail', () => {
     expect(guestDetail.chapters[0]).not.toHaveProperty('visited');
   });
 
-  it('未购用户即使登录也不返回已学标记', async () => {
+  it('登录未购用户也返回已学标记', async () => {
     const { prisma, service } = setup();
     prisma.course.findFirst.mockResolvedValue({ ...courseRow, detailRich: null });
     prisma.chapter.findMany.mockResolvedValue([
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1 },
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, isFree: false },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, isFree: true },
     ]);
     prisma.grouponActivity.findFirst.mockResolvedValue(null);
     prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
     prisma.couponTemplate.findMany.mockResolvedValue([]);
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(false);
+    prisma.learningRecord.findMany.mockResolvedValue([{ chapterId: 2 }]);
 
     const detail = await service.getDetail(1, false, 9);
 
-    expect(prisma.learningRecord.findMany).not.toHaveBeenCalled();
-    expect(detail.chapters[0]).not.toHaveProperty('visited');
+    expect(prisma.learningRecord.findMany).toHaveBeenCalledWith({
+      where: { userId: 9, courseId: 1 },
+      select: { chapterId: true },
+    });
+    expect(detail.chapters[1]).toMatchObject({ id: 2, visited: true, isFree: true });
+  });
+
+  it('免费课程不查询可领券并返回空数组', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findFirst.mockResolvedValue({
+      ...courseRow,
+      saleCents: 0,
+      detailRich: null,
+    });
+    prisma.chapter.findMany.mockResolvedValue([
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, isFree: false },
+    ]);
+    prisma.grouponActivity.findFirst.mockResolvedValue(null);
+    prisma.flashSaleActivity.findFirst.mockResolvedValue(null);
+
+    const detail = await service.getDetail(1);
+
+    expect(prisma.couponTemplate.findMany).not.toHaveBeenCalled();
+    expect(detail.claimableCoupons).toEqual([]);
   });
 });
 
@@ -334,78 +380,238 @@ describe('CourseService.listBanners', () => {
   });
 });
 
-describe('CourseService.getChapterContent', () => {
-  it('getChapterContent 未购抛 3002/403', async () => {
-    const { service } = setup();
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(false);
+describe('CourseService.resolveChapterAccess', () => {
+  const FREE_COURSE = { id: 1, status: 'published', saleCents: 0 };
+  const PAID_COURSE = { id: 1, status: 'published', saleCents: 9900 };
+  const FREE_CHAPTER = {
+    id: 1,
+    courseId: 1,
+    title: '第一章',
+    contentType: 'video',
+    content: null,
+    sortOrder: 1,
+    isFree: true,
+  };
+  const PAID_CHAPTER = { ...FREE_CHAPTER, id: 2, title: '第二章', isFree: false };
 
-    await expect(service.getChapterContent(1, 1, 1)).rejects.toMatchObject({
-      bizCode: 3002,
-      status: 403,
+  it('课程不存在抛 3001/404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(null);
+    prisma.chapter.findFirst.mockResolvedValue(null);
+
+    await expect(service.resolveChapterAccess(null, 99, 1)).rejects.toMatchObject({
+      bizCode: 3001,
+      status: 404,
     });
   });
 
-  it('已购返回正文', async () => {
+  it('游客可看免费课程的任意章节', async () => {
     const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(FREE_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(PAID_CHAPTER);
+
+    await expect(service.resolveChapterAccess(null, 1, 2)).resolves.toEqual({
+      chapter: PAID_CHAPTER,
+      access: 'free',
+    });
+  });
+
+  it('游客可看付费课程的免费章节', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PAID_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(FREE_CHAPTER);
+
+    await expect(service.resolveChapterAccess(null, 1, 1)).resolves.toEqual({
+      chapter: FREE_CHAPTER,
+      access: 'free',
+    });
+  });
+
+  it('游客看付费章节抛 2001/401，不泄露章节是否存在', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PAID_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(PAID_CHAPTER);
+
+    await expect(service.resolveChapterAccess(null, 1, 2)).rejects.toMatchObject({
+      bizCode: 2001,
+      status: 401,
+      message: '请先登录',
+    });
+  });
+
+  it('登录未购看付费章节抛 3002/403', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PAID_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(PAID_CHAPTER);
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(false);
+
+    await expect(service.resolveChapterAccess(9, 1, 2)).rejects.toMatchObject({
+      bizCode: 3002,
+      status: 403,
+      message: '请先购买课程',
+    });
+  });
+
+  it('已购用户看付费章节返回 paid，下架课程也放行', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      ...PAID_COURSE,
+      status: 'unpublished',
+    });
+    prisma.chapter.findFirst.mockResolvedValue(PAID_CHAPTER);
     jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+
+    await expect(service.resolveChapterAccess(9, 1, 2)).resolves.toEqual({
+      chapter: PAID_CHAPTER,
+      access: 'paid',
+    });
+  });
+
+  it('已购用户章节不存在抛 3001/404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PAID_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(null);
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+
+    await expect(service.resolveChapterAccess(9, 1, 99)).rejects.toMatchObject({
+      bizCode: 3001,
+      status: 404,
+    });
+  });
+
+  it('免费开放条件满足但章节不存在抛 3001/404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(FREE_COURSE);
+    prisma.chapter.findFirst.mockResolvedValue(null);
+
+    await expect(service.resolveChapterAccess(null, 1, 99)).rejects.toMatchObject({
+      bizCode: 3001,
+      status: 404,
+    });
+  });
+
+  it('未发布付费课程对游客抛 2001/401', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      ...PAID_COURSE,
+      status: 'draft',
+    });
+    prisma.chapter.findFirst.mockResolvedValue(FREE_CHAPTER);
+
+    await expect(service.resolveChapterAccess(null, 1, 1)).rejects.toMatchObject({
+      bizCode: 2001,
+      status: 401,
+    });
+  });
+});
+
+describe('CourseService.getChapterContent', () => {
+  const PUBLISHED_PAID = { id: 1, status: 'published', saleCents: 9900 };
+
+  it('游客看付费章节抛 2001/401', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
+    prisma.chapter.findFirst.mockResolvedValue({
+      id: 2,
+      title: '第二章',
+      contentType: 'video',
+      content: 'videos/ch2.mp4',
+      sortOrder: 2,
+      isFree: false,
+    });
+
+    await expect(service.getChapterContent(null, 1, 2)).rejects.toMatchObject({
+      bizCode: 2001,
+      status: 401,
+    });
+  });
+
+  it('游客可读取免费章节正文', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
     prisma.chapter.findFirst.mockResolvedValue({
       id: 1,
       title: '第一章',
       contentType: 'video',
       content: 'videos/ch1.mp4',
       sortOrder: 1,
+      isFree: true,
     });
 
-    await expect(service.getChapterContent(1, 1, 1)).resolves.toEqual({
+    await expect(service.getChapterContent(null, 1, 1)).resolves.toEqual({
       id: 1,
       title: '第一章',
       contentType: 'video',
       content: 'https://signed/videos/ch1.mp4',
       sortOrder: 1,
     });
-    expect(prisma.chapter.findFirst).toHaveBeenCalledWith({
-      where: { id: 1, courseId: 1 },
+  });
+
+  it('登录未购看付费章节抛 3002/403', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
+    prisma.chapter.findFirst.mockResolvedValue({
+      id: 2,
+      title: '第二章',
+      contentType: 'video',
+      content: 'videos/ch2.mp4',
+      sortOrder: 2,
+      isFree: false,
+    });
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(false);
+
+    await expect(service.getChapterContent(9, 1, 2)).rejects.toMatchObject({
+      bizCode: 3002,
+      status: 403,
     });
   });
 
-  it('章节内容为存储 key 时返回签名地址', async () => {
+  it('已购返回签名正文', async () => {
     const { prisma, service } = setup();
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
     prisma.chapter.findFirst.mockResolvedValue({
-      id: 2,
-      title: '音频章',
-      contentType: 'audio',
-      content: 'audios/2026/11/ch1.mp3',
-      sortOrder: 2,
+      id: 1,
+      title: '第一章',
+      contentType: 'video',
+      content: 'videos/ch1.mp4',
+      sortOrder: 1,
+      isFree: false,
     });
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
 
-    await expect(service.getChapterContent(1, 1, 2)).resolves.toMatchObject({
-      content: 'https://signed/audios/2026/11/ch1.mp3',
+    await expect(service.getChapterContent(9, 1, 1)).resolves.toMatchObject({
+      content: 'https://signed/videos/ch1.mp4',
+    });
+    expect(prisma.course.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+      select: { id: true, status: true, saleCents: true },
     });
   });
 
   it('章节正文为空时返回 null', async () => {
     const { prisma, service } = setup();
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
     prisma.chapter.findFirst.mockResolvedValue({
       id: 3,
       title: '空章',
       contentType: 'video',
       content: null,
       sortOrder: 3,
+      isFree: true,
     });
 
-    await expect(service.getChapterContent(1, 1, 3)).resolves.toMatchObject({
+    await expect(service.getChapterContent(null, 1, 3)).resolves.toMatchObject({
       content: null,
     });
   });
 
   it('已购但章节不存在抛 3001/404', async () => {
     const { prisma, service } = setup();
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.course.findUnique.mockResolvedValue(PUBLISHED_PAID);
     prisma.chapter.findFirst.mockResolvedValue(null);
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
 
-    await expect(service.getChapterContent(1, 1, 99)).rejects.toMatchObject({
+    await expect(service.getChapterContent(9, 1, 99)).rejects.toMatchObject({
       bizCode: 3001,
       status: 404,
     });
@@ -413,20 +619,23 @@ describe('CourseService.getChapterContent', () => {
 
   it('下架课程已购仍可访问正文', async () => {
     const { prisma, service } = setup();
-    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
+    prisma.course.findUnique.mockResolvedValue({
+      ...PUBLISHED_PAID,
+      status: 'unpublished',
+    });
     prisma.chapter.findFirst.mockResolvedValue({
       id: 2,
       title: '第二章',
       contentType: 'video',
       content: 'videos/ch2.mp4',
       sortOrder: 2,
+      isFree: false,
     });
+    jest.spyOn(service, 'hasPaidAccess').mockResolvedValue(true);
 
-    await expect(service.getChapterContent(1, 1, 2)).resolves.toMatchObject({
+    await expect(service.getChapterContent(9, 1, 2)).resolves.toMatchObject({
       title: '第二章',
       content: 'https://signed/videos/ch2.mp4',
     });
-    // 不校验课程状态：下架不影响已购用户学习
-    expect(prisma.course.findFirst).not.toHaveBeenCalled();
   });
 });
