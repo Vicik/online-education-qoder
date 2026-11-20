@@ -181,6 +181,11 @@ export class OrderService {
       );
     }
 
+    // 免费课程无需下单：兜底直接调用下单入口
+    if (course.saleCents === 0) {
+      throw new BizException(ErrorCode.PARAM_INVALID, '免费课程无需购买', 422);
+    }
+
     // 券领取记录 id（未选券为 null）
     const couponClaimId = dto.couponClaimId ?? null;
     // 选券时执行完整可用性校验并取券额；未选券抵扣为 0

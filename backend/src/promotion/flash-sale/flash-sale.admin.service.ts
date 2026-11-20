@@ -80,7 +80,7 @@ export class FlashSaleAdminService {
     // 课程必须存在且已发布
     const course = await this.prisma.course.findUnique({
       where: { id: dto.courseId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, saleCents: true },
     });
     if (!course) {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
@@ -89,6 +89,14 @@ export class FlashSaleAdminService {
       throw new BizException(
         ErrorCode.PARAM_INVALID,
         '仅已发布课程可创建秒杀活动',
+        422,
+      );
+    }
+    // 免费课程退出营销链路
+    if (course.saleCents === 0) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '免费课程不可创建秒杀活动',
         422,
       );
     }

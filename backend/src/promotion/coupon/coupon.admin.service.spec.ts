@@ -101,6 +101,17 @@ describe('CouponAdminService.create', () => {
     expect(prisma.couponTemplate.create).not.toHaveBeenCalled();
   });
 
+  it('免费课程不可关联优惠券（422/1001）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findMany.mockResolvedValue([{ id: 1, saleCents: 0 }]);
+
+    await expect(service.create(CREATE)).rejects.toMatchObject({
+      bizCode: 1001,
+      status: 422,
+      message: '免费课程不可关联优惠券',
+    });
+  });
+
   it('默认停用；perUserLimit 强制为 1；关联课程与审计同事务写入', async () => {
     const { prisma, audit, service } = setup();
     prisma.course.findMany.mockResolvedValue([{ id: 1 }]);

@@ -75,6 +75,22 @@ describe('FlashSaleAdminService.create', () => {
     expect(prisma.flashSaleActivity.create).not.toHaveBeenCalled();
   });
 
+  it('免费课程不可创建秒杀（422/1001）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'published',
+      saleCents: 0,
+    });
+
+    await expect(service.create(CREATE)).rejects.toMatchObject({
+      bizCode: 1001,
+      status: 422,
+      message: '免费课程不可创建秒杀活动',
+    });
+    expect(prisma.flashSaleActivity.create).not.toHaveBeenCalled();
+  });
+
   it('结束时间不晚于开始时间拒绝（422）', async () => {
     const { prisma, service } = setup();
     prisma.course.findUnique.mockResolvedValue({ id: 1, status: 'published' });

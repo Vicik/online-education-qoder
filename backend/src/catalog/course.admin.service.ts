@@ -303,6 +303,42 @@ export class CourseAdminService {
       throw new BizException(ErrorCode.PARAM_INVALID, '售价不得高于原价', 400);
     }
 
+    // 付费课程改价为 0：必须没有券关联与未结束活动
+    if (saleCents === 0 && course.saleCents !== 0) {
+      // 三类营销关联数量：券、未结束拼团、未结束秒杀
+      const [couponLinks, groupons, flashSales] = await Promise.all([
+        this.prisma.couponTemplateCourse.count({ where: { courseId } }),
+        this.prisma.grouponActivity.count({
+          where: {
+            courseId,
+            status: { in: ['not_started', 'ongoing'] },
+          },
+        }),
+        this.prisma.flashSaleActivity.count({
+          where: {
+            courseId,
+            status: { in: ['not_started', 'ongoing'] },
+          },
+        }),
+      ]);
+      // 存在券关联：需先解除后再改价为 0
+      if (couponLinks > 0) {
+        throw new BizException(
+          ErrorCode.PARAM_INVALID,
+          '免费课程不可关联优惠券，请先解除关联',
+          422,
+        );
+      }
+      // 存在未结束活动：需先结束或取消
+      if (groupons + flashSales > 0) {
+        throw new BizException(
+          ErrorCode.PARAM_INVALID,
+          '该课程存在未结束的拼团/秒杀活动，请先结束或取消',
+          422,
+        );
+      }
+    }
+
     // 白名单取值
     const data = pickFields(
       dto,

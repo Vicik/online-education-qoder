@@ -21,6 +21,9 @@ function setup() {
     },
     chapter: { count: jest.fn() },
     order: { findMany: jest.fn() },
+    couponTemplateCourse: { count: jest.fn().mockResolvedValue(0) },
+    grouponActivity: { count: jest.fn().mockResolvedValue(0) },
+    flashSaleActivity: { count: jest.fn().mockResolvedValue(0) },
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const courses = { getDetail: jest.fn() };
@@ -349,6 +352,46 @@ describe('CourseAdminService.update（§3.3 状态矩阵）', () => {
         targetId: 1,
       }),
     );
+  });
+
+  it('草稿改价为 0 且无营销关联时允许保存', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(DRAFT);
+    prisma.course.updateMany.mockResolvedValue({ count: 1 });
+    prisma.course.findUniqueOrThrow.mockResolvedValue({ ...DRAFT, saleCents: 0 });
+
+    await expect(
+      service.update(1, { version: 3, originalCents: 19900, saleCents: 0 }),
+    ).resolves.toBeDefined();
+    expect(prisma.course.updateMany).toHaveBeenCalled();
+  });
+
+  it('改价为 0 且存在券关联时拒绝（422）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(DRAFT);
+    prisma.couponTemplateCourse.count.mockResolvedValue(1);
+
+    await expect(
+      service.update(1, { version: 3, saleCents: 0 }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: '免费课程不可关联优惠券，请先解除关联',
+    });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('改价为 0 且存在未结束活动时拒绝（422）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(DRAFT);
+    prisma.grouponActivity.count.mockResolvedValue(1);
+
+    await expect(
+      service.update(1, { version: 3, saleCents: 0 }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: '该课程存在未结束的拼团/秒杀活动，请先结束或取消',
+    });
+    expect(prisma.course.updateMany).not.toHaveBeenCalled();
   });
 });
 

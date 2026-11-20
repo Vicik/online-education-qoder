@@ -240,4 +240,15 @@ describe('PricingService.preview', () => {
       status: 404,
     });
   });
+
+  it('免费课程无需购买（422/1001）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...PUBLISHED_COURSE, saleCents: 0 });
+
+    await expect(service.preview(1, 1, {})).rejects.toMatchObject({
+      bizCode: 1001,
+      status: 422,
+      message: '免费课程无需购买',
+    });
+  });
 });

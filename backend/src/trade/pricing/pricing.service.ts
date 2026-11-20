@@ -86,6 +86,11 @@ export class PricingService {
       throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
     }
 
+    // 免费课程无需下单：直接拒绝预览
+    if (course.saleCents === 0) {
+      throw new BizException(ErrorCode.PARAM_INVALID, '免费课程无需购买', 422);
+    }
+
     // 活动类型默认普通购买
     const activityType = query.activityType ?? 'normal';
     // 由对应策略校验活动有效性并给出当前价

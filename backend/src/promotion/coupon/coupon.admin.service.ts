@@ -407,12 +407,20 @@ export class CouponAdminService {
     // 已发布课程
     const published = await this.prisma.course.findMany({
       where: { id: { in: ids }, status: 'published' },
-      select: { id: true },
+      select: { id: true, saleCents: true },
     });
     if (published.length !== ids.length) {
       throw new BizException(
         ErrorCode.PARAM_INVALID,
         '适用课程必须全部为已发布状态',
+        422,
+      );
+    }
+    // 免费课程不可关联优惠券
+    if (published.some((course) => course.saleCents === 0)) {
+      throw new BizException(
+        ErrorCode.PARAM_INVALID,
+        '免费课程不可关联优惠券',
         422,
       );
     }

@@ -258,6 +258,21 @@ describe('OrderService.createOrder（服务端定价与落库）', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it('免费课程不可下单（422/1001）', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({ ...COURSE, saleCents: 0 });
+
+    await expect(
+      service.createOrder(1, { courseId: 1 }, 'key-free-0001'),
+    ).rejects.toMatchObject({
+      bizCode: 1001,
+      status: 422,
+      message: '免费课程无需购买',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
   it('重复购买：purchaseKey 唯一冲突抛 409（code=4003）', async () => {
     const { prisma, service } = setup();
     prisma.course.findUnique.mockResolvedValue(COURSE);
