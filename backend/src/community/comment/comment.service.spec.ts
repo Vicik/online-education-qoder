@@ -35,8 +35,15 @@ function setup() {
       ) => fn(),
     ),
   };
-  // 存储替身：富文本图片重写 src
+  // 存储替身：头像 key 签名 + 富文本图片重写 src
   const storage = {
+    resolveUrl: jest.fn(async (value: string | null) =>
+      value === null
+        ? null
+        : /^https?:/i.test(value)
+          ? value
+          : `https://signed/${value}`,
+    ),
     resolveRichHtml: jest.fn(async (html: string) =>
       html.replace(/src="(zhixu\/[^"]+)"/g, 'src="https://signed/$1"'),
     ),
@@ -76,7 +83,7 @@ describe('CommentService.create', () => {
     );
     expect(prisma.comment.create).toHaveBeenCalledWith({
       data: { postId: 1, userId: 1, content: '<p>评论</p>', parentId: null },
-      include: { user: { select: { nickname: true } } },
+      include: { user: { select: { nickname: true, avatarUrl: true } } },
     });
   });
 
@@ -185,7 +192,7 @@ describe('CommentService.reply', () => {
         parentId: 5,
         replyToUserId: 1,
       },
-      include: { user: { select: { nickname: true } } },
+      include: { user: { select: { nickname: true, avatarUrl: true } } },
     });
   });
 
