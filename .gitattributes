@@ -1,0 +1,4 @@
+# Shell 脚本固定 LF 行尾：Windows 的 core.autocrlf 不得改写，否则 shebang 与脚本在 Linux 上失效
+*.sh text eol=lf
+# 属性文件自身也固定 LF，避免模式行被 CRLF 污染
+.gitattributes text eol=lf
