@@ -239,7 +239,7 @@ components:
         coverUrl: { type: string, nullable: true, description: key 返回公开 URL（PUBLIC_BASE_URL + /uploadFiles/ + key），历史 http(s) 原样返回 }
         instructor: { type: string, nullable: true }
         originalCents: { type: integer }
-        saleCents: { type: integer }
+        saleCents: { type: integer, description: 售价（分）；为 0 即免费课程，全部章节公开且不可下单/参与拼团、秒杀、优惠券 }
         status: { type: string, enum: [draft, published, unpublished], description: 用户端仅返回 published }
         chapterCount: { type: integer, description: 仅管理端返回 }
         enrollmentCount: { type: integer, description: 仅管理端返回 }
@@ -253,7 +253,8 @@ components:
         title: { type: string }
         contentType: { type: string, enum: [video, audio] }
         sortOrder: { type: integer }
-        visited: { type: boolean, description: 是否已播放完成；仅已登录已购用户返回 }
+        isFree: { type: boolean, description: 免费试看章节；免费课程下所有章节均可看 }
+        visited: { type: boolean, description: 是否已播放完成；仅登录用户返回 }
         content: { type: string, nullable: true, description: 媒体 key；仅管理端详情返回，用于编辑回填 }
     CourseDetail:
       allOf:
@@ -266,7 +267,7 @@ components:
             chapters:
               type: array
               items: { $ref: '#/components/schemas/ChapterBrief' }
-              description: 未购买仅名称；正文需另行请求章节内容接口
+              description: 免费章节/免费课程对所有人开放；付费章节需登录且已购买才能读取正文
             groupon: { $ref: '#/components/schemas/GrouponActivityBrief' }
             flashSale: { $ref: '#/components/schemas/FlashSaleActivityBrief' }
             claimableCoupons:
@@ -274,7 +275,7 @@ components:
               items: { $ref: '#/components/schemas/CouponTemplateBrief' }
     ChapterContent:
       type: object
-      description: 需已购买（未购 403）
+      description: 免费章节与免费课程公开返回；付费章节需登录且已购买（游客 401，未购 403）
       properties:
         id: { type: integer }
         title: { type: string }
@@ -314,11 +315,13 @@ components:
         title: { type: string, minLength: 1, maxLength: 60 }
         contentType: { type: string, enum: [video, audio], description: 须与课程类型一致 }
         content: { type: string, minLength: 1, description: 必填；video/audio=媒体上传接口返回的 key }
+        isFree: { type: boolean, description: 免费试看；默认 false }
     ChapterUpdateRequest:
       type: object
       properties:
         title: { type: string, minLength: 1, maxLength: 60, description: 传入时不可为空 }
         content: { type: string, minLength: 1, description: 传入时不可为空；不传表示保持原正文 }
+        isFree: { type: boolean, description: 传入即设置是否免费试看；不传表示保持不变 }
     ChapterReorderRequest:
       type: object
       required: [orderedChapterIds]
@@ -986,7 +989,8 @@ paths:
   /courses/{courseId}/chapters/{cid}/content:
     get:
       tags: [catalog]
-      summary: 章节正文（需已购买；未购 403，仅返回章节名）
+      summary: 章节正文（免费章节/免费课程公开；付费章节需登录且已购买）
+      security: []
       parameters:
         - { $ref: '#/components/parameters/courseId' }
         - { $ref: '#/components/parameters/chapterId' }
@@ -1456,7 +1460,7 @@ paths:
         '403': { $ref: '#/components/responses/Err403' }
     post:
       tags: [coupons]
-      summary: 创建优惠券模板（默认不启用）
+      summary: 创建优惠券模板（默认不启用；免费课程不可关联）
       requestBody:
         required: true
         content:
@@ -1468,7 +1472,7 @@ paths:
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '422':
-          description: 适用课程含未发布课程
+          description: 适用课程含未发布课程或包含免费课程
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
@@ -1763,7 +1767,7 @@ paths:
         '403': { $ref: '#/components/responses/Err403' }
     post:
       tags: [groupons]
-      summary: 创建拼团活动（仅已发布课程；同课程活动时间不得重叠）
+      summary: 创建拼团活动（仅已发布课程；同课程活动时间不得重叠；免费课程不可创建）
       parameters:
         - { $ref: '#/components/headers/IdempotencyKey' }
       requestBody:
@@ -1777,7 +1781,7 @@ paths:
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '422':
-          description: 课程未发布/时间重叠/结束不晚于开始
+          description: 课程未发布/为免费课程/时间重叠/结束不晚于开始
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
@@ -1882,7 +1886,7 @@ paths:
         '403': { $ref: '#/components/responses/Err403' }
     post:
       tags: [flash-sales]
-      summary: 创建秒杀活动（仅已发布课程）
+      summary: 创建秒杀活动（仅已发布课程；免费课程不可创建）
       parameters:
         - { $ref: '#/components/headers/IdempotencyKey' }
       requestBody:
@@ -1896,7 +1900,7 @@ paths:
         '401': { $ref: '#/components/responses/Err401' }
         '403': { $ref: '#/components/responses/Err403' }
         '422':
-          description: 课程未发布/同课程活动时间重叠
+          description: 课程未发布/为免费课程/同课程活动时间重叠
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }

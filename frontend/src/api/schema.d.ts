@@ -498,7 +498,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 章节正文（需已购买；未购 403，仅返回章节名） */
+        /** 章节正文（免费章节/免费课程公开；付费章节需登录且已购买） */
         get: {
             parameters: {
                 query?: never;
@@ -795,6 +795,44 @@ export interface paths {
                 403: components["responses"]["Err403"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/promotion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 首页宣传位课程列表（按宣传位序号升序，最多 5 门；须先于 {courseId} 路由匹配） */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: [CourseBrief] */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1558,7 +1596,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** 创建优惠券模板（默认不启用） */
+        /** 创建优惠券模板（默认不启用；免费课程不可关联） */
         post: {
             parameters: {
                 query?: never;
@@ -1576,7 +1614,7 @@ export interface paths {
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
-                /** @description 适用课程含未发布课程 */
+                /** @description 适用课程含未发布课程或包含免费课程 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -2291,7 +2329,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** 创建拼团活动（仅已发布课程；同课程活动时间不得重叠） */
+        /** 创建拼团活动（仅已发布课程；同课程活动时间不得重叠；免费课程不可创建） */
         post: {
             parameters: {
                 query?: never;
@@ -2309,7 +2347,7 @@ export interface paths {
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
-                /** @description 课程未发布/时间重叠/结束不晚于开始 */
+                /** @description 课程未发布/为免费课程/时间重叠/结束不晚于开始 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -2573,7 +2611,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** 创建秒杀活动（仅已发布课程） */
+        /** 创建秒杀活动（仅已发布课程；免费课程不可创建） */
         post: {
             parameters: {
                 query?: never;
@@ -2591,7 +2629,7 @@ export interface paths {
                 400: components["responses"]["Err400"];
                 401: components["responses"]["Err401"];
                 403: components["responses"]["Err403"];
-                /** @description 课程未发布/同课程活动时间重叠 */
+                /** @description 课程未发布/为免费课程/同课程活动时间重叠 */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -4417,6 +4455,7 @@ export interface components {
             coverUrl?: string | null;
             instructor?: string | null;
             originalCents?: number;
+            /** @description 售价（分）；为 0 即免费课程，全部章节公开且不可下单/参与拼团、秒杀、优惠券 */
             saleCents?: number;
             /**
              * @description 用户端仅返回 published
@@ -4440,7 +4479,9 @@ export interface components {
             /** @enum {string} */
             contentType?: "video" | "audio";
             sortOrder?: number;
-            /** @description 是否已播放完成；仅已登录已购用户返回 */
+            /** @description 免费试看章节；免费课程下所有章节均可看 */
+            isFree?: boolean;
+            /** @description 是否已播放完成；仅登录用户返回 */
             visited?: boolean;
             /** @description 媒体 key；仅管理端详情返回，用于编辑回填 */
             content?: string | null;
@@ -4451,13 +4492,13 @@ export interface components {
             intro?: string | null;
             /** @description 服务端净化后的富文本；图片 src 已重写为公开 URL，data-key 保留 */
             detailRich?: string | null;
-            /** @description 未购买仅名称；正文需另行请求章节内容接口 */
+            /** @description 免费章节/免费课程对所有人开放；付费章节需登录且已购买才能读取正文 */
             chapters?: components["schemas"]["ChapterBrief"][];
             groupon?: components["schemas"]["GrouponActivityBrief"];
             flashSale?: components["schemas"]["FlashSaleActivityBrief"];
             claimableCoupons?: components["schemas"]["CouponTemplateBrief"][];
         };
-        /** @description 需已购买（未购 403） */
+        /** @description 免费章节与免费课程公开返回；付费章节需登录且已购买（游客 401，未购 403） */
         ChapterContent: {
             id?: number;
             title?: string;
@@ -4507,12 +4548,16 @@ export interface components {
             contentType: "video" | "audio";
             /** @description 必填；video/audio=媒体上传接口返回的 key */
             content: string;
+            /** @description 免费试看；默认 false */
+            isFree?: boolean;
         };
         ChapterUpdateRequest: {
             /** @description 传入时不可为空 */
             title?: string;
             /** @description 传入时不可为空；不传表示保持原正文 */
             content?: string;
+            /** @description 传入即设置是否免费试看；不传表示保持不变 */
+            isFree?: boolean;
         };
         ChapterReorderRequest: {
             /** @description 全部章节 id 的新顺序；保存后从 1 连续编号 */
@@ -4528,6 +4573,10 @@ export interface components {
             /** @enum {string} */
             status?: "draft" | "published" | "unpublished";
             version?: number;
+            /** @description 仅设为宣传/取消宣传操作返回 */
+            isPromoted?: boolean;
+            /** @description 仅设为宣传/取消宣传操作返回 */
+            promotionOrder?: number;
         };
         StudyRecord: {
             courseId?: number;
