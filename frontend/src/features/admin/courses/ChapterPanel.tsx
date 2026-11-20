@@ -9,6 +9,8 @@ import {
   List,
   Modal,
   Space,
+  Switch,
+  Tag,
   Typography,
 } from 'antd';
 import { useMutation } from '@tanstack/react-query';
@@ -31,8 +33,12 @@ import { useIdempotentMutation } from '@/hooks/useIdempotentMutation';
 
 // 章节弹窗表单值
 interface ChapterFormValues {
+  // 章节标题
   title: string;
+  // 正文媒体 key
   content: string;
+  // 是否免费试看
+  isFree: boolean;
 }
 
 // 课程类型到章节类型文案
@@ -126,16 +132,17 @@ export function ChapterPanel(props: {
   // 打开新增弹窗：表单实例跨弹窗复用，需显式清空上次输入
   function openCreate() {
     setEditing(null);
-    form.setFieldsValue({ title: '', content: '' });
+    form.setFieldsValue({ title: '', content: '', isFree: false });
     setOpen(true);
   }
 
-  // 打开编辑弹窗：标题与正文都回填，正文沿用已保存的媒体 key
+  // 打开编辑弹窗：标题、正文与试看开关都回填，正文沿用已保存的媒体 key
   function openEdit(chapter: AdminChapter) {
     setEditing(chapter);
     form.setFieldsValue({
       title: chapter.title ?? '',
       content: chapter.content ?? '',
+      isFree: chapter.isFree ?? false,
     });
     setOpen(true);
   }
@@ -151,8 +158,12 @@ export function ChapterPanel(props: {
     const content = values.content.trim();
     try {
       if (editing) {
-        // 编辑载荷：正文始终提交，未更换时即原 key
-        const input: ChapterUpdateInput = { title, content };
+        // 编辑载荷：正文始终提交，未更换时即原 key；isFree 传入即设置
+        const input: ChapterUpdateInput = {
+          title,
+          content,
+          isFree: values.isFree,
+        };
         await updateMutation.mutateAsync({ chapterId: editing.id ?? 0, input });
         return;
       }
@@ -161,6 +172,7 @@ export function ChapterPanel(props: {
         title,
         contentType: courseType,
         content,
+        isFree: values.isFree,
       };
       await addMutation.mutateAsync(input);
     } catch (error) {
@@ -199,6 +211,14 @@ export function ChapterPanel(props: {
           新增章节
         </Button>
       )}
+      {course.saleCents === 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message="免费课程：全部章节对所有人开放，试看标记不影响权限"
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <List
         dataSource={chapters}
         locale={{ emptyText: '还没有章节' }}
@@ -207,6 +227,11 @@ export function ChapterPanel(props: {
             <Space direction="vertical" style={{ width: '100%' }}>
               <Typography.Text strong>
                 {chapter.sortOrder}. {chapter.title}
+                {chapter.isFree === true && (
+                  <Tag color="blue" style={{ marginLeft: 8 }}>
+                    试看
+                  </Tag>
+                )}
               </Typography.Text>
               <Typography.Text type="secondary">
                 内容类型：{CONTENT_TYPE_LABEL[chapter.contentType ?? courseType]}
@@ -277,7 +302,11 @@ export function ChapterPanel(props: {
           key={editing ? `edit-${editing.id}` : 'create'}
           form={form}
           layout="vertical"
-          initialValues={{ title: editing?.title ?? '', content: editing?.content ?? '' }}
+          initialValues={{
+            title: editing?.title ?? '',
+            content: editing?.content ?? '',
+            isFree: editing?.isFree ?? false,
+          }}
         >
           <Form.Item
             name="title"
@@ -303,6 +332,14 @@ export function ChapterPanel(props: {
             }
           >
             <MediaUploader kind={courseType} />
+          </Form.Item>
+          <Form.Item
+            name="isFree"
+            label="免费试看"
+            valuePropName="checked"
+            extra="已发布付费课程的该章节对所有人开放；免费课程下全部章节本就开放"
+          >
+            <Switch aria-label="免费试看" />
           </Form.Item>
         </Form>
       </Modal>

@@ -92,6 +92,8 @@ export function BasicInfoForm(props: {
   const { modal, message } = AntdApp.useApp();
   // 表单实例
   const [form] = Form.useForm<BasicFormValues>();
+  // 当前售价：用于免费课程提示
+  const saleCents = Form.useWatch('saleCents', form);
   // 当前可编辑字段
   const fields = editableFields(course);
 
@@ -202,6 +204,11 @@ export function BasicInfoForm(props: {
               },
             }),
           ]}
+          extra={
+            saleCents === 0
+              ? '免费课程：全部章节公开，不可参与拼团/秒杀/优惠券'
+              : undefined
+          }
         >
           <MoneyInput disabled={!fields.saleCents} placeholder="售价（元）" />
         </Form.Item>

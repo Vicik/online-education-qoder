@@ -32,8 +32,8 @@ function courseDetail(overrides: Record<string, unknown> = {}) {
     intro: '课程简介',
     detailRich: null,
     chapters: [
-      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, content: 'video/2026/11/12/keep.mp4' },
-      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, content: 'video/2026/11/12/keep2.mp4' },
+      { id: 1, title: '第一章', contentType: 'video', sortOrder: 1, content: 'video/2026/11/12/keep.mp4', isFree: false },
+      { id: 2, title: '第二章', contentType: 'video', sortOrder: 2, content: 'video/2026/11/12/keep2.mp4', isFree: false },
     ],
     groupon: null,
     flashSale: null,
@@ -158,6 +158,7 @@ describe('CourseWorkspacePage', () => {
         title: '第三章',
         contentType: 'video',
         content: 'video/2026/11/12/new.mp4',
+        isFree: false,
       }),
     );
     expect(chapterKey).not.toBeNull();
@@ -222,8 +223,93 @@ describe('CourseWorkspacePage', () => {
       expect(updateBody).toEqual({
         title: '第一章改名',
         content: 'video/2026/11/12/keep.mp4',
+        isFree: false,
       }),
     );
+  }, 30_000);
+
+  it('新增章节可勾选免费试看并提交 isFree', async () => {
+    let chapterBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get(detailUrl, () => HttpResponse.json(envelope(courseDetail()))),
+      http.post(/\/api\/v1\/admin\/courses\/1\/chapters$/, async ({ request }) => {
+        chapterBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          envelope({ id: 3, title: '试看章节', contentType: 'video', sortOrder: 3, isFree: true }),
+          { status: 201 },
+        );
+      }),
+      http.post(/\/api\/v1\/admin\/files\/video$/, () =>
+        HttpResponse.json(
+          envelope({
+            key: 'video/2026/11/12/trial.mp4',
+            url: 'https://cdn.test/trial.mp4',
+            mimeType: 'video/mp4',
+            size: 4,
+          }),
+          { status: 201 },
+        ),
+      ),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
+    await userEvent.type(screen.getByLabelText('章节标题'), '试看章节');
+    await userEvent.click(screen.getByRole('switch', { name: '免费试看' }));
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['video'], 'trial.mp4', { type: 'video/mp4' }));
+    await screen.findByRole('button', { name: '更换视频' });
+    await userEvent.click(screen.getByRole('button', { name: '确定' }));
+
+    await waitFor(() => expect(chapterBody).toMatchObject({ isFree: true }));
+  }, 30_000);
+
+  it('编辑章节回填免费试看开关', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json(
+          envelope(
+            courseDetail({
+              chapters: [
+                {
+                  id: 1,
+                  title: '第一章',
+                  contentType: 'video',
+                  sortOrder: 1,
+                  content: 'video/2026/11/12/keep.mp4',
+                  isFree: true,
+                },
+              ],
+            }),
+          ),
+        ),
+      ),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+    await userEvent.click(await screen.findByText('章节维护'));
+    expect(await screen.findByText('试看')).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: '编辑' })[0]);
+    expect(await screen.findByRole('switch', { name: '免费试看' })).toBeChecked();
+  }, 30_000);
+
+  it('免费课程展示章节与售价提示', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json(envelope(courseDetail({ saleCents: 0 }))),
+      ),
+    );
+
+    renderWithProviders(routes, '/admin/courses/1');
+
+    expect(
+      await screen.findByText('免费课程：全部章节公开，不可参与拼团/秒杀/优惠券'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByText('章节维护'));
+    expect(
+      await screen.findByText('免费课程：全部章节对所有人开放，试看标记不影响权限'),
+    ).toBeInTheDocument();
   }, 30_000);
 
   it('取消新增后再次打开，标题与媒体为空', async () => {
