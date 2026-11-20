@@ -65,4 +65,63 @@ describe('router guards', () => {
     expect(await screen.findByRole('heading', { name: '学习概览' })).toBeInTheDocument();
     expect(screen.getByText('我的帖子')).toBeInTheDocument();
   });
+
+  it('游客可访问学习页，不被重定向到登录', async () => {
+    server.use(
+      http.get(/\/api\/v1\/courses\/1$/, () =>
+        HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: {
+            id: 1,
+            name: 'TypeScript 系统入门',
+            type: 'audio',
+            saleCents: 9900,
+            status: 'published',
+            chapters: [
+              { id: 1, title: '第一章 类型基础', contentType: 'audio', sortOrder: 1, isFree: true },
+            ],
+            claimableCoupons: [],
+          },
+          requestId: 'r-router-learning',
+        }),
+      ),
+      http.get(/\/api\/v1\/home\/recommendations$/, () =>
+        HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: { courses: [] },
+          requestId: 'r-router-rec',
+        }),
+      ),
+      http.get(/\/api\/v1\/courses\/1\/chapters\/1\/content$/, () =>
+        HttpResponse.json({
+          code: 0,
+          message: 'ok',
+          data: {
+            id: 1,
+            title: '第一章 类型基础',
+            contentType: 'audio',
+            content: 'https://cdn.test/a.mp3',
+            sortOrder: 1,
+          },
+          requestId: 'r-router-content',
+        }),
+      ),
+    );
+
+    renderAt('/learning/1', null);
+    expect(
+      await screen.findByText('正在学习：第一章 类型基础', undefined, {
+        timeout: 5000,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('管理员访问学习页仍跳管理端工作台', async () => {
+    renderAt('/learning/1', { role: 'admin' } as SessionUser);
+    expect(
+      await screen.findByRole('heading', { name: '工作台' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
 });

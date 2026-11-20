@@ -31,7 +31,7 @@ export const ROUTES: RouteMeta[] = [
   { path: '/checkout/:courseId', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/CheckoutPage') },
   { path: '/order/:id/pay', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/OrderPayPage') },
   { path: '/order/:id/result', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/checkout/OrderResultPage') },
-  { path: '/learning/:courseId', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/learning/LearningPage') },
+  { path: '/learning/:courseId', layout: 'user', requiresAuth: false, lazy: () => import('@/features/learning/LearningPage') },
   { path: '/exams', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/exam/ExamListPage') },
   { path: '/exams/:id', layout: 'user', requiresAuth: true, roles: ['user'], lazy: () => import('@/features/exam/ExamDetailPage') },
   // 用户中心

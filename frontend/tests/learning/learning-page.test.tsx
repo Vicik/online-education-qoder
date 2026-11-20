@@ -13,7 +13,7 @@ function envelope<T>(data: T) {
   return { code: 0, message: 'ok', data, requestId: 'r-learn' };
 }
 
-function courseDetail() {
+function courseDetail(overrides: Record<string, unknown> = {}) {
   return {
     id: 1,
     name: 'TypeScript 系统入门',
@@ -27,29 +27,62 @@ function courseDetail() {
     intro: '从零掌握类型系统',
     detailRich: null,
     chapters: [
-      { id: 11, title: '第一章 类型系统', contentType: 'audio', sortOrder: 1, visited: false },
-      { id: 12, title: '第二章 泛型', contentType: 'audio', sortOrder: 2, visited: false },
+      { id: 11, title: '第一章 类型系统', contentType: 'audio', sortOrder: 1, visited: false, isFree: false },
+      { id: 12, title: '第二章 泛型', contentType: 'audio', sortOrder: 2, visited: false, isFree: false },
     ],
     groupon: null,
     flashSale: null,
     claimableCoupons: [],
+    ...overrides,
   };
 }
 
 function mockLearning(options?: {
   contentStatus?: number;
   visit?: { progressPercent: number; completed: boolean };
+  purchased?: boolean;
+  detail?: Record<string, unknown>;
 }) {
   const visits: string[] = [];
+  const contentRequests: string[] = [];
+  const orders =
+    options?.purchased === false
+      ? []
+      : [
+          {
+            id: 7,
+            orderNo: 'ZX202611100007',
+            courseId: 1,
+            courseName: 'TypeScript 系统入门',
+            activityType: 'normal',
+            activityId: null,
+            originalCents: 19900,
+            currentCents: 9900,
+            discountCents: 0,
+            paidCents: 9900,
+            couponClaimId: null,
+            status: 'paid',
+            paidAt: '2026-11-10T02:00:00.000Z',
+            createdAt: '2026-11-10T01:59:00.000Z',
+          },
+        ];
   server.use(
-    http.get(/\/api\/v1\/courses\/1$/, () => HttpResponse.json(envelope(courseDetail()))),
+    http.get(/\/api\/v1\/courses\/1$/, () =>
+      HttpResponse.json(envelope(courseDetail(options?.detail))),
+    ),
     http.get(/\/api\/v1\/home\/recommendations$/, () =>
       HttpResponse.json(envelope({ courses: [] })),
+    ),
+    http.get(/\/api\/v1\/user\/orders$/, () =>
+      HttpResponse.json(
+        envelope({ items: orders, total: orders.length, page: 1, pageSize: 100 }),
+      ),
     ),
     http.get(/\/api\/v1\/user\/study-records$/, () =>
       HttpResponse.json(envelope({ items: [], total: 0, page: 1, pageSize: 20 })),
     ),
     http.get(/\/api\/v1\/courses\/1\/chapters\/(\d+)\/content$/, ({ params }) => {
+      contentRequests.push(String(params[0]));
       if (options?.contentStatus === 403) {
         return HttpResponse.json(
           { code: 3002, message: '请先购买课程', data: null, requestId: 'r-403' },
@@ -74,7 +107,7 @@ function mockLearning(options?: {
       );
     }),
   );
-  return { visits };
+  return { visits, contentRequests };
 }
 
 function mockRecords(items: Array<Record<string, unknown>>) {
@@ -144,8 +177,8 @@ describe('LearningPage', () => {
     await waitFor(() => expect(visits).toEqual(['12']));
   });
 
-  it('未购买显示购买后才可学习', async () => {
-    mockLearning({ contentStatus: 403 });
+  it('登录未购显示购买引导且不请求锁定章节正文', async () => {
+    const { contentRequests } = mockLearning({ purchased: false });
     const { router } = renderWithProviders(
       [
         { path: '/learning/:courseId', element: <LearningPage /> },
@@ -156,13 +189,110 @@ describe('LearningPage', () => {
 
     expect(await screen.findByText('购买后可学习')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '查看课程详情' })).toBeInTheDocument();
+    expect(contentRequests).toEqual([]);
 
     await userEvent.click(screen.getByRole('button', { name: '去购买' }));
     expect(router.state.location.pathname).toBe('/checkout/1');
   });
 
+  it('游客可播放免费试看章节且播放结束不上报', async () => {
+    useSessionStore.getState().clear();
+    const { visits } = mockLearning({
+      purchased: false,
+      detail: {
+        chapters: [
+          { id: 11, title: '第一章 类型系统', contentType: 'audio', sortOrder: 1, isFree: true },
+          { id: 12, title: '第二章 泛型', contentType: 'audio', sortOrder: 2, isFree: false },
+        ],
+      },
+    });
+
+    renderWithProviders(
+      [{ path: '/learning/:courseId', element: <LearningPage /> }],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    finishAudio();
+    expect(visits).toEqual([]);
+  });
+
+  it('游客点击锁定章节展示登录引导且不请求正文', async () => {
+    useSessionStore.getState().clear();
+    const { contentRequests } = mockLearning({ purchased: false });
+    const { router } = renderWithProviders(
+      [
+        { path: '/learning/:courseId', element: <LearningPage /> },
+        { path: '/courses/:id', element: <div>course-detail</div> },
+        { path: '/login', element: <div>login-page</div> },
+      ],
+      '/learning/1?chapterId=12',
+    );
+
+    expect(await screen.findByText('登录后可学习')).toBeInTheDocument();
+    expect(contentRequests).toEqual([]);
+
+    await userEvent.click(screen.getByRole('button', { name: '去登录' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toContain(
+      encodeURIComponent('/learning/1?chapterId=12'),
+    );
+  });
+
+  it('登录未购可播放试看章节并上报', async () => {
+    const { visits } = mockLearning({
+      purchased: false,
+      detail: {
+        chapters: [
+          { id: 11, title: '第一章 类型系统', contentType: 'audio', sortOrder: 1, isFree: true },
+          { id: 12, title: '第二章 泛型', contentType: 'audio', sortOrder: 2, isFree: false },
+        ],
+      },
+    });
+
+    renderWithProviders(
+      [{ path: '/learning/:courseId', element: <LearningPage /> }],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    finishAudio();
+    await waitFor(() => expect(visits).toEqual(['11']));
+  });
+
+  it('登录未购且课程有秒杀时购买引导进入秒杀详情', async () => {
+    mockLearning({
+      purchased: false,
+      detail: {
+        flashSale: {
+          id: 5,
+          courseId: 1,
+          courseName: 'TypeScript 系统入门',
+          name: '限时秒杀',
+          priceCents: 5900,
+          stock: 10,
+          sold: 0,
+          startAt: '2026-11-01T00:00:00.000Z',
+          endAt: '2099-12-01T00:00:00.000Z',
+          status: 'ongoing',
+        },
+      },
+    });
+    const { router } = renderWithProviders(
+      [
+        { path: '/learning/:courseId', element: <LearningPage /> },
+        { path: '/flash-sales/:id', element: <div>flash-sale-detail</div> },
+      ],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('购买后可学习')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '去购买' }));
+    expect(router.state.location.pathname).toBe('/flash-sales/5');
+  });
+
   it('未购买空态可返回课程详情', async () => {
-    mockLearning({ contentStatus: 403 });
+    mockLearning({ purchased: false });
     const { router } = renderWithProviders(
       [
         { path: '/learning/:courseId', element: <LearningPage /> },
@@ -171,9 +301,7 @@ describe('LearningPage', () => {
       '/learning/1',
     );
 
-    expect(
-      await screen.findByText('购买后可学习', undefined, { timeout: 5000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('购买后可学习')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '查看课程详情' }));
     expect(router.state.location.pathname).toBe('/courses/1');

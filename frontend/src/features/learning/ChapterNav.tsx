@@ -1,11 +1,14 @@
+import { LockOutlined } from '@ant-design/icons';
 import { List, Tag } from 'antd';
 import type { ChapterBrief } from '@/api/types';
 
-// 章节导航：点击切换，已访问章节标「已学」
+// 章节导航：点击切换，展示试看/锁定/已学状态
 export function ChapterNav({
   chapters,
   activeChapterId,
   visitedChapterIds,
+  courseFree = false,
+  purchased = false,
   onSelect,
 }: {
   // 章节目录（不含正文）
@@ -14,6 +17,10 @@ export function ChapterNav({
   activeChapterId: number | null;
   // 本次会话已上报访问的章节
   visitedChapterIds: Set<number>;
+  // 是否免费课程：全部章节开放
+  courseFree?: boolean;
+  // 是否已购：全部章节开放
+  purchased?: boolean;
   // 选择章节回调
   onSelect: (chapterId: number) => void;
 }) {
@@ -25,6 +32,10 @@ export function ChapterNav({
         const visited =
           chapter.visited === true ||
           (chapter.id !== undefined && visitedChapterIds.has(chapter.id));
+        // 是否试看章节
+        const isTrial = courseFree || chapter.isFree === true;
+        // 是否开放
+        const open = isTrial || purchased;
         return (
           <List.Item
             style={{
@@ -41,7 +52,15 @@ export function ChapterNav({
               <span>
                 {index + 1}. {chapter.title}
               </span>
-              {visited && <Tag color="green">已学</Tag>}
+              <span>
+                {isTrial && <Tag color="blue">试看</Tag>}
+                {!open && (
+                  <Tag icon={<LockOutlined />} color="default">
+                    购买后学习
+                  </Tag>
+                )}
+                {visited && <Tag color="green">已学</Tag>}
+              </span>
             </div>
           </List.Item>
         );
