@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CourseDetailPage from '@/features/catalog/CourseDetailPage';
 import { useSessionStore } from '@/stores/session';
@@ -147,6 +147,8 @@ describe('CourseDetailPage', () => {
   });
 
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 
@@ -353,6 +355,23 @@ describe('CourseDetailPage', () => {
     await userEvent.click(screen.getByText(/第一章 类型系统/));
     await waitFor(() => expect(router.state.location.pathname).toBe('/learning/1'));
     expect(router.state.location.search).toBe('?chapterId=11');
+  });
+
+  it('游客点击锁定章节跳转购买页', async () => {
+    mockDetail();
+    const { router } = renderWithProviders(
+      [
+        { path: '/courses/:id', element: <CourseDetailPage /> },
+        { path: '/checkout/:courseId', element: <div>checkout-page</div> },
+      ],
+      '/courses/1',
+    );
+
+    await userEvent.click(await screen.findByRole('tab', { name: '章节目录' }));
+    expect(await screen.findByText('购买后学习')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/第二章 泛型/));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/checkout/1'));
   });
 
   it('免费课程展示立即学习且隐藏领券入口', async () => {

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import OverviewPage from '@/features/user-center/OverviewPage';
 import OrdersPage from '@/features/user-center/OrdersPage';
 import { useSessionStore } from '@/stores/session';
@@ -25,6 +25,8 @@ describe('user center', () => {
   });
 
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 

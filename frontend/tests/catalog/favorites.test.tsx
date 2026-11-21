@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FavoritesPage from '@/features/user-center/FavoritesPage';
 import { useSessionStore } from '@/stores/session';
@@ -41,6 +41,8 @@ describe('FavoritesPage', () => {
   });
 
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 
@@ -73,7 +75,8 @@ describe('FavoritesPage', () => {
     );
 
     expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '取消收藏' }));
+    // 改版后入口为「删除」，二次确认后调用取消收藏接口
+    await userEvent.click(screen.getByRole('button', { name: '删除' }));
     await userEvent.click(await screen.findByRole('button', { name: /确\s*定/ }));
 
     await waitFor(() => expect(deleted).toBe(1));

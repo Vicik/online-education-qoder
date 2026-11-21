@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { queryKeys } from '@/api/query-keys';
 import OrderPayPage from '@/features/checkout/OrderPayPage';
 import OrderResultPage from '@/features/checkout/OrderResultPage';
@@ -46,6 +46,8 @@ describe('OrderPayPage', () => {
   });
 
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 

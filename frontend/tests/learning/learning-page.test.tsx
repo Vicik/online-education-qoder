@@ -1,5 +1,11 @@
 import { http, HttpResponse } from 'msw';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { queryKeys } from '@/api/query-keys';
@@ -44,6 +50,7 @@ function mockLearning(options?: {
   detail?: Record<string, unknown>;
 }) {
   const visits: string[] = [];
+  const enters: string[] = [];
   const contentRequests: string[] = [];
   const orders =
     options?.purchased === false
@@ -106,8 +113,14 @@ function mockLearning(options?: {
         envelope(options?.visit ?? { progressPercent: 50, completed: false }),
       );
     }),
+    http.post(/\/api\/v1\/learning\/1\/visit$/, () => {
+      enters.push('1');
+      return HttpResponse.json(
+        envelope({ progressPercent: 0, completed: false }),
+      );
+    }),
   );
-  return { visits, contentRequests };
+  return { visits, enters, contentRequests };
 }
 
 function mockRecords(items: Array<Record<string, unknown>>) {
@@ -143,6 +156,8 @@ describe('LearningPage', () => {
   });
 
   afterEach(() => {
+    // 先卸载再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 
@@ -159,6 +174,48 @@ describe('LearningPage', () => {
 
     finishAudio();
     await waitFor(() => expect(visits).toEqual(['11']));
+  });
+
+  it('登录用户进入免费课程上报课程访问一次', async () => {
+    const { visits, enters } = mockLearning({
+      purchased: false,
+      detail: { saleCents: 0 },
+    });
+    renderWithProviders(
+      [{ path: '/learning/:courseId', element: <LearningPage /> }],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    await waitFor(() => expect(enters).toEqual(['1']));
+    // 进入课程只记录课程访问，不产生章节访问
+    expect(visits).toEqual([]);
+  });
+
+  it('游客进入免费课程不上报课程访问', async () => {
+    useSessionStore.getState().clear();
+    const { enters } = mockLearning({
+      purchased: false,
+      detail: { saleCents: 0 },
+    });
+    renderWithProviders(
+      [{ path: '/learning/:courseId', element: <LearningPage /> }],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    expect(enters).toEqual([]);
+  });
+
+  it('登录用户进入付费课程不上报课程访问', async () => {
+    const { enters } = mockLearning();
+    renderWithProviders(
+      [{ path: '/learning/:courseId', element: <LearningPage /> }],
+      '/learning/1',
+    );
+
+    expect(await screen.findByText('正在学习：第一章 类型系统')).toBeInTheDocument();
+    expect(enters).toEqual([]);
   });
 
   it('切换章节重新请求正文，播放结束上报新章节', async () => {

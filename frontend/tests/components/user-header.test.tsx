@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { UserHeader } from '@/components/layout/UserHeader';
 import { useSessionStore } from '@/stores/session';
@@ -6,6 +6,8 @@ import { useSessionStore } from '@/stores/session';
 // 顶部导航：游客登录入口
 describe('UserHeader', () => {
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 

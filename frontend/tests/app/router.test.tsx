@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 import { createAppRoutes } from '@/app/router';
@@ -22,7 +22,11 @@ function renderAt(path: string, user: SessionUser | null) {
 }
 
 describe('router guards', () => {
-  afterEach(() => useSessionStore.setState({ user: null }));
+  afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
+    useSessionStore.setState({ user: null });
+  });
 
   it('游客访问结算页跳到登录页', async () => {
     renderAt('/checkout/1', null);

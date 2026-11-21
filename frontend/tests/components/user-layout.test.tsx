@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import UserLayout from '@/components/layout/UserLayout';
 import { useSessionStore } from '@/stores/session';
 import { renderWithProviders } from '../utils/render';
@@ -29,7 +29,11 @@ const routes = [
 ];
 
 describe('UserLayout', () => {
-  afterEach(() => useSessionStore.setState({ user: null }));
+  afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
+    useSessionStore.setState({ user: null });
+  });
 
   it('管理员课程预览隐藏主导航但保留品牌与头像', () => {
     useSessionStore.setState({ user: ADMIN });

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExamDetailPage from '@/features/exam/ExamDetailPage';
 import ExamListPage from '@/features/exam/ExamListPage';
@@ -56,7 +56,11 @@ beforeEach(() => {
     ),
   );
 });
-afterEach(() => useSessionStore.setState({ user: null }));
+afterEach(() => {
+  // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+  cleanup();
+  useSessionStore.setState({ user: null });
+});
 
 describe('ExamListPage', () => {
   it('展示考试关键信息与参加入口', async () => {

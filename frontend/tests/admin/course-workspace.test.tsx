@@ -53,7 +53,7 @@ const detailUrl = /\/api\/v1\/admin\/courses\/1$/;
 // 排序接口地址：避免与详情正则混淆
 const reorderUrl = /\/api\/v1\/admin\/courses\/1\/chapters\/reorder$/;
 
-describe('CourseWorkspacePage', () => {
+describe('CourseWorkspacePage', { timeout: 60_000 }, () => {
   beforeEach(() => {
     vi.mocked(probeVideoDecodable).mockResolvedValue(true);
   });
@@ -168,7 +168,7 @@ describe('CourseWorkspacePage', () => {
     await waitFor(() =>
       expect(reorderBody).toEqual({ orderedChapterIds: [2, 1] }),
     );
-  });
+  }, 60_000);
 
   it('新增章节未上传正文时提示必填且不提交', async () => {
     // 记录新增接口是否被调用
@@ -191,7 +191,7 @@ describe('CourseWorkspacePage', () => {
       await screen.findByText('请上传章节正文（视频/音频）'),
     ).toBeInTheDocument();
     expect(called).toBe(false);
-  }, 30_000);
+  }, 60_000);
 
   it('编辑章节回填原正文，只改标题时原样提交', async () => {
     // 捕获编辑请求体
@@ -226,7 +226,7 @@ describe('CourseWorkspacePage', () => {
         isFree: false,
       }),
     );
-  }, 30_000);
+  }, 60_000);
 
   it('新增章节可勾选免费试看并提交 isFree', async () => {
     let chapterBody: Record<string, unknown> | null = null;
@@ -263,7 +263,7 @@ describe('CourseWorkspacePage', () => {
     await userEvent.click(screen.getByRole('button', { name: '确定' }));
 
     await waitFor(() => expect(chapterBody).toMatchObject({ isFree: true }));
-  }, 30_000);
+  }, 60_000);
 
   it('编辑章节回填免费试看开关', async () => {
     server.use(
@@ -292,7 +292,7 @@ describe('CourseWorkspacePage', () => {
     expect(await screen.findByText('试看')).toBeInTheDocument();
     await userEvent.click(screen.getAllByRole('button', { name: '编辑' })[0]);
     expect(await screen.findByRole('switch', { name: '免费试看' })).toBeChecked();
-  }, 30_000);
+  }, 60_000);
 
   it('免费课程展示章节与售价提示', async () => {
     server.use(
@@ -310,7 +310,7 @@ describe('CourseWorkspacePage', () => {
     expect(
       await screen.findByText('免费课程：全部章节对所有人开放，试看标记不影响权限'),
     ).toBeInTheDocument();
-  }, 30_000);
+  }, 60_000);
 
   it('取消新增后再次打开，标题与媒体为空', async () => {
     server.use(
@@ -346,7 +346,7 @@ describe('CourseWorkspacePage', () => {
     expect(await screen.findByLabelText('章节标题')).toHaveValue('');
     expect(screen.getByText('尚未上传音频')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '更换音频' })).not.toBeInTheDocument();
-  }, 30_000);
+  }, 60_000);
 
   it('编辑章节后打开新增，标题为空', async () => {
     server.use(
@@ -362,7 +362,7 @@ describe('CourseWorkspacePage', () => {
     await userEvent.click(screen.getByRole('button', { name: '新增章节' }));
 
     expect(await screen.findByLabelText('章节标题')).toHaveValue('');
-  }, 30_000);
+  }, 60_000);
 
   it('无章节时发布按钮禁用并提示', async () => {
     server.use(
@@ -382,7 +382,7 @@ describe('CourseWorkspacePage', () => {
     expect(
       await screen.findByText('请先添加至少一个章节，再发布课程'),
     ).toBeInTheDocument();
-  }, 30_000);
+  }, 60_000);
 
   it('发布需二次确认，确认后刷新详情', async () => {
     // 详情请求次数

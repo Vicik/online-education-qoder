@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StudyRecordsPage from '@/features/user-center/StudyRecordsPage';
 import { useSessionStore } from '@/stores/session';
@@ -25,10 +25,12 @@ describe('StudyRecordsPage', () => {
   });
 
   afterEach(() => {
+    // 先卸载组件再清空登录态，避免已挂载组件在 act 外更新
+    cleanup();
     useSessionStore.getState().clear();
   });
 
-  it('展示进度与最近章节，继续学习带 chapterId', async () => {
+  it('展示进度条与课程卡片，继续观看带 chapterId', async () => {
     server.use(
       http.get(/\/api\/v1\/user\/study-records$/, () =>
         HttpResponse.json(
@@ -63,11 +65,13 @@ describe('StudyRecordsPage', () => {
     );
 
     expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
-    expect(screen.getByText('已学完')).toBeInTheDocument();
-    expect(screen.getByText('第二章 泛型')).toBeInTheDocument();
-    expect(screen.getByText(/100%/)).toBeInTheDocument();
+    // 改版后仅用进度条表达百分比，不展示数字、已学完标记与最近章节
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    );
 
-    await userEvent.click(screen.getByRole('button', { name: '继续学习' }));
+    await userEvent.click(screen.getByRole('button', { name: '继续观看' }));
     expect(router.state.location.pathname).toBe('/learning/1');
     expect(router.state.location.search).toBe('?chapterId=12');
   });
@@ -86,7 +90,7 @@ describe('StudyRecordsPage', () => {
     expect(await screen.findByText('暂无学习记录')).toBeInTheDocument();
   });
 
-  it('未学完且无最近章节展示学习中与破折号，继续学习不带 chapterId', async () => {
+  it('未学完且无最近章节展示对应进度，继续观看不带 chapterId', async () => {
     server.use(
       http.get(/\/api\/v1\/user\/study-records$/, () =>
         HttpResponse.json(
@@ -121,11 +125,14 @@ describe('StudyRecordsPage', () => {
     );
 
     expect(await screen.findByText('TypeScript 系统入门')).toBeInTheDocument();
-    expect(screen.getByText('学习中')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument();
-    expect(screen.getByText(/30%/)).toBeInTheDocument();
+    // 改版后无状态标记与最近章节，进度仅由进度条数值表达
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '30',
+    );
+    expect(screen.queryByText('学习中')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: '继续学习' }));
+    await userEvent.click(screen.getByRole('button', { name: '继续观看' }));
     expect(router.state.location.pathname).toBe('/learning/1');
     expect(router.state.location.search).toBe('');
   });

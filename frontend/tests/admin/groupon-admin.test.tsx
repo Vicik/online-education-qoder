@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import dayjs from 'dayjs';
 import { http, HttpResponse } from 'msw';
 import GrouponListPage from '@/features/admin/groupons/GrouponListPage';
 import { server } from '../msw/server';
@@ -146,8 +147,11 @@ describe('GrouponListPage', () => {
       });
       fireEvent.change(screen.getByLabelText('成团人数'), { target: { value: '5' } });
       fireEvent.blur(screen.getByLabelText('成团人数'));
-      typeDateTime('开始时间', '2026-11-20 10:00:00');
-      typeDateTime('结束时间', '2026-11-27 10:00:00');
+      // 动态未来时间：避免硬编码日期过期后被 DatePicker 拦截
+      const startAt = dayjs().add(1, 'day').startOf('hour');
+      const endAt = startAt.add(7, 'day');
+      typeDateTime('开始时间', startAt.format('YYYY-MM-DD HH:mm:ss'));
+      typeDateTime('结束时间', endAt.format('YYYY-MM-DD HH:mm:ss'));
 
       await clickButton('创建');
       await clickButton('确认创建');
@@ -158,8 +162,8 @@ describe('GrouponListPage', () => {
         name: '五人团',
         priceCents: 8800,
         targetSize: 5,
-        startAt: '2026-11-20T02:00:00.000Z',
-        endAt: '2026-11-27T02:00:00.000Z',
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
       });
 
       // 再次创建：上次填写与选择的课程、时间应全部清空，仅保留默认成团人数

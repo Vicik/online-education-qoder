@@ -16,7 +16,7 @@ describe('CourseChapterList', () => {
     expect(screen.queryByText('购买后学习')).not.toBeInTheDocument();
   });
 
-  it('可交互模式点击章节回调 id，锁定章节展示购买提示', async () => {
+  it('可交互模式点击章节回调 id 与锁定标记，锁定章节展示购买提示', async () => {
     const onSelect = vi.fn();
     render(
       <CourseChapterList
@@ -27,8 +27,10 @@ describe('CourseChapterList', () => {
     );
 
     expect(screen.getByText('购买后学习')).toBeInTheDocument();
+    await userEvent.click(screen.getByText(/第一章 类型系统/));
+    expect(onSelect).toHaveBeenCalledWith(1, false);
     await userEvent.click(screen.getByText(/第二章 泛型/));
-    expect(onSelect).toHaveBeenCalledWith(2);
+    expect(onSelect).toHaveBeenCalledWith(2, true);
   });
 
   it('已购用户不展示锁定态', () => {
