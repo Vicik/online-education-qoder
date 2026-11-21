@@ -102,6 +102,8 @@
 @media (max-width: 900px) {
   .learning-body {
     flex-direction: column;
+    /* 纵向堆叠时撑满整行，避免主卡按内容收缩 */
+    align-items: stretch;
   }
   .learning-side {
     flex-basis: auto;

@@ -163,6 +163,8 @@
 @media (max-width: 960px) {
   .community-page {
     flex-direction: column;
+    /* 纵向堆叠时撑满整行，避免帖子流按内容收缩 */
+    align-items: stretch;
   }
 
   .community-side {

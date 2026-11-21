@@ -160,6 +160,10 @@
   .course-detail-body {
     flex-direction: column;
   }
+  /* 纵向堆叠时撑满整行，避免主卡按内容收缩 */
+  .course-detail-body {
+    align-items: stretch;
+  }
   .course-detail-cover {
     flex-basis: auto;
     width: 100%;
