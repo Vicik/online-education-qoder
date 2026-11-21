@@ -21,8 +21,8 @@ export function CourseChapterList({
   purchased?: boolean;
   // 访问判定是否就绪：登录用户等待订单查询，避免锁定态闪烁
   accessReady?: boolean;
-  // 章节点击回调；缺省表示只读（活动详情、管理端预览）
-  onSelect?: (chapterId: number) => void;
+  // 章节点击回调：第二个参数标识是否需购买后学习；缺省表示只读（活动详情、管理端预览）
+  onSelect?: (chapterId: number, locked: boolean) => void;
 }) {
   if (chapters.length === 0) {
     return <EmptyState description="课程章节准备中" />;
@@ -46,7 +46,8 @@ export function CourseChapterList({
             style={{ cursor: interactive ? 'pointer' : undefined }}
             onClick={() => {
               if (!interactive || !accessReady || chapter.id === undefined) return;
-              onSelect(chapter.id);
+              // 锁定态下由调用方决定去购买还是去学习
+              onSelect(chapter.id, !open);
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>

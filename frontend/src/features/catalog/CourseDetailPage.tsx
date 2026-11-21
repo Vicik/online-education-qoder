@@ -235,8 +235,13 @@ export default function CourseDetailPage() {
                     courseFree={isFree}
                     purchased={purchased}
                     accessReady={!user || Boolean(ordersQuery.isFetched)}
-                    onSelect={(chapterId) =>
-                      navigate(`/learning/${detailId}?chapterId=${chapterId}`)
+                    onSelect={(chapterId, locked) =>
+                      // 锁定章节直接去购买页；可学习章节进入学习页
+                      navigate(
+                        locked
+                          ? `/checkout/${detailId}`
+                          : `/learning/${detailId}?chapterId=${chapterId}`,
+                      )
                     }
                   />
                 ),

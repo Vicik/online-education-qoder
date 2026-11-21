@@ -31,6 +31,14 @@ export function recordChapterVisit(
   });
 }
 
+// 记录课程访问：免费课程进入学习页生成 0% 学习记录，不计章节进度
+export function recordCourseVisit(courseId: number): Promise<LearningProgress> {
+  return request<LearningProgress>({
+    url: `/learning/${courseId}/visit`,
+    method: 'POST',
+  });
+}
+
 // 学习记录分页：按最近学习时间倒序
 export function listStudyRecords(
   page = 1,

@@ -1,6 +1,6 @@
 import { Button, Card, Progress, Space, Tabs, Tag, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { getCourseDetail, getRecommendations } from '@/api/catalog';
 import { ApiError, getErrorAction } from '@/api/errors';
@@ -8,6 +8,7 @@ import {
   getChapterContent,
   listStudyRecords,
   recordChapterVisit,
+  recordCourseVisit,
   type LearningProgress,
 } from '@/api/learning';
 import { queryKeys } from '@/api/query-keys';
@@ -174,6 +175,24 @@ export default function LearningPage() {
       reportedChapterRef.current.delete(chapterId);
     },
   });
+
+  // 上报课程访问：登录用户进入免费课程生成 0% 学习记录
+  const { mutate: reportCourseVisit } = useMutation({
+    mutationFn: () => recordCourseVisit(courseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.studyRecordsRoot });
+    },
+  });
+  // 已上报课程访问的课程 id：同一课程只上报一次
+  const enteredCourseRef = useRef<number | null>(null);
+
+  // 进入免费课程：课程与登录态就绪后上报一次；付费课程学习记录由已购订单承载
+  useEffect(() => {
+    if (!user || !courseQuery.data || !courseFree) return;
+    if (enteredCourseRef.current === courseId) return;
+    enteredCourseRef.current = courseId;
+    reportCourseVisit();
+  }, [user, courseQuery.data, courseFree, courseId, reportCourseVisit]);
 
   // 播放结束：仅登录且章节开放时上报；游客与锁定章节不上报
   function handleMediaEnded() {
