@@ -55,7 +55,7 @@
 | D3 | 游客可看范围 | 已发布免费课程的任意章节；已发布付费课程的免费章节 |
 | D4 | 付费章节错误语义 | 游客 401/2001；登录未购 3002/403（保持现状） |
 | D5 | 访问判定位置 | 集中在 `CourseService.resolveChapterAccess`，正文与学习上报共用 |
-| D6 | 学习记录 | 登录用户通过访问判定即可上报；付费课程试看也会进入学习记录，进度分母为全部章节 |
+| D6 | 学习记录 | 登录用户通过访问判定即可上报；付费课程试看也会进入学习记录，进度分母为全部章节；登录用户进入免费课程即生成 0% 学习记录（课程访问表，不计章节进度） |
 | D7 | 课程详情 visited | 对所有登录用户返回（有记录才显示） |
 | D8 | 交易限制 | 免费课程结算预览/下单 1001/422「免费课程无需购买」 |
 | D9 | 营销限制 | 免费课程禁止拼团/秒杀/优惠券；售价改为 0 时若存在券关联或未结束活动则拒绝保存 |
@@ -147,6 +147,8 @@ async resolveChapterAccess(
 - `recordVisit` 用 `resolveChapterAccess(userId, courseId, chapterId)` 替代 `hasPaidAccess` + 单独章节查询；未通过时由该方法抛出 401/3002。
 - 进度与「是否学完」逻辑不变：分母为课程全部章节。
 - 学习记录分页保持「已购 ∪ 有记录」；试看记录自然进入列表，无需过滤未购课程。
+- 新增课程访问上报 `recordCourseVisit`（`POST /learning/{courseId}/visit`）：登录用户进入免费课程学习页时上报，写入 `course_visits`（userId+courseId 复合主键，重复进入仅刷新 visitedAt）；仅已发布的免费课程（`saleCents === 0`）或已购课程允许，否则 3002/403。
+- 课程访问只让课程以 0% 进度进入学习记录，不写 `learning_records`、不计章节进度；`getStudyRecords` 的来源扩展为「已购 ∪ 章节访问 ∪ 课程访问」。
 
 ### 6.4 课程详情
 
@@ -217,6 +219,7 @@ async resolveChapterAccess(
   - 登录未购：「购买后可学习」+「去购买」（课程存在进行中秒杀 → `/flash-sales/{id}`；进行中拼团 → `/groupons/{id}`；否则 `/checkout/{courseId}`）+「查看课程详情」。
 - `ChapterNav`：新增锁定标记（锁形图标/Tag），已学标记保留；`visitedChapterIds` 仅登录用户。
 - 播放完成上报：仅 `user && chapterOpen(activeChapter)` 时调用；游客与锁定章节不调用。
+- 进入免费课程上报：登录用户进入免费课程学习页（`user && courseFree`）时调用一次 `POST /learning/{courseId}/visit`，生成 0% 学习记录并刷新学习记录缓存；游客与付费课程不调用（付费课程由订单自然进入学习记录）。
 - 学习记录/进度：直接使用服务端返回的 `progressPercent`/`completed`（试看用户分母为全部章节）。
 
 ### 7.4 管理端课程
@@ -247,6 +250,14 @@ GET content → 200（free）
 → 学习记录列表出现该课程与试看进度
 ```
 
+登录用户进入免费课程：
+
+```
+进入 /learning/:id（免费课程，user 存在）→ POST /learning/:id/visit（每次进入一次）
+→ course_visits 写入/刷新 → 学习记录出现该课程：0%、最近章节为空
+播放结束 → POST /learning/:id/chapters/:cid/visit → 写入 learningRecord，追加章节进度
+```
+
 付费章节：
 
 ```
@@ -268,6 +279,8 @@ GET content → 200（free）
 | 免费课程创建拼团/秒杀/关联券 | 1001/422，文案见 §6.6 |
 | 付费课程改价为 0 且存在券/未结束活动 | 422，提示先解除关联 |
 | 试看用户学习记录 | 出现在学习记录，进度分母为全部章节；已学完需看完全部章节 |
+| 登录用户进入免费课程 | 生成 0% 学习记录（不写章节记录）；重复进入仅刷新时间；播放章节后追加进度 |
+| 游客/未购用户调用课程访问上报 | 游客 401；付费未购课程 3002/403 |
 | 管理员访问 `/learning/:id` | 仍按角色隔离重定向 `/admin` |
 
 ## 10. 兼容性与风险
@@ -285,7 +298,7 @@ GET content → 200（free）
 后端单测：
 
 - `course.service.spec.ts`：访问矩阵（免费课程×游客/登录/已购、付费课程免费章节×三种身份、付费章节×三种身份、未发布课程、章节不存在、下架课程已购）；`getDetail` 的 `visited` 对所有登录用户返回、免费课程 `claimableCoupons` 为空。
-- `learning.service.spec.ts`：试看可上报、锁定时 401/3002、游客不可调用（控制器守卫）、进度分母不变。
+- `learning.service.spec.ts`：试看可上报、锁定时 401/3002、游客不可调用（控制器守卫）、进度分母不变；课程访问上报（免费课程 0%、已购可上报、未购 3002、课程不存在 3001、不写章节记录）；学习记录聚合（课程访问 0% 条目、与章节访问取较晚时间）。
 - `pricing.service.spec.ts` / `order.service.spec.ts`：免费课程预览与下单 422/1001。
 - `groupon.admin.service.spec.ts` / `flash-sale.admin.service.spec.ts` / `coupon.admin.service.spec.ts`：免费课程拒绝。
 - `course.admin.service.spec.ts`：改价为 0 的护栏（券关联、未结束活动）。
@@ -294,7 +307,7 @@ GET content → 200（free）
 后端集成（`backend/test/integration`）：
 
 - `catalog.spec.ts`：游客看免费章节 200、看付费章节 401；登录未购 200/3002；已购 200；章节 `isFree` 字段返回。
-- `learning.spec.ts`：试看上报成功并进入学习记录；锁定章节上报 3002。
+- `learning.spec.ts`：试看上报成功并进入学习记录；锁定章节上报 3002；登录用户进入免费课程生成幂等 0% 学习记录；付费未购课程访问上报 3002。
 - `admin-catalog.spec.ts`：章节创建/更新带 `isFree`；免费课程改价护栏。
 - `coupon.spec.ts` / `groupon.spec.ts` / `flash-sale.spec.ts`：免费课程拒绝用例。
 - `trade.spec.ts`：免费课程预览与下单 422。
@@ -302,7 +315,7 @@ GET content → 200（free）
 前端：
 
 - `CourseChapterList` 组件测试：试看 Tag、锁定标记、点击回调。
-- `LearningPage`（msw）：游客免费章节渲染播放器且不请求上报；游客锁定章节展示登录引导且不请求正文；登录未购展示购买引导；已购正常。
+- `LearningPage`（msw）：游客免费章节渲染播放器且不请求上报；游客锁定章节展示登录引导且不请求正文；登录未购展示购买引导；已购正常；登录用户进入免费课程上报一次课程访问，游客与付费课程不上报。
 - 路由测试：`/learning/:id` 对游客放行，管理员仍重定向。
 - `ChapterPanel` / `BasicInfoForm`：isFree 开关回填与提交、免费提示。
 - `npm run typecheck`、相关 vitest。
@@ -327,6 +340,6 @@ E2E（Playwright）：
 - 游客可直接观看已发布免费课程的任意章节与付费课程的免费章节（无需登录）。
 - 付费章节：游客得到登录引导；登录未购得到购买引导；已购（含拼团成团）可正常学习。
 - 免费课程全章节开放，详情页直接「立即学习」，无购买/优惠券入口，接口拒绝下单、拼团、秒杀、券关联。
-- 登录用户观看免费章节/免费课程可记录进度并出现在学习记录；游客不产生记录。
+- 登录用户观看免费章节/免费课程可记录进度并出现在学习记录；进入免费课程即生成 0% 学习记录（无需播放）；游客不产生记录。
 - 管理端可逐章设置/取消试看，免费课程有明确提示；改价护栏生效。
 - OpenAPI 与实现一致，生成类型无差异；后端单测/集成测试、前端 typecheck/测试、E2E 通过；文档与种子数据同步。
