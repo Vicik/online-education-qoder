@@ -577,6 +577,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/learning/{courseId}/visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 记录课程访问（免费课程进入学习页生成 0% 学习记录，不计章节进度） */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    courseId: components["parameters"]["courseId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description data: { progressPercent, completed }（章节访问口径的当前进度） */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"];
+                    };
+                };
+                401: components["responses"]["Err401"];
+                403: components["responses"]["Err403"];
+                404: components["responses"]["Err404"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/user/study-records": {
         parameters: {
             query?: never;
@@ -4596,7 +4637,7 @@ export interface components {
             completed?: boolean;
             /**
              * Format: date-time
-             * @description 最后学习时间；已购未观看为支付时间
+             * @description 最后学习时间；已购未观看为支付时间，进入免费课程为进入时间
              */
             lastVisitedAt?: string;
         };

@@ -219,4 +219,82 @@ describe('学习与收藏（CI 集成）', () => {
       await prisma.user.delete({ where: { id: user.id } });
     }
   });
+
+  it('登录用户进入免费课程生成 0% 学习记录', async () => {
+    // 直接创建免费课程与章节，避免依赖种子是否包含 0 元课程
+    const freeCourse = await prisma.course.create({
+      data: {
+        name: `免费 HTML ${Date.now()}`,
+        type: 'video',
+        coverUrl: 'cover/free-html.png',
+        instructor: '免费讲师',
+        originalCents: 0,
+        saleCents: 0,
+        status: 'published',
+        chapters: {
+          create: [{ title: '第一章', contentType: 'video', sortOrder: 1 }],
+        },
+      },
+    });
+    try {
+      // 重复进入：幂等，进度保持 0%
+      const first = await agent
+        .post(`/api/v1/learning/${freeCourse.id}/visit`)
+        .expect(200);
+      expect(first.body.data).toEqual({ progressPercent: 0, completed: false });
+      await agent.post(`/api/v1/learning/${freeCourse.id}/visit`).expect(200);
+
+      const records = await agent
+        .get('/api/v1/user/study-records')
+        .expect(200);
+      const matched = records.body.data.items.filter(
+        (item: { courseId: number }) => item.courseId === freeCourse.id,
+      );
+      expect(matched).toHaveLength(1);
+      expect(matched[0]).toMatchObject({
+        courseId: freeCourse.id,
+        visitedCount: 0,
+        lastChapterId: null,
+        lastChapterTitle: null,
+        progressPercent: 0,
+        completed: false,
+      });
+      // 进入课程不产生章节访问记录
+      const chapterRecords = await prisma.learningRecord.count({
+        where: { courseId: freeCourse.id },
+      });
+      expect(chapterRecords).toBe(0);
+    } finally {
+      await prisma.courseVisit.deleteMany({ where: { courseId: freeCourse.id } });
+      await prisma.chapter.deleteMany({ where: { courseId: freeCourse.id } });
+      await prisma.course.delete({ where: { id: freeCourse.id } });
+    }
+  });
+
+  it('付费未购课程记录课程访问返回 403（code=3002）', async () => {
+    // 独立创建付费课程，避免依赖前面的购买用例与测试顺序
+    const paidCourse = await prisma.course.create({
+      data: {
+        name: `付费课 ${Date.now()}`,
+        type: 'video',
+        coverUrl: 'cover/paid.png',
+        instructor: '付费讲师',
+        originalCents: 9900,
+        saleCents: 9900,
+        status: 'published',
+      },
+    });
+    try {
+      const res = await agent
+        .post(`/api/v1/learning/${paidCourse.id}/visit`)
+        .expect(403);
+      expect(res.body.code).toBe(3002);
+      const visits = await prisma.courseVisit.count({
+        where: { courseId: paidCourse.id },
+      });
+      expect(visits).toBe(0);
+    } finally {
+      await prisma.course.delete({ where: { id: paidCourse.id } });
+    }
+  });
 });

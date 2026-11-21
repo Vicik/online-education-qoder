@@ -361,7 +361,7 @@ components:
         lastChapterTitle: { type: string, nullable: true }
         progressPercent: { type: integer, description: 已访问章节数/总章节数 }
         completed: { type: boolean, description: 全部章节至少访问一次自动标记 }
-        lastVisitedAt: { type: string, format: date-time, description: 最后学习时间；已购未观看为支付时间 }
+        lastVisitedAt: { type: string, format: date-time, description: 最后学习时间；已购未观看为支付时间，进入免费课程为进入时间 }
     FavoriteCreateRequest:
       type: object
       required: [courseId]
@@ -1013,6 +1013,21 @@ paths:
       responses:
         '200':
           description: 'data: { progressPercent, completed }'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+  /learning/{courseId}/visit:
+    post:
+      tags: [catalog]
+      summary: 记录课程访问（免费课程进入学习页生成 0% 学习记录，不计章节进度）
+      parameters:
+        - { $ref: '#/components/parameters/courseId' }
+      responses:
+        '200':
+          description: 'data: { progressPercent, completed }（章节访问口径的当前进度）'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }

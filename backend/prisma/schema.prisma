@@ -134,6 +134,7 @@ model User {
   couponClaims    CouponClaim[]
   favorites       Favorite[]
   learningRecords LearningRecord[]
+  courseVisits    CourseVisit[]
   posts           Post[]
   comments        Comment[]
   postLikes       PostLike[]
@@ -170,6 +171,7 @@ model Course {
   flashSaleActivities FlashSaleActivity[]
   favorites          Favorite[]
   learningRecords    LearningRecord[]
+  courseVisits       CourseVisit[]
 
   @@index([status])
   @@map("courses")
@@ -513,6 +515,19 @@ model LearningRecord {
   @@id([userId, chapterId]) // 进度 = 已访问章节数 / 总章节数
   @@index([userId, courseId])
   @@map("learning_records")
+}
+
+// 课程访问：免费课程进入学习页生成 0% 学习记录，不计章节进度
+model CourseVisit {
+  userId    Int
+  courseId  Int
+  visitedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@id([userId, courseId])
+  @@map("course_visits")
 }
 
 model AuditLog {

@@ -45,6 +45,16 @@ export class LearningController {
   ) {
     return this.learning.recordVisit(user!.userId, courseId, chapterId);
   }
+
+  // 记录课程访问（登录；免费课程进入学习页生成 0% 学习记录）
+  @Post(':courseId/visit')
+  @HttpCode(200)
+  recordCourseVisit(
+    @CurrentUser() user: CurrentUserInfo | null,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return this.learning.recordCourseVisit(user!.userId, courseId);
+  }
 }
 
 // 用户学习记录控制器：学习记录与我的收藏

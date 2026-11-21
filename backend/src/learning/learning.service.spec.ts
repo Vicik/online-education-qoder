@@ -12,7 +12,9 @@ function setup() {
       groupBy: jest.fn(),
       findMany: jest.fn(),
     },
-    course: { findMany: jest.fn() },
+    // 课程访问：免费课程进入学习页的 0% 记录
+    courseVisit: { upsert: jest.fn(), groupBy: jest.fn().mockResolvedValue([]) },
+    course: { findUnique: jest.fn(), findMany: jest.fn() },
     // 已购课程聚合：默认无已支付订单
     order: { groupBy: jest.fn().mockResolvedValue([]) },
   };
@@ -21,6 +23,8 @@ function setup() {
       chapter: { id: 1 },
       access: 'paid',
     }),
+    // 付费课程权限判定：默认未购
+    hasPaidAccess: jest.fn().mockResolvedValue(false),
   };
   const service = new LearningService(
     prisma as unknown as PrismaService,
@@ -104,6 +108,91 @@ describe('LearningService.recordVisit', () => {
     });
     expect(courseService.resolveChapterAccess).toHaveBeenCalledWith(9, 1, 1);
     expect(prisma.learningRecord.upsert).toHaveBeenCalled();
+  });
+});
+
+describe('LearningService.recordCourseVisit', () => {
+  it('免费课程进入记录课程访问并返回 0% 进度', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      id: 3,
+      status: 'published',
+      saleCents: 0,
+    });
+    prisma.chapter.count.mockResolvedValue(2);
+    prisma.learningRecord.count.mockResolvedValue(0);
+    prisma.courseVisit.upsert.mockResolvedValue({});
+
+    await expect(service.recordCourseVisit(1, 3)).resolves.toEqual({
+      progressPercent: 0,
+      completed: false,
+    });
+    expect(prisma.courseVisit.upsert).toHaveBeenCalledWith({
+      where: { userId_courseId: { userId: 1, courseId: 3 } },
+      create: { userId: 1, courseId: 3 },
+      update: { visitedAt: expect.any(Date) },
+    });
+  });
+
+  it('课程访问不写入章节学习记录', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      id: 3,
+      status: 'published',
+      saleCents: 0,
+    });
+    prisma.chapter.count.mockResolvedValue(2);
+    prisma.learningRecord.count.mockResolvedValue(0);
+    prisma.courseVisit.upsert.mockResolvedValue({});
+
+    await service.recordCourseVisit(1, 3);
+
+    expect(prisma.learningRecord.upsert).not.toHaveBeenCalled();
+  });
+
+  it('课程不存在抛 3001/404', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue(null);
+
+    await expect(service.recordCourseVisit(1, 99)).rejects.toMatchObject({
+      bizCode: 3001,
+      status: 404,
+    });
+    expect(prisma.courseVisit.upsert).not.toHaveBeenCalled();
+  });
+
+  it('付费未购课程抛 3002/403', async () => {
+    const { prisma, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'published',
+      saleCents: 9900,
+    });
+
+    await expect(service.recordCourseVisit(1, 1)).rejects.toMatchObject({
+      bizCode: 3002,
+      status: 403,
+    });
+    expect(prisma.courseVisit.upsert).not.toHaveBeenCalled();
+  });
+
+  it('已购付费课程允许记录课程访问', async () => {
+    const { prisma, courseService, service } = setup();
+    prisma.course.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'published',
+      saleCents: 9900,
+    });
+    courseService.hasPaidAccess.mockResolvedValue(true);
+    prisma.chapter.count.mockResolvedValue(2);
+    prisma.learningRecord.count.mockResolvedValue(1);
+    prisma.courseVisit.upsert.mockResolvedValue({});
+
+    await expect(service.recordCourseVisit(1, 1)).resolves.toEqual({
+      progressPercent: 50,
+      completed: false,
+    });
+    expect(prisma.courseVisit.upsert).toHaveBeenCalled();
   });
 });
 
@@ -230,5 +319,73 @@ describe('LearningService.getStudyRecords', () => {
     expect(page.total).toBe(2);
     expect(page.items.map((item) => item.courseId)).toEqual([1, 2]);
     expect(page.items[1].lastVisitedAt).toEqual(paidAt);
+  });
+
+  it('免费课程进入记录纳入学习记录：0% 且最近章节为空', async () => {
+    const { prisma, service } = setup();
+    const enteredAt = new Date('2026-11-21T09:00:00Z');
+    prisma.courseVisit.groupBy.mockResolvedValue([
+      { courseId: 3, _max: { visitedAt: enteredAt } },
+    ]);
+    prisma.learningRecord.groupBy.mockResolvedValue([]);
+    prisma.course.findMany.mockResolvedValue([
+      { id: 3, name: '免费的HTML', type: 'video' },
+    ]);
+    prisma.chapter.groupBy.mockResolvedValue([
+      { courseId: 3, _count: { _all: 2 } },
+    ]);
+    prisma.learningRecord.findMany.mockResolvedValue([]);
+
+    const page = await service.getStudyRecords(1, { page: 1, pageSize: 20 });
+
+    expect(page.items).toEqual([
+      {
+        courseId: 3,
+        courseName: '免费的HTML',
+        type: 'video',
+        chapterCount: 2,
+        visitedCount: 0,
+        lastChapterId: null,
+        lastChapterTitle: null,
+        progressPercent: 0,
+        completed: false,
+        lastVisitedAt: enteredAt,
+      },
+    ]);
+  });
+
+  it('课程访问与章节访问并存时取较晚活跃时间', async () => {
+    const { prisma, service } = setup();
+    const chapterVisitedAt = new Date('2026-11-20T08:00:00Z');
+    const enteredAt = new Date('2026-11-21T09:00:00Z');
+    prisma.courseVisit.groupBy.mockResolvedValue([
+      { courseId: 3, _max: { visitedAt: enteredAt } },
+    ]);
+    prisma.learningRecord.groupBy.mockResolvedValue([
+      { courseId: 3, _max: { visitedAt: chapterVisitedAt }, _count: { _all: 1 } },
+    ]);
+    prisma.course.findMany.mockResolvedValue([
+      { id: 3, name: '免费的HTML', type: 'video' },
+    ]);
+    prisma.chapter.groupBy.mockResolvedValue([
+      { courseId: 3, _count: { _all: 2 } },
+    ]);
+    prisma.learningRecord.findMany.mockResolvedValue([
+      {
+        courseId: 3,
+        chapterId: 5,
+        visitedAt: chapterVisitedAt,
+        chapter: { title: '第一章' },
+      },
+    ]);
+
+    const page = await service.getStudyRecords(1, { page: 1, pageSize: 20 });
+
+    expect(page.items[0]).toMatchObject({
+      courseId: 3,
+      visitedCount: 1,
+      progressPercent: 50,
+      lastVisitedAt: enteredAt,
+    });
   });
 });

@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CourseService } from '../catalog/course.service';
+import { ErrorCode } from '../common/constants/error-codes';
 import { PageQuery } from '../common/dto/page-query.dto';
 import { PageResult } from '../common/dto/page-result';
+import { BizException } from '../common/exceptions/biz.exception';
 import { PrismaService } from '../prisma/prisma.service';
 
 // 章节访问结果：进度百分比与是否已学完
@@ -21,7 +23,7 @@ export interface StudyRecord {
   lastChapterTitle: string | null; // 最近学习章节标题
   progressPercent: number; // 学习进度百分比
   completed: boolean; // 是否已学完
-  lastVisitedAt: Date; // 最后学习时间（未观看的已购课程为支付时间）
+  lastVisitedAt: Date; // 最后学习时间（未观看的已购课程为支付时间，进入免费课程为进入时间）
 }
 
 // 学习服务：章节访问记录、学习进度与学习记录
@@ -63,6 +65,41 @@ export class LearningService {
     };
   }
 
+  // 记录课程访问：免费课程进入学习页生成 0% 学习记录，不计章节进度
+  async recordCourseVisit(
+    userId: number,
+    courseId: number,
+  ): Promise<VisitResult> {
+    // 课程基础信息：不存在时按 3001 抛出
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, status: true, saleCents: true },
+    });
+    if (!course) {
+      throw new BizException(ErrorCode.COURSE_NOT_FOUND, '课程不存在', 404);
+    }
+    // 开放条件：已发布免费课程，或用户已购付费课程
+    const freeOpen = course.status === 'published' && course.saleCents === 0;
+    if (!freeOpen && !(await this.courseService.hasPaidAccess(userId, courseId))) {
+      throw new BizException(ErrorCode.NOT_PURCHASED, '请先购买课程', 403);
+    }
+    // 幂等写入课程访问：重复进入只刷新时间
+    await this.prisma.courseVisit.upsert({
+      where: { userId_courseId: { userId, courseId } },
+      create: { userId, courseId },
+      update: { visitedAt: new Date() },
+    });
+    // 章节访问口径的当前进度（课程访问本身不改变进度）
+    const [total, visited] = await Promise.all([
+      this.prisma.chapter.count({ where: { courseId } }),
+      this.prisma.learningRecord.count({ where: { userId, courseId } }),
+    ]);
+    return {
+      progressPercent: total > 0 ? Math.round((visited / total) * 100) : 0,
+      completed: total > 0 && visited >= total,
+    };
+  }
+
   // 学习记录分页：已购课程 ∪ 已学习课程，按最近学习/购买时间倒序
   async getStudyRecords(
     userId: number,
@@ -72,7 +109,7 @@ export class LearningService {
     const pageNo = page.page ?? 1;
     const pageSize = page.pageSize ?? 20;
 
-    const [paidGroups, learningGroups] = await Promise.all([
+    const [paidGroups, learningGroups, courseVisitGroups] = await Promise.all([
       // 已购课程：已支付订单，拼团需已成团；取每门课最近支付时间
       this.prisma.order.groupBy({
         by: ['courseId'],
@@ -94,6 +131,12 @@ export class LearningService {
         where: { userId },
         _max: { visitedAt: true },
         _count: { _all: true },
+      }),
+      // 课程访问：免费课程进入学习页即生成 0% 学习记录
+      this.prisma.courseVisit.groupBy({
+        by: ['courseId'],
+        where: { userId },
+        _max: { visitedAt: true },
       }),
     ]);
 
@@ -119,6 +162,19 @@ export class LearningService {
       };
       entry.visitedAt = group._max.visitedAt;
       entry.visitedCount = group._count._all;
+      merged.set(group.courseId, entry);
+    }
+    // 最后合并课程访问：仅补充活跃时间，不增加已访问章节数；与章节访问并存时取较晚者
+    for (const group of courseVisitGroups) {
+      const entry = merged.get(group.courseId) ?? {
+        paidAt: null,
+        visitedAt: null,
+        visitedCount: 0,
+      };
+      const visitAt = group._max.visitedAt;
+      if (visitAt && (!entry.visitedAt || visitAt > entry.visitedAt)) {
+        entry.visitedAt = visitAt;
+      }
       merged.set(group.courseId, entry);
     }
 
